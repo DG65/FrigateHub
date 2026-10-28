@@ -372,7 +372,7 @@ check('Medium: gecacht, eigene Datei', [IPSTestState::$media[$mid]['cached'], IP
 check('Medium: Name/Position', [IPSTestState::$media[$mid]['name'], IPSTestState::$media[$mid]['pos']], ['Schnappschuss', 9]);
 $k->ReceiveData(paket('frigate/Door-Cam/car/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
 check('zweites Bild: dasselbe Medium', [count(IPSTestState::$media), base64_decode((string)IPSTestState::$media[$mid]['content'])], [1, $jpeg]);
-check('Bildstatus nennt Objekt', strpos(labels($k->form()['elements'])[array_key_first(array_filter(labels($k->form()['elements']), fn ($l) => strpos($l, '✅ Zuletzt: Schnappschuss') === 0))] ?? '', 'Schnappschuss Auto vom') !== false, true);
+check('Bildstatus nennt Objekt', strpos(labels($k->form()['elements'])[array_key_first(array_filter(labels($k->form()['elements']), fn ($l) => strpos($l, '✅ Zuletzt: Schnappschuss') === 0))] ?? '', 'Schnappschuss Auto (Ausschnitt) vom') !== false, true);
 $k->ReceiveData(paket('frigate/Door-Cam/dog/snapshot', 'kaputt'));
 check('kein JPEG → Medium unverändert', base64_decode((string)IPSTestState::$media[$mid]['content']), $jpeg);
 check('BildHolen ohne Adresse', strpos($k->BildHolen(), 'ℹ️') === 0, true);
@@ -439,8 +439,21 @@ check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '
 check('Pfade abgerufen (Livebild, weil noch kein Medium)', TestKamera::$abgerufen, ['/api/config', '/api/stats', '/api/Door-Cam/latest.jpg?h=720']);
 $hm = IPS_GetObjectIDByIdent('Schnappschuss', 5);
 check('Abgleich legt Medium mit Livebild an', base64_decode((string)(IPSTestState::$media[$hm]['content'] ?? '')), $livebild);
-// Ein Schnappschuss einer Erkennung darf der nächste Abgleich nicht mit dem Livebild überschreiben
+// MQTT-Schnappschuss mit Adresse: Vollbild über die API statt Ausschnitt
+$vollbild = "\xFF\xD8\xFF\xE0VOLL-1280x720\xFF\xD9";
+TestKamera::$api['/api/Door-Cam/person/snapshot.jpg'] = $vollbild;
+TestKamera::$abgerufen = [];
 $h->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
+check('Vollbild abgerufen', TestKamera::$abgerufen, ['/api/Door-Cam/person/snapshot.jpg']);
+check('Vollbild im Medium', base64_decode((string)IPSTestState::$media[$hm]['content']), $vollbild);
+check('Vollbild-Status ohne „Ausschnitt"', strpos($h->ReadAttributeString('Bildstatus'), 'Schnappschuss Person vom') === 0, true);
+// API liefert kein Bild → MQTT-Ausschnitt, sichtbar markiert
+TestKamera::$api['/api/Door-Cam/person/snapshot.jpg'] = '<html>404</html>';
+$h->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
+check('Rückfall auf Ausschnitt', base64_decode((string)IPSTestState::$media[$hm]['content']), $jpeg);
+check('Rückfall im Status', strpos($h->ReadAttributeString('Bildstatus'), '(Ausschnitt, Vollbild nicht erreichbar)') !== false, true);
+unset(TestKamera::$api['/api/Door-Cam/person/snapshot.jpg']);
+// Ein Schnappschuss einer Erkennung darf der nächste Abgleich nicht mit dem Livebild überschreiben
 TestKamera::$abgerufen = [];
 $h->ZustandAnfordern();
 check('Abgleich holt kein Livebild mehr', in_array('/api/Door-Cam/latest.jpg?h=720', TestKamera::$abgerufen, true), false);

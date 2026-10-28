@@ -166,12 +166,7 @@ class FrigateHubKamera extends IPSModule
                 break;
 
             case 'schnappschuss':
-                $bild = FrigateHubTopics::bildBytes($payload);
-                if ($bild === null) {
-                    $this->SendDebug('Kein JPEG', $topic . ' (' . strlen($payload) . ' Bytes)', 0);
-                    break;
-                }
-                $this->bildSetzen($bild, 'Schnappschuss ' . FrigateHubTopics::objektEinzahl($d['label']));
+                $this->schnappschussVerarbeiten($d['label'], $payload);
                 break;
 
             case 'events':
@@ -285,7 +280,7 @@ class FrigateHubKamera extends IPSModule
             [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖼️  Schnappschuss',
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das letzte Bild, das Frigate zu einer Erkennung schickt (per MQTT, Frigate: snapshots aktiviert). Mit Frigate-Adresse lässt sich auch das aktuelle Kamerabild holen.'],
+                    ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das Bild der letzten Erkennung (Frigate: snapshots aktiviert). Mit Frigate-Adresse kommt es in voller Größe, sonst als Ausschnitt per MQTT (Größe in Frigate unter mqtt: height/crop). Mit Adresse lässt sich auch das aktuelle Kamerabild holen.'],
                     ['type' => 'Label', 'name' => 'Bildstatus', 'caption' => $this->bildstatus()],
                     ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
@@ -454,6 +449,31 @@ class FrigateHubKamera extends IPSModule
             return null;
         }
         return (string)$antwort;
+    }
+
+    /**
+     * Per MQTT schickt Frigate nur einen Ausschnitt (Standard 270 px, zugeschnitten). Mit
+     * Frigate-Adresse wird stattdessen derselbe Schnappschuss in voller Größe geholt
+     * (/api/<kamera>/<objekt>/snapshot.jpg = bester Schnappschuss des jüngsten Objekts dieser
+     * Klasse, live 1280×720). Klappt das nicht, bleibt es beim MQTT-Bild.
+     */
+    private function schnappschussVerarbeiten(string $label, string $payload): void
+    {
+        $name = 'Schnappschuss ' . FrigateHubTopics::objektEinzahl($label);
+        if ($this->apiUrl() !== '') {
+            $voll = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/' . rawurlencode($label) . '/snapshot.jpg', 'image/jpeg');
+            if ($voll !== null && FrigateHubTopics::bildBytes($voll) !== null) {
+                $this->bildSetzen($voll, $name);
+                return;
+            }
+            $this->SendDebug('Vollbild', 'nicht geholt (' . ($voll === null ? $this->apiFehler : 'kein JPEG') . '), nehme MQTT-Ausschnitt', 0);
+        }
+        $bild = FrigateHubTopics::bildBytes($payload);
+        if ($bild === null) {
+            $this->SendDebug('Kein JPEG', $label . ' (' . strlen($payload) . ' Bytes)', 0);
+            return;
+        }
+        $this->bildSetzen($bild, $name . ($this->apiUrl() !== '' ? ' (Ausschnitt, Vollbild nicht erreichbar)' : ' (Ausschnitt)'));
     }
 
     /**

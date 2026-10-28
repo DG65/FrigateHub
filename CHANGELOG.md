@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (Build 5) — 28.10.2026
+
+- **Schnappschuss in voller Größe:** Mit Frigate-Adresse holt die Instanz bei jedem MQTT-Schnappschuss `/api/<kamera>/<objekt>/snapshot.jpg` (live 1280×720 statt 270×270). Ist die API nicht erreichbar, bleibt es beim MQTT-Ausschnitt, im Bildstatus als „(Ausschnitt …)" gekennzeichnet.
+
 ## 0.2.0 (Build 4) — 28.10.2026
 
 - **Medienobjekt „Schnappschuss"** (Ident `Schnappschuss`, Datei `media/FrigateHub_<InstanzID>.jpg`, gecacht): Frigates MQTT-Schnappschüsse (`frigate/<kamera>/<objekt>/snapshot`) landen darin. Symcons MQTT-Server reicht die JPEG-Bytes als UTF-8-Zeichen weiter; FrigateHub wandelt sie verlustfrei zurück.

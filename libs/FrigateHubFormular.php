@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.2.1' => [
+            '• Schnappschuss in voller Größe: Mit Frigate-Adresse holt die Instanz das Bild jeder Erkennung jetzt in Kameraauflösung statt des kleinen MQTT-Ausschnitts.',
+        ],
         '0.2.0' => [
             '• Neu: Medienobjekt „Schnappschuss" — zeigt das Bild, das Frigate zu jeder Erkennung schickt. Funktioniert per MQTT, auch ohne Frigate-Adresse.',
             '• Mit Frigate-Adresse holt der Knopf „Aktuelles Kamerabild holen" (FRIG_BildHolen) das Livebild. Beim ersten Abgleich entsteht das Medienobjekt gleich mit, damit du es sofort verlinken kannst.',

@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.2.0-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.2.1-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -31,10 +31,10 @@ daraus je Kamera:
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
-Per MQTT schickt Frigate zu einer Erkennung einen Bildausschnitt um das Objekt (Standard: 270 px
-hoch, zugeschnitten). Größe und Zuschnitt stellt man in Frigate je Kamera unter `mqtt:` ein
-(`height`, `crop`, `quality`, `bounding_box`, `timestamp`). Das volle Kamerabild liefert der Knopf
-„Aktuelles Kamerabild holen".
+Mit eingetragener Frigate-Adresse kommt der Schnappschuss jeder Erkennung in voller
+Kameraauflösung. Ohne Adresse nimmt FrigateHub das Bild, das Frigate per MQTT schickt: einen
+Ausschnitt um das Objekt (Standard: 270 px hoch). Größe und Zuschnitt stellt man in Frigate je Kamera
+unter `mqtt:` ein (`height`, `crop`, `quality`, `bounding_box`, `timestamp`).
 
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.
