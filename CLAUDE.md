@@ -26,6 +26,7 @@
   (0.1.1) über `/api/config` (`cameras.<cam>`: `motion.mask.<name>.enabled`, `objects.mask`, `zones`,
   `review.alerts/detections`, `objects.genai`, `review.genai`, `onvif.autotracking`) und `/api/stats`
   (`cameras.<cam>.camera_fps`). `notifications` kommt per MQTT nicht → auch nicht im Abgleich.
+  `/api/config` hinkt der MQTT-Bestätigung >2,5 s hinterher → Schonfrist 60 s je Schalter (Puffer `Frisch`).
 - Schnappschüsse kommen per MQTT (`…/<objekt>/snapshot`); Symcon reicht Binärdaten als Zeichen
   U+00XX in UTF-8 weiter → Bytes zurück mit `mb_convert_encoding($p, 'ISO-8859-1', 'UTF-8')`.
 

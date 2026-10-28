@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.1.1 (Build 2) — 28.10.2026
+## 0.1.1 (Build 3) — 28.10.2026
 
 - **HTTP-Abgleich:** neue Eigenschaft „Frigate-Adresse" (`ApiUrl`, z. B. `http://192.168.1.20:5000`). Kurz nach dem Übernehmen und nach jedem Symcon-Start liest die Instanz `/api/config` (Schalter, Masken, Zonen) und `/api/stats` (Kamera liefert Bilder) und setzt „Frigate erreichbar". Grund: Frigate schickt Schalterzustände per MQTT nur beim Verbinden, `frigate/onConnect` beantwortet es damit nicht, und Symcons MQTT-Server gibt gespeicherte Nachrichten nicht an neue Instanzen weiter (live geprüft).
+- Schonfrist 60 s: Frigates `/api/config` hinkt der MQTT-Bestätigung einige Sekunden hinterher (live: 2,5 s nach „an" noch „aus"). Ein gerade per MQTT bestätigter oder von Symcon geschalteter Schalter wird vom Abgleich nicht überschrieben.
 - Knopf „Zustand jetzt abfragen" (`FRIG_ZustandAnfordern`) nutzt den Abgleich; ohne Adresse bleibt es bei `frigate/onConnect`.
 - Masken- und Zonen-Schalter: Ident und Name ohne Doppelung (`Schalter_motion_mask_1`, „Bewegungsmaske 1"). Variablen aus 0.1.0 (`Schalter_motion_mask_motion_mask_1_…`) werden nicht übernommen und können gelöscht werden.
 - Manuelle Ereignisse (`on_demand`) heißen „manuell ausgelöst".

@@ -441,6 +441,17 @@ IPSTestState::$sentPackets = [];
 $h->RequestAction('Schalter_zone_einfahrt', false);
 check('Zone schalten nach Abgleich', IPSTestState::$sentPackets[0]['Topic'] ?? null, 'frigate/Door-Cam/zone/einfahrt/set');
 
+// Schonfrist: API hinkt MQTT hinterher (live 28.10.2026) — frisch bestätigter Schalter bleibt
+$h->ReceiveData(paket('frigate/Door-Cam/improve_contrast/state', 'OFF'));
+$text = $h->ZustandAnfordern();
+check('Schonfrist: MQTT-Stand bleibt', $h->GetValue('Schalter_improve_contrast'), false);
+check('Schonfrist im Text', strpos($text, 'davon 3 gerade erst geschaltet') !== false, true);
+$h->RequestAction('Schalter_detect', false);
+check('Schonfrist nach eigenem Schaltbefehl', strpos($h->ZustandAnfordern(), 'davon 4 gerade erst geschaltet') !== false, true);
+$h->SetBuffer('Frisch', (string)json_encode(['improve_contrast' => time() - 61]));
+$h->ZustandAnfordern();
+check('nach Ablauf der Schonfrist gilt die API', $h->GetValue('Schalter_improve_contrast'), true);
+
 // Kamera liefert keine Bilder
 TestKamera::$api['/api/stats'] = ['cameras' => ['Door-Cam' => ['camera_fps' => 0.0]]];
 check('keine Bilder', strpos($h->ZustandAnfordern(), 'Kamera liefert keine Bilder') !== false && $h->GetValue('Online') === false, true);

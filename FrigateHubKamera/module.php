@@ -33,6 +33,13 @@ class FrigateHubKamera extends IPSModule
     private const POS_ZONE      = 300;
     private const POS_GERAEUSCH = 400;
 
+    /**
+     * Schonfrist (s): Frigates /api/config hinkt der MQTT-Bestätigung einige Sekunden hinterher
+     * (live 28.10.2026: 2,5 s nach „AN" lieferte die API noch „aus"). So lange nach einer
+     * MQTT-Bestätigung oder einem eigenen Schaltbefehl überschreibt der Abgleich den Schalter nicht.
+     */
+    private const SCHONFRIST = 60;
+
     /** Wartezeit nach dem Übernehmen bis zum Abgleich (ms) — ApplyChanges nicht blockieren. */
     private const ABGLEICH_VERZOEGERUNG = 2000;
 
@@ -142,6 +149,7 @@ class FrigateHubKamera extends IPSModule
                     break;
                 }
                 $this->schalterSetzen($d['schluessel'], $wert);
+                $this->frischMerken($d['schluessel']);
                 break;
 
             case 'geraeusch':
@@ -181,7 +189,9 @@ class FrigateHubKamera extends IPSModule
         // Kommt keine, bleibt der alte Wert stehen — so zeigt Symcon nie einen Zustand, den
         // Frigate nicht hat (SUITE.md „Sichtbare Rückmeldung", WebFront-RequestAction).
         $topic = FrigateHubTopics::setTopic($this->ReadPropertyString('TopicPrefix'), $this->kamera(), $schluessel);
-        $this->senden($topic, (bool)$Value ? 'ON' : 'OFF');
+        if ($this->senden($topic, (bool)$Value ? 'ON' : 'OFF')) {
+            $this->frischMerken($schluessel);
+        }
     }
 
     /**
@@ -314,7 +324,14 @@ class FrigateHubKamera extends IPSModule
         $this->SetValue('Verfuegbar', true);
 
         $schalter = FrigateHubTopics::schalterAusConfig($kameras[$kamera]);
+        $frisch = $this->frisch();
+        $geschont = 0;
         foreach ($schalter as $schluessel => $wert) {
+            if (isset($frisch[$schluessel])) {
+                $geschont++;
+                $this->SendDebug('Abgleich', $schluessel . ': MQTT-Stand ist frischer, API-Wert übergangen', 0);
+                continue;
+            }
             $this->schalterSetzen($schluessel, $wert);
         }
         $this->zonenLernen(FrigateHubTopics::zonenAusConfig($kameras[$kamera]));
@@ -326,8 +343,25 @@ class FrigateHubKamera extends IPSModule
         }
         $this->WriteAttributeInteger('LetzteNachricht', time());
 
-        return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter, '
+        return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter'
+            . ($geschont > 0 ? ' (davon ' . $geschont . ' gerade erst geschaltet, MQTT-Stand behalten)' : '') . ', '
             . count($this->zonen()) . ' Zone(n)' . (is_numeric($fps) ? ', Kamera ' . ((float)$fps > 0 ? 'liefert Bilder' : 'liefert keine Bilder') : '') . '.';
+    }
+
+    /** Merkt, dass ein Schalter gerade per MQTT bestätigt oder von hier geschaltet wurde. */
+    private function frischMerken(string $schluessel): void
+    {
+        $map = $this->frisch();
+        $map[$schluessel] = time();
+        $this->SetBuffer('Frisch', (string)json_encode($map));
+    }
+
+    /** @return array<string,int> Schalter innerhalb der Schonfrist */
+    private function frisch(): array
+    {
+        $map = json_decode($this->GetBuffer('Frisch'), true);
+        $grenze = time() - self::SCHONFRIST;
+        return array_filter(is_array($map) ? $map : [], fn ($t) => (int)$t > $grenze);
     }
 
     /**
@@ -573,7 +607,9 @@ class FrigateHubKamera extends IPSModule
     {
         $z = $this->zonen();
         if ($z === []) {
-            return 'ℹ️ Noch keine Zone gelernt. Zonen erscheinen, sobald Frigate ein Objekt in einer Zone dieser Kamera meldet.';
+            return $this->apiUrl() !== '' && $this->ReadAttributeString('Abgleichstatus') !== ''
+                ? 'ℹ️ Laut Abgleich hat diese Kamera in Frigate keine Zonen.'
+                : 'ℹ️ Noch keine Zone gelernt. Zonen erscheinen mit dem Abgleich oder sobald Frigate ein Objekt in einer Zone dieser Kamera meldet.';
         }
         return '✅ ' . count($z) . ' Zone(n) gelernt: ' . implode(', ', $z);
     }
