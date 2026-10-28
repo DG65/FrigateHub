@@ -21,6 +21,13 @@
 - Zonen-Zähler stehen OHNE Kamera im Topic (`frigate/<zone>/<objekt>`) → Zonen werden aus
   `events`/`reviews` gelernt und in den Empfangsfilter aufgenommen.
 - Empfangsfilter nur mit schrägstrichfreien Merkmalen (CometWiFi-Fund: Filter mit `/` trifft nie).
+- Live 28.10.: `frigate/onConnect` bringt KEINE Schalterzustände; `…/state` und `available` kommen nur
+  beim Verbinden (retained), Symcons MQTT-Server gibt retained nicht an neue Kinder → HTTP-Abgleich
+  (0.1.1) über `/api/config` (`cameras.<cam>`: `motion.mask.<name>.enabled`, `objects.mask`, `zones`,
+  `review.alerts/detections`, `objects.genai`, `review.genai`, `onvif.autotracking`) und `/api/stats`
+  (`cameras.<cam>.camera_fps`). `notifications` kommt per MQTT nicht → auch nicht im Abgleich.
+- Schnappschüsse kommen per MQTT (`…/<objekt>/snapshot`); Symcon reicht Binärdaten als Zeichen
+  U+00XX in UTF-8 weiter → Bytes zurück mit `mb_convert_encoding($p, 'ISO-8859-1', 'UTF-8')`.
 
 ## Bauweise
 
@@ -36,4 +43,4 @@
   Port 5000 lokal oder 8971 mit Anmeldung (curl, nicht `Sys_GetURLContentEx`).
 - Konfigurator (passive Erkennung der Kameras aus den Topics).
 - Push-Benachrichtigung bei Alarm (Vorbild `WarnHub::pushToAllWebfronts`).
-- Ob `frigate/onConnect` per MQTT wirklich alle Zustände neu schickt: live prüfen.
+- Port 8971 mit Anmeldung (JWT) für den Abgleich, falls Port 5000 nicht freigegeben ist.

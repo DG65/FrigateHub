@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.1.0-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.1.1-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.1.0:** MQTT-Teil. Schnappschüsse als Medienobjekt und ein Konfigurator folgen.
+> **Stand 0.1.1:** MQTT plus Abgleich über Frigates API. Schnappschüsse als Medienobjekt und ein Konfigurator folgen.
 
 ## Was tut dieses Modul?
 
@@ -54,8 +54,12 @@ mqtt:
    den Frigate sendet.
 3. **Kamera-ID** eintragen: der Name aus der Frigate-Konfiguration unter `cameras:`, nicht der
    Anzeigename. Präfix nur ändern, wenn in Frigate `mqtt.topic_prefix` gesetzt ist.
-4. Übernehmen. Eine neue Instanz ist zunächst leer; Variablen erscheinen, sobald Frigate etwas
-   meldet. **Zustand bei Frigate anfordern** beschleunigt das.
+4. Optional, aber empfohlen: **Frigate-Adresse** eintragen, z. B. `http://192.168.1.20:5000`
+   (Frigates API ohne Anmeldung; Port 5000 muss im Docker-Aufruf freigegeben sein). Dann holt
+   die Instanz Schalter, Zonen und den Kamerazustand sofort nach dem Übernehmen und nach jedem
+   Symcon-Start. Port 8971 (mit Anmeldung) wird noch nicht unterstützt.
+5. Übernehmen. Ohne Frigate-Adresse erscheinen Schalter erst, wenn Frigate sich neu mit dem
+   MQTT-Server verbindet oder etwas umgeschaltet wird — Frigate schickt sie nur dann.
 
 Das Panel **Empfangene Nachrichten** zeigt, was von Frigate ankommt — hilfreich, wenn eine
 Variable fehlt.

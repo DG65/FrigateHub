@@ -106,7 +106,10 @@ function IPS_GetModule(string $guid): array
 
 function IPS_GetLibrary(string $guid): array
 {
-    return ['LibraryID' => $guid, 'Version' => '0.1.0', 'Build' => 1];
+    // Echte library.json lesen: eine fest eingetragene Version hier lief beim Versionssprung
+    // still auseinander und ließ das News-Panel nach „Verstanden" stehen.
+    $lib = json_decode((string)file_get_contents(__DIR__ . '/../library.json'), true);
+    return ['LibraryID' => $guid, 'Version' => (string)($lib['version'] ?? ''), 'Build' => (int)($lib['build'] ?? 0)];
 }
 
 function IPS_LogMessage(string $sender, string $message): void

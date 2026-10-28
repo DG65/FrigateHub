@@ -16,6 +16,11 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.1.1' => [
+            '• Neu: Frigate-Adresse eintragen (z. B. http://192.168.1.20:5000) — dann holt die Instanz Schalter, Zonen und den Kamerazustand sofort über Frigates API, statt auf MQTT zu warten.',
+            '• Masken heißen jetzt kurz „Bewegungsmaske 1" statt „Bewegungsmaske motion_mask_1". Aus 0.1.0 vorhandene Masken-Variablen bitte löschen, sie werden neu angelegt.',
+            '• Manuell in Frigate ausgelöste Ereignisse heißen „manuell ausgelöst", Schnappschüsse erscheinen in „Empfangene Nachrichten" als Bild statt als Zeichensalat.',
+        ],
         '0.1.0' => [
             '• Erstes Release: Frigate-Kameras über Symcons MQTT-Server — Objektzähler je Kamera und Zone, Bewegung, Alarm, letzte Ereignisse.',
             '• Erkennung, Aufnahme, Schnappschüsse, Masken und Zonen direkt aus Symcon schalten. Die Variable folgt der Bestätigung von Frigate.',

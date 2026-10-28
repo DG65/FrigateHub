@@ -12,6 +12,10 @@ require_once __DIR__ . '/../libs/FrigateHubFormular.php';
  * Ereignistexte. Alles Weitere entsteht beim ersten passenden Topic: Zähler je Objektklasse,
  * Zähler je Zone (Zonen lernt die Instanz aus den Ereignissen), Geräusche und Schalter.
  * Schaltvariablen übernehmen einen Wert erst, wenn Frigate ihn über …/state bestätigt.
+ *
+ * Optional HTTP-Abgleich über Frigates API (/api/config, /api/stats): Frigate schickt Zustände
+ * per MQTT nur beim Verbinden, und Symcons MQTT-Server reicht diese gespeicherten Nachrichten
+ * nicht an eine neu angelegte Instanz weiter (live 28.10.2026). Der Abgleich holt sie sofort.
  */
 class FrigateHubKamera extends IPSModule
 {
@@ -29,18 +33,28 @@ class FrigateHubKamera extends IPSModule
     private const POS_ZONE      = 300;
     private const POS_GERAEUSCH = 400;
 
+    /** Wartezeit nach dem Übernehmen bis zum Abgleich (ms) — ApplyChanges nicht blockieren. */
+    private const ABGLEICH_VERZOEGERUNG = 2000;
+
+    /** Grund des letzten fehlgeschlagenen API-Aufrufs. */
+    private string $apiFehler = '';
+
     public function Create()
     {
         parent::Create();
 
         $this->RegisterPropertyString('TopicPrefix', 'frigate');
         $this->RegisterPropertyString('Camera', '');
+        $this->RegisterPropertyString('ApiUrl', '');
 
         $this->RegisterAttributeString('Zonen', '[]');
         $this->RegisterAttributeInteger('LetzteNachricht', 0);
         $this->RegisterAttributeString('LetzteEventId', '');
         $this->RegisterAttributeString('Schalter', '{}');
+        $this->RegisterAttributeString('Abgleichstatus', '');
         $this->registerFormAttributes();
+
+        $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
     }
 
     public function ApplyChanges()
@@ -52,12 +66,15 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         if ($kamera === '') {
             $this->SetReceiveDataFilter(FrigateHubTopics::sperrfilter());
+            $this->SetTimerInterval('Abgleich', 0);
             $this->SetStatus(104);
             return;
         }
 
         $this->filterSetzen();
         $this->SetStatus(IS_ACTIVE);
+        // Einmal kurz nach dem Übernehmen (und nach jedem Symcon-Start) abgleichen.
+        $this->SetTimerInterval('Abgleich', $this->apiUrl() !== '' ? self::ABGLEICH_VERZOEGERUNG : 0);
     }
 
     /* ==================================================================== Empfangen */
@@ -119,7 +136,12 @@ class FrigateHubKamera extends IPSModule
                 break;
 
             case 'schalter':
-                $this->schalterSetzen($d['schluessel'], $d['name'], $payload);
+                $wert = FrigateHubTopics::anAus($payload);
+                if ($wert === null) {
+                    $this->SendDebug('Kein ON/OFF', $d['schluessel'] . ' = ' . $payload, 0);
+                    break;
+                }
+                $this->schalterSetzen($d['schluessel'], $wert);
                 break;
 
             case 'geraeusch':
@@ -163,17 +185,27 @@ class FrigateHubKamera extends IPSModule
     }
 
     /**
-     * Bittet Frigate, die Kamerazustände neu zu schicken (Topic frigate/onConnect).
-     * Rückgabe: Text für das Formular.
+     * Holt den aktuellen Zustand der Kamera. Mit Frigate-Adresse über die HTTP-API (Schalter,
+     * Zonen, erreichbar/online), sonst per MQTT-Bitte frigate/onConnect — die beantwortet
+     * Frigate 0.18 aber nicht mit den Schalterzuständen (live 28.10.2026).
+     * Rückgabe: Text für das Formular. Auch vom Timer „Abgleich" aufgerufen.
      */
     public function ZustandAnfordern(): string
     {
+        $this->SetTimerInterval('Abgleich', 0);
         if ($this->kamera() === '') {
             return 'ℹ️ Erst eine Kamera eintragen und übernehmen.';
         }
+        if ($this->apiUrl() !== '') {
+            $text = $this->abgleichen();
+            $this->WriteAttributeString('Abgleichstatus', $text);
+            $this->UpdateFormField('Abgleichstatus', 'caption', $text);
+            $this->UpdateFormField('Empfangsstatus', 'caption', $this->empfangsstatus());
+            return $text;
+        }
         $ok = $this->senden(FrigateHubTopics::praefix($this->ReadPropertyString('TopicPrefix')) . '/onConnect', '');
         return $ok
-            ? '✅ Anfrage an Frigate gesendet. Gesendet heißt noch nicht beantwortet — Zustände erscheinen, sobald Frigate antwortet (Panel „Empfangene Nachrichten").'
+            ? '✅ Anfrage an Frigate gesendet. Frigate schickt darauf nicht alle Zustände neu — vollständig wird es mit eingetragener Frigate-Adresse (HTTP-Abgleich).'
             : '⛔ Senden fehlgeschlagen — hängt die Instanz unter einem aktiven MQTT-Server oder MQTT-Client? Details im Meldungsprotokoll.';
     }
 
@@ -201,7 +233,10 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => 'Kamera-ID'],
                     ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT-Präfix (Frigate: mqtt.topic_prefix, Standard „frigate")'],
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
-                    ['type' => 'Button', 'caption' => 'Zustand bei Frigate anfordern', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
+                    ['type' => 'Label', 'caption' => 'Frigate-Adresse für den Abgleich (optional): Frigates API ohne Anmeldung, meist Port 5000, z. B. http://192.168.1.20:5000. Port 5000 muss im Docker-Aufruf freigegeben sein. Ohne Adresse kommen Schalter erst, wenn Frigate sie per MQTT meldet.'],
+                    ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
+                    ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
+                    ['type' => 'Button', 'caption' => 'Zustand jetzt abfragen', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
                 ],
             ],
             [
@@ -240,8 +275,9 @@ class FrigateHubKamera extends IPSModule
     {
         return [
             'Voraussetzung: Frigate sendet per MQTT an den MQTT-Server bzw. Broker, unter dem diese Instanz hängt (Frigate-Konfiguration mqtt: host/port/user/password).',
-            'Je Kamera eine Instanz. Zähler, Zonen, Geräusche und Schalter entstehen von selbst, sobald Frigate sie zum ersten Mal meldet — eine frisch angelegte Instanz ist deshalb anfangs leer.',
-            'Zonen lernt die Instanz aus den Ereignissen dieser Kamera. Bis ein Objekt eine Zone betreten hat, gibt es für sie noch keinen Zähler.',
+            'Je Kamera eine Instanz. Zähler, Zonen, Geräusche und Schalter entstehen von selbst, sobald Frigate sie zum ersten Mal meldet.',
+            'Mit eingetragener Frigate-Adresse fragt die Instanz nach dem Übernehmen und nach jedem Symcon-Start Schalter und Zonen über Frigates API ab. Ohne Adresse schickt Frigate Schalterzustände per MQTT nur, wenn es sich neu verbindet oder etwas umgeschaltet wird.',
+            'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
         ];
@@ -252,6 +288,80 @@ class FrigateHubKamera extends IPSModule
     private function kamera(): string
     {
         return trim((string)$this->ReadPropertyString('Camera'));
+    }
+
+    /** Frigate-Adresse ohne Schrägstrich am Ende, leer wenn nicht (gültig) eingetragen. */
+    private function apiUrl(): string
+    {
+        $url = rtrim(trim((string)$this->ReadPropertyString('ApiUrl')), '/');
+        return preg_match('#^https?://[^\s/]+$#', $url) ? $url : '';
+    }
+
+    /** Schalter, Zonen und Erreichbarkeit über die HTTP-API holen. Rückgabe: Text fürs Formular. */
+    private function abgleichen(): string
+    {
+        $kamera = $this->kamera();
+        $config = $this->apiHolen('/api/config');
+        if ($config === null) {
+            $text = '⛔ ' . date('d.m.Y H:i:s') . ': Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . '). Stimmt die Adresse, und ist Port 5000 im Docker-Aufruf freigegeben?';
+            $this->LogMessage('Abgleich mit Frigate fehlgeschlagen: ' . $this->apiFehler, KL_WARNING);
+            return $text;
+        }
+        $kameras = (array)($config['cameras'] ?? []);
+        if (!is_array($kameras[$kamera] ?? null)) {
+            return '⛔ Frigate kennt keine Kamera „' . $kamera . '". Vorhanden: ' . (implode(', ', array_keys($kameras)) ?: 'keine') . '.';
+        }
+        $this->SetValue('Verfuegbar', true);
+
+        $schalter = FrigateHubTopics::schalterAusConfig($kameras[$kamera]);
+        foreach ($schalter as $schluessel => $wert) {
+            $this->schalterSetzen($schluessel, $wert);
+        }
+        $this->zonenLernen(FrigateHubTopics::zonenAusConfig($kameras[$kamera]));
+
+        $stats = $this->apiHolen('/api/stats');
+        $fps = $stats['cameras'][$kamera]['camera_fps'] ?? null;
+        if (is_numeric($fps)) {
+            $this->SetValue('Online', (float)$fps > 0);
+        }
+        $this->WriteAttributeInteger('LetzteNachricht', time());
+
+        return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter, '
+            . count($this->zonen()) . ' Zone(n)' . (is_numeric($fps) ? ', Kamera ' . ((float)$fps > 0 ? 'liefert Bilder' : 'liefert keine Bilder') : '') . '.';
+    }
+
+    /**
+     * GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler).
+     * curl statt Sys_GetURLContentEx (SUITE.md Stolperstein 11); eigene Methode, damit der
+     * Prüfstand sie ersetzen kann.
+     */
+    protected function apiHolen(string $pfad): ?array
+    {
+        $ch = curl_init($this->apiUrl() . $pfad);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        $antwort = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $fehler = curl_error($ch);
+        curl_close($ch);
+        if ($antwort === false) {
+            $this->apiFehler = $fehler !== '' ? $fehler : 'keine Antwort';
+            return null;
+        }
+        if ($code !== 200) {
+            $this->apiFehler = 'HTTP ' . $code . ($code === 401 ? ', Anmeldung verlangt — Port 8971 wird noch nicht unterstützt, bitte Port 5000' : '');
+            return null;
+        }
+        $json = json_decode((string)$antwort, true);
+        if (!is_array($json)) {
+            $this->apiFehler = 'Antwort ist kein JSON';
+            return null;
+        }
+        return $json;
     }
 
     /** @return string[] */
@@ -319,15 +429,10 @@ class FrigateHubKamera extends IPSModule
         $this->SetValue($ident, $zahl);
     }
 
-    private function schalterSetzen(string $schluessel, string $name, string $payload): void
+    private function schalterSetzen(string $schluessel, bool $wert): void
     {
-        $wert = FrigateHubTopics::anAus($payload);
-        if ($wert === null) {
-            $this->SendDebug('Kein ON/OFF', $schluessel . ' = ' . $payload, 0);
-            return;
-        }
-        $ident = FrigateHubTopics::ident('Schalter', $schluessel);
-        $this->variableAnlegen($ident, $name, VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], self::POS_SCHALTER, true);
+        $ident = FrigateHubTopics::schalterIdent($schluessel);
+        $this->variableAnlegen($ident, FrigateHubTopics::schalterName($schluessel), VARIABLETYPE_BOOLEAN, ['PRESENTATION' => VARIABLE_PRESENTATION_SWITCH], self::POS_SCHALTER, true);
         $this->SetValue($ident, $wert);
         $this->schalterMerken($ident, $schluessel);
     }
@@ -354,9 +459,9 @@ class FrigateHubKamera extends IPSModule
             return (string)$map[$ident];
         }
         // Attribut leer (z. B. nach Neuinstallation des Moduls): einfache Schlüssel lassen sich
-        // aus dem Ident zurückrechnen. Masken und Zonen tragen einen Hash und warten auf ihr …/state.
+        // aus dem Ident zurückrechnen. Masken und Zonen warten auf ihr …/state oder den Abgleich.
         $rest = strpos($ident, 'Schalter_') === 0 ? substr($ident, strlen('Schalter_')) : '';
-        return preg_match('/^[a-z_]+$/', $rest) ? $rest : '';
+        return FrigateHubTopics::istEinfacherSchalter($rest) ? $rest : '';
     }
 
     private function eventVerarbeiten(string $payload): void
@@ -430,8 +535,7 @@ class FrigateHubKamera extends IPSModule
         $liste = json_decode($this->GetBuffer('Topics'), true);
         $liste = is_array($liste) ? $liste : [];
         unset($liste[$topic]);
-        $kurz = in_array($d['art'], ['events', 'reviews'], true) ? '(JSON, ' . strlen($payload) . ' Zeichen)' : mb_substr($payload, 0, 40);
-        $liste[$topic] = [time(), $kurz];
+        $liste[$topic] = [time(), FrigateHubTopics::kurzInhalt($d['art'], $payload)];
         if (count($liste) > self::TOPIC_MERKER) {
             $liste = array_slice($liste, -self::TOPIC_MERKER, null, true);
         }
@@ -448,10 +552,21 @@ class FrigateHubKamera extends IPSModule
         }
         $ts = $this->ReadAttributeInteger('LetzteNachricht');
         if ($ts === 0) {
-            return 'ℹ️ Noch keine Nachricht von Frigate zu „' . $this->kamera() . '". Stimmen Kamera-ID und Präfix, und sendet Frigate an diesen MQTT-Server? Frigate schickt Zustände sonst erst bei Änderungen — „Zustand bei Frigate anfordern" hilft.';
+            return 'ℹ️ Noch keine Nachricht von Frigate zu „' . $this->kamera() . '". Stimmen Kamera-ID und Präfix, und sendet Frigate an diesen MQTT-Server? Ohne Frigate-Adresse kommen Zustände erst bei Änderungen.';
         }
         $anzahl = count((array)json_decode($this->GetBuffer('Topics'), true));
         return '✅ Zuletzt Nachricht von Frigate am ' . date('d.m.Y H:i:s', $ts) . ' Uhr (' . $anzahl . ' verschiedene Topics seit dem letzten Neustart).';
+    }
+
+    private function abgleichstatus(): string
+    {
+        if ($this->apiUrl() === '') {
+            return trim((string)$this->ReadPropertyString('ApiUrl')) === ''
+                ? 'ℹ️ Kein HTTP-Abgleich (keine Frigate-Adresse eingetragen).'
+                : '⚠️ Die Frigate-Adresse ist ungültig — erwartet z. B. http://192.168.1.20:5000.';
+        }
+        $text = $this->ReadAttributeString('Abgleichstatus');
+        return $text !== '' ? $text : 'ℹ️ Noch nicht abgeglichen — geschieht kurz nach dem Übernehmen.';
     }
 
     private function zonenstatus(): string

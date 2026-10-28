@@ -73,6 +73,7 @@ class FrigateHubTopics
         'raccoon'       => 'Waschbären',
         'umbrella'      => 'Regenschirme',
         'waste_bin'     => 'Mülltonnen',
+        'on_demand'     => 'Manuelle Ereignisse',
     ];
 
     /** Einzahl für Ereignistexte. */
@@ -83,6 +84,8 @@ class FrigateHubTopics
         'bird' => 'Vogel', 'horse' => 'Pferd', 'deer' => 'Reh', 'fox' => 'Fuchs', 'bear' => 'Bär',
         'squirrel' => 'Eichhörnchen', 'rabbit' => 'Kaninchen', 'raccoon' => 'Waschbär',
         'umbrella' => 'Regenschirm', 'waste_bin' => 'Mülltonne',
+        // Manuell in der Frigate-Oberfläche (oder per API) ausgelöstes Ereignis, kein Objekt.
+        'on_demand' => 'manuell ausgelöst',
     ];
 
     /** Häufige Geräuschklassen; der Rest behält seinen Frigate-Namen. */
@@ -151,8 +154,8 @@ class FrigateHubTopics
                 return ['art' => 'schalter', 'schluessel' => $zweite, 'name' => self::SCHALTER[$zweite]];
             }
             if ($n === 4 && isset(self::SCHALTER_GRUPPEN[$zweite])) {
-                return ['art' => 'schalter', 'schluessel' => $zweite . '/' . $teile[2],
-                    'name' => self::SCHALTER_GRUPPEN[$zweite] . ' ' . $teile[2]];
+                $schluessel = $zweite . '/' . $teile[2];
+                return ['art' => 'schalter', 'schluessel' => $schluessel, 'name' => self::schalterName($schluessel)];
             }
             return ['art' => 'ignorieren', 'grund' => 'unbekannter oder nicht schaltbarer Zustand'];
         }
@@ -184,11 +187,126 @@ class FrigateHubTopics
                 return ['art' => 'aktiv', 'label' => $zweite];
             }
             if ($teile[2] === 'snapshot') {
-                return ['art' => 'ignorieren', 'grund' => 'Schnappschuss als Binärdaten (kommt über HTTP)'];
+                return ['art' => 'ignorieren', 'grund' => 'Schnappschuss als JPEG (Medienobjekt folgt)'];
             }
         }
 
         return ['art' => 'ignorieren', 'grund' => 'nicht ausgewertet'];
+    }
+
+    /** Deutscher Name eines Schalters; Masken/Zonen ohne doppelten Gruppennamen („Bewegungsmaske 1"). */
+    public static function schalterName(string $schluessel): string
+    {
+        if (isset(self::SCHALTER[$schluessel])) {
+            return self::SCHALTER[$schluessel];
+        }
+        [$gruppe, $name] = array_pad(explode('/', $schluessel, 2), 2, '');
+        return (self::SCHALTER_GRUPPEN[$gruppe] ?? $gruppe) . ' ' . self::ohneGruppe($gruppe, $name);
+    }
+
+    /**
+     * Ident eines Schalters. Frigate nennt Masken „motion_mask_1" unter „motion_mask/" —
+     * ohne Abzug hieße die Variable Schalter_motion_mask_motion_mask_1 (0.1.0).
+     */
+    public static function schalterIdent(string $schluessel): string
+    {
+        if (strpos($schluessel, '/') === false) {
+            return self::ident('Schalter', $schluessel);
+        }
+        [$gruppe, $name] = explode('/', $schluessel, 2);
+        return self::ident('Schalter', strpos($name, $gruppe . '_') === 0 ? $name : $gruppe . '_' . $name);
+    }
+
+    /** Einfache (nicht gruppierte) Schalter, die sich aus dem Ident zurückrechnen lassen. */
+    public static function istEinfacherSchalter(string $schluessel): bool
+    {
+        return isset(self::SCHALTER[$schluessel]);
+    }
+
+    private static function ohneGruppe(string $gruppe, string $name): string
+    {
+        return strpos($name, $gruppe . '_') === 0 ? substr($name, strlen($gruppe) + 1) : $name;
+    }
+
+    /**
+     * Schalterzustände einer Kamera aus Frigates /api/config (cameras.<kamera>) — dieselben
+     * Schlüssel wie die MQTT-Topics …/<schluessel>/state. Abgeglichen mit Frigate 0.18.2
+     * (28.10.2026). Fehlt ein Feld, fehlt auch der Schalter: lieber keiner als ein falscher.
+     * „notifications" fehlt bewusst: Frigate meldet ihn per MQTT nur bei eingerichteten
+     * Push-Benachrichtigungen, und der Abgleich soll nicht mehr Schalter anlegen als MQTT.
+     *
+     * @return array<string,bool> Schlüssel => an/aus
+     */
+    public static function schalterAusConfig(array $kamera): array
+    {
+        $pfade = [
+            'enabled'             => ['enabled'],
+            'detect'              => ['detect', 'enabled'],
+            'recordings'          => ['record', 'enabled'],
+            'snapshots'           => ['snapshots', 'enabled'],
+            'motion'              => ['motion', 'enabled'],
+            'improve_contrast'    => ['motion', 'improve_contrast'],
+            'audio'               => ['audio', 'enabled'],
+            'audio_transcription' => ['audio_transcription', 'enabled'],
+            'review_alerts'       => ['review', 'alerts', 'enabled'],
+            'review_detections'   => ['review', 'detections', 'enabled'],
+            'birdseye'            => ['birdseye', 'enabled'],
+            'ptz_autotracker'     => ['onvif', 'autotracking', 'enabled'],
+            'object_descriptions' => ['objects', 'genai', 'enabled'],
+            'review_descriptions' => ['review', 'genai', 'enabled'],
+        ];
+        $out = [];
+        foreach ($pfade as $schluessel => $pfad) {
+            $wert = $kamera;
+            foreach ($pfad as $teil) {
+                $wert = is_array($wert) && array_key_exists($teil, $wert) ? $wert[$teil] : null;
+            }
+            if (is_bool($wert)) {
+                $out[$schluessel] = $wert;
+            }
+        }
+        $gruppen = [
+            'motion_mask' => (array)($kamera['motion']['mask'] ?? []),
+            'object_mask' => (array)($kamera['objects']['mask'] ?? []),
+            'zone'        => (array)($kamera['zones'] ?? []),
+        ];
+        foreach ($gruppen as $gruppe => $eintraege) {
+            foreach ($eintraege as $name => $e) {
+                if (is_string($name) && is_array($e) && is_bool($e['enabled'] ?? null)) {
+                    $out[$gruppe . '/' . $name] = $e['enabled'];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /** Zonen-IDs einer Kamera aus /api/config. */
+    public static function zonenAusConfig(array $kamera): array
+    {
+        return array_values(array_filter(array_map('strval', array_keys((array)($kamera['zones'] ?? []))), 'strlen'));
+    }
+
+    /**
+     * Kurzinhalt fürs Panel „Empfangene Nachrichten". Frigate schickt Schnappschüsse als JPEG
+     * über MQTT (…/<objekt>/snapshot) — roh angezeigt wäre das Zeichensalat.
+     */
+    public static function kurzInhalt(string $art, string $payload): string
+    {
+        if (in_array($art, ['events', 'reviews'], true)) {
+            return '(JSON, ' . strlen($payload) . ' Zeichen)';
+        }
+        if (strncmp($payload, "\xFF\xD8\xFF", 3) === 0) {
+            return '(Bild, ' . strlen($payload) . ' Bytes)';
+        }
+        // So kommt es live an (28.10.2026): Symcons MQTT-Server reicht jedes Byte als Zeichen
+        // U+0000–U+00FF in UTF-8 weiter („ÿØÿà…"). Zurück zu Bytes: mb_convert_encoding(…, 'ISO-8859-1', 'UTF-8').
+        if (strncmp($payload, 'ÿØÿ', strlen('ÿØÿ')) === 0) {
+            return '(Bild, ' . mb_strlen($payload, 'UTF-8') . ' Bytes)';
+        }
+        if (!mb_check_encoding($payload, 'UTF-8')) {
+            return '(Binärdaten, ' . strlen($payload) . ' Bytes)';
+        }
+        return mb_substr($payload, 0, 40);
     }
 
     /** Topic zum Schalten einer Funktion. */

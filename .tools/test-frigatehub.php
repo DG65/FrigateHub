@@ -38,6 +38,16 @@ function paket(string $topic, string $payload): string
 
 class TestKamera extends FrigateHubKamera
 {
+    /** Antworten der Frigate-API je Pfad; null = nicht erreichbar. */
+    public static array $api = [];
+    public static array $abgerufen = [];
+
+    protected function apiHolen(string $pfad): ?array
+    {
+        self::$abgerufen[] = $pfad;
+        return self::$api[$pfad] ?? null;
+    }
+
     public function props(array $p): void
     {
         foreach ($p as $k => $v) {
@@ -87,6 +97,15 @@ check('unbekannte Zone', FrigateHubTopics::deuten('frigate/garage/car', 'frigate
 check('Geräusch', FrigateHubTopics::deuten('frigate/Door-Cam/audio/bark', 'frigate', 'Door-Cam', $z)['name'], 'Geräusch Bellen');
 check('audio/state = Schalter', FrigateHubTopics::deuten('frigate/Door-Cam/audio/state', 'frigate', 'Door-Cam', $z)['art'], 'schalter');
 check('Pegel ignoriert', FrigateHubTopics::deuten('frigate/Door-Cam/audio/dBFS', 'frigate', 'Door-Cam', $z)['art'], 'ignorieren');
+check('Masken-Ident ohne Doppelung', FrigateHubTopics::schalterIdent('motion_mask/motion_mask_1'), 'Schalter_motion_mask_1');
+check('Masken-Name', FrigateHubTopics::schalterName('object_mask/object_mask_1'), 'Objektmaske 1');
+check('Zonen-Schalter', [FrigateHubTopics::schalterIdent('zone/einfahrt'), FrigateHubTopics::schalterName('zone/einfahrt')], ['Schalter_zone_einfahrt', 'Zone einfahrt']);
+check('einfacher Schalter-Ident', FrigateHubTopics::schalterIdent('detect'), 'Schalter_detect');
+check('Bildvorschau JPEG', FrigateHubTopics::kurzInhalt('ignorieren', "\xFF\xD8\xFF\xE0\x00\x10JFIF"), '(Bild, 10 Bytes)');
+check('Bildvorschau wie live (UTF-8-umkodiert)', FrigateHubTopics::kurzInhalt('ignorieren', mb_convert_encoding("\xFF\xD8\xFF\xE0\x00\x10JFIF", 'UTF-8', 'ISO-8859-1')), '(Bild, 10 Bytes)');
+check('Binärdaten', FrigateHubTopics::kurzInhalt('objekt', "\x00\x81\xFE"), '(Binärdaten, 3 Bytes)');
+check('Text gekürzt', FrigateHubTopics::kurzInhalt('objekt', str_repeat('ä', 50)), str_repeat('ä', 40));
+check('JSON-Hinweis', FrigateHubTopics::kurzInhalt('events', '{"a":1}'), '(JSON, 7 Zeichen)');
 check('Schnappschuss ignoriert', FrigateHubTopics::deuten('frigate/Door-Cam/person/snapshot', 'frigate', 'Door-Cam', $z)['art'], 'ignorieren');
 check('eigenes Präfix', FrigateHubTopics::deuten('cam/nvr/Door-Cam/person', '/cam/nvr/', 'Door-Cam', $z)['art'], 'objekt');
 check('Set-Topic', FrigateHubTopics::setTopic('frigate', 'Door-Cam', 'zone/einfahrt'), 'frigate/Door-Cam/zone/einfahrt/set');
@@ -114,6 +133,37 @@ $event = ['label' => 'person', 'sub_label' => ['Dietmar', 0.91], 'top_score' => 
 check('Event-Text', FrigateHubTopics::eventText($event), '28.10.2026 18:05:12 – Person „Dietmar“ (87 %) in einfahrt, weg');
 $review = ['start_time' => mktime(18, 5, 12, 10, 28, 2026), 'data' => ['objects' => ['person-verified', 'car'], 'zones' => ['einfahrt'], 'audio' => [], 'sub_labels' => []]];
 check('Review-Text', FrigateHubTopics::reviewText($review), '28.10.2026 18:05:12 – Person, Auto in einfahrt');
+$manuell = ['start_time' => mktime(20, 9, 15, 10, 28, 2026), 'data' => ['objects' => ['on_demand'], 'zones' => [], 'audio' => [], 'sub_labels' => []]];
+check('manueller Alarm', FrigateHubTopics::reviewText($manuell), '28.10.2026 20:09:15 – manuell ausgelöst');
+
+// /api/config einer echten Frigate-0.18.2-Kamera (28.10.2026, gekürzt auf die ausgewerteten Felder)
+$kameraConfig = [
+    'name' => 'Door-Cam', 'enabled' => true,
+    'audio' => ['enabled' => false], 'audio_transcription' => ['enabled' => false, 'live_enabled' => false],
+    'birdseye' => ['enabled' => true, 'mode' => 'objects'], 'detect' => ['enabled' => true, 'fps' => 5],
+    'motion' => ['enabled' => true, 'threshold' => 50, 'improve_contrast' => true, 'mask' => [
+        'motion_mask_1' => ['friendly_name' => 'Motion Mask 1', 'enabled' => true],
+        'motion_mask_2' => ['friendly_name' => 'Motion Mask 2', 'enabled' => false],
+    ]],
+    'objects' => ['track' => ['person'], 'mask' => ['object_mask_1' => ['friendly_name' => 'Object Mask 1', 'enabled' => true]],
+        'genai' => ['enabled' => false]],
+    'record' => ['enabled' => true], 'snapshots' => ['enabled' => true],
+    'review' => ['alerts' => ['enabled' => true], 'detections' => ['enabled' => false], 'genai' => ['enabled' => false]],
+    'onvif' => ['host' => '192.0.2.19', 'autotracking' => ['enabled' => false]],
+    'notifications' => ['enabled' => false],
+    'zones' => ['einfahrt' => ['friendly_name' => 'Einfahrt', 'enabled' => true]],
+    'face_recognition' => ['enabled' => true], 'lpr' => ['enabled' => true],
+];
+$ausConfig = FrigateHubTopics::schalterAusConfig($kameraConfig);
+check('Config: 18 Schalter (15 + 2 Masken + 1 Objektmaske + 1 Zone − notifications)', count($ausConfig), 18);
+check('Config: Kontrast', $ausConfig['improve_contrast'] ?? null, true);
+check('Config: Erkennungen melden aus', $ausConfig['review_detections'] ?? null, false);
+check('Config: Maske 2 aus', $ausConfig['motion_mask/motion_mask_2'] ?? null, false);
+check('Config: Zone', $ausConfig['zone/einfahrt'] ?? null, true);
+check('Config: kein notifications', isset($ausConfig['notifications']), false);
+check('Config: keine Gesichtserkennung als Schalter', isset($ausConfig['face_recognition']), false);
+check('Config: Zonen', FrigateHubTopics::zonenAusConfig($kameraConfig), ['einfahrt']);
+check('Config: leere Kamera', FrigateHubTopics::schalterAusConfig([]), []);
 
 /* =================================================================== Modul */
 
@@ -163,8 +213,8 @@ check('Bewegung aus', $k->GetValue('Bewegung'), false);
 check('Schalter Erkennung an', $k->GetValue('Schalter_detect'), true);
 check('Schalter Aufnahme schaltbar', isset($k->enabledActions['Schalter_recordings']), true);
 check('Schalter Bewegungserkennung (motion/state)', $k->GetValue('Schalter_motion'), true);
-$maske = FrigateHubTopics::ident('Schalter', 'motion_mask/motion_mask_1');
-check('Maske als Schalter', $k->variables[$maske]['caption'] ?? null, 'Bewegungsmaske motion_mask_1');
+$maske = 'Schalter_motion_mask_1';
+check('Maske als Schalter', $k->variables[$maske]['caption'] ?? null, 'Bewegungsmaske 1');
 check('birdseye_mode nicht als Schalter', count(array_filter(array_keys($k->variables), fn ($i) => strpos($i, 'birdseye_mode') !== false)), 0);
 check('Schwellwert nicht als Schalter', count(array_filter(array_keys($k->variables), fn ($i) => strpos($i, 'threshold') !== false)), 0);
 check('Status/Profil nicht als Objekt', isset($k->variables['Objekt_status']) || isset($k->variables['Objekt_profile']), false);
@@ -284,6 +334,16 @@ IPSTestState::$sentPackets = [];
 $k->RequestAction('Schalter_recordings', false);
 check('Rückfall einfacher Schlüssel', IPSTestState::$sentPackets[0]['Topic'] ?? null, 'frigate/Door-Cam/recordings/set');
 
+check('Masken-Ident ohne Attribut nicht geraten', (function () use ($k, $maske) {
+    try {
+        $k->RequestAction($maske, true);
+        return 'gesendet';
+    } catch (Exception $e) {
+        return 'Ausnahme';
+    }
+})(), 'Ausnahme');
+
+check('ohne Adresse kein Abgleich-Timer', $k->timers['Abgleich']['interval'] ?? null, 0);
 check('ZustandAnfordern sendet onConnect', strpos($k->ZustandAnfordern(), '✅') === 0 && (end(IPSTestState::$sentPackets)['Topic'] ?? '') === 'frigate/onConnect', true);
 check('ZonenVergessen', strpos($k->ZonenVergessen(), '✅ 2 Zone(n)') === 0 && $k->ReadAttributeString('Zonen') === '[]', true);
 
@@ -296,6 +356,11 @@ check('News-Panel danach', $form['elements'][1]['name'] ?? null, 'NewsPanel');
 check('Lizenz-Panel unten', end($form['elements'])['caption'] ?? null, '🧡  Über dieses Modul');
 check('Empfangsstatus live', count(array_filter($alle, fn ($l) => strpos($l, '✅ Zuletzt Nachricht von Frigate') === 0)), 1);
 check('Topics gelistet', count(array_filter($alle, fn ($l) => strpos($l, 'frigate/Door-Cam/detect/state') !== false)), 1);
+// Live-Form: jedes JPEG-Byte als Zeichen U+00XX in UTF-8 (Symcons MQTT-Server, 28.10.2026)
+$k->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding("\xFF\xD8\xFF\xE0" . str_repeat("\x00", 96), 'UTF-8', 'ISO-8859-1')));
+$alle = labels($k->form()['elements']);
+check('Schnappschuss im Panel als Bild', count(array_filter($alle, fn ($l) => strpos($l, 'person/snapshot  =  (Bild, 100 Bytes)') !== false)), 1);
+check('Abgleich-Hinweis ohne Adresse', count(array_filter($alle, fn ($l) => strpos($l, 'ℹ️ Kein HTTP-Abgleich') === 0)), 1);
 check('Status 104 beschriftet', in_array(104, array_column($form['status'], 'code'), true), true);
 $json = json_encode($form);
 check('Link-Buttons mit link:true', substr_count($json, '"link":true') >= 3, true);
@@ -324,6 +389,69 @@ $k->AckPurposeIntro();
 $k->AckNews();
 $form = $k->form();
 check('nach Bestätigen Zweck weg', ($form['elements'][0]['caption'] ?? '') === '📖  Dokumentation & Hilfe', true);
+
+/* =================================================================== HTTP-Abgleich */
+
+IPSTestState::reset();
+IPSTestState::$instances[5] = ['InstanceID' => 5, 'ConnectionID' => 0, 'InstanceStatus' => IS_INACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$h = new TestKamera(5);
+$h->Create();
+$h->props(['Camera' => 'Door-Cam', 'ApiUrl' => 'http://127.0.0.1:5000/']);
+$h->ApplyChanges();
+check('mit Adresse: Abgleich geplant', $h->timers['Abgleich']['interval'], 2000);
+check('Timer ruft ZustandAnfordern', $h->timers['Abgleich']['script'], 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
+
+TestKamera::$api = [];
+$text = $h->ZustandAnfordern();
+check('nicht erreichbar → ⛔', strpos($text, '⛔') === 0, true);
+check('nicht erreichbar → Warnung im Log', count(IPSTestState::$logMessages) > 0, true);
+check('Timer nach Abgleich aus', $h->timers['Abgleich']['interval'], 0);
+check('nicht erreichbar: keine Schalter', count(array_filter(array_keys($h->variables), fn ($i) => strpos($i, 'Schalter_') === 0)), 0);
+
+TestKamera::$api = ['/api/config' => ['cameras' => ['Garten' => $kameraConfig]]];
+check('unbekannte Kamera nennt vorhandene', $h->ZustandAnfordern(), '⛔ Frigate kennt keine Kamera „Door-Cam". Vorhanden: Garten.');
+
+TestKamera::$api = [
+    '/api/config' => ['cameras' => ['Door-Cam' => $kameraConfig]],
+    '/api/stats'  => ['cameras' => ['Door-Cam' => ['camera_fps' => 5.1, 'detection_fps' => 0.3]], 'service' => ['uptime' => 43]],
+];
+TestKamera::$abgerufen = [];
+$text = $h->ZustandAnfordern();
+check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '18 Schalter, 1 Zone(n), Kamera liefert Bilder') !== false, true);
+check('Pfade abgerufen', TestKamera::$abgerufen, ['/api/config', '/api/stats']);
+check('Abgleich: erreichbar', $h->GetValue('Verfuegbar'), true);
+check('Abgleich: online', $h->GetValue('Online'), true);
+check('Abgleich: Kontrast', $h->GetValue('Schalter_improve_contrast'), true);
+check('Abgleich: Maske 2 aus', $h->GetValue('Schalter_motion_mask_2'), false);
+check('Abgleich: Maskenname', $h->variables['Schalter_object_mask_1']['caption'], 'Objektmaske 1');
+check('Abgleich: Zone gelernt', json_decode($h->ReadAttributeString('Zonen'), true), ['einfahrt']);
+check('Abgleich: Filter mit Zone', $h->receiveFilter, FrigateHubTopics::empfangsfilter('Door-Cam', ['einfahrt']));
+check('Abgleich: Formular nachgezogen', in_array('Abgleichstatus', array_column($h->formFieldUpdates, 0), true), true);
+check('Abgleich: Text gemerkt', $h->ReadAttributeString('Abgleichstatus'), $text);
+
+// Gleiche Variable, egal ob zuerst MQTT oder Abgleich
+$h->ReceiveData(paket('frigate/Door-Cam/motion_mask/motion_mask_2/state', 'ON'));
+check('MQTT trifft Abgleich-Variable', $h->GetValue('Schalter_motion_mask_2'), true);
+check('keine doppelten Masken', count(array_filter(array_keys($h->variables), fn ($i) => strpos($i, 'motion_mask') !== false)), 2);
+
+// Schalten nach Abgleich (Ident→Schlüssel aus dem Abgleich gemerkt)
+IPSTestState::$instances[5]['ConnectionID'] = 6;
+IPSTestState::$instances[6] = ['InstanceID' => 6, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{MQTT}']];
+IPSTestState::$sentPackets = [];
+$h->RequestAction('Schalter_zone_einfahrt', false);
+check('Zone schalten nach Abgleich', IPSTestState::$sentPackets[0]['Topic'] ?? null, 'frigate/Door-Cam/zone/einfahrt/set');
+
+// Kamera liefert keine Bilder
+TestKamera::$api['/api/stats'] = ['cameras' => ['Door-Cam' => ['camera_fps' => 0.0]]];
+check('keine Bilder', strpos($h->ZustandAnfordern(), 'Kamera liefert keine Bilder') !== false && $h->GetValue('Online') === false, true);
+
+// Ungültige Adresse: kein Abgleich, sichtbarer Hinweis
+$h->props(['ApiUrl' => 'frigate:5000']);
+$h->ApplyChanges();
+check('ungültige Adresse: kein Timer', $h->timers['Abgleich']['interval'], 0);
+check('ungültige Adresse: Hinweis', count(array_filter(labels($h->form()['elements']), fn ($l) => strpos($l, '⚠️ Die Frigate-Adresse ist ungültig') === 0)), 1);
+check('Validierung im Formular', preg_match('#' . str_replace('#', '\\#', array_values(array_filter(
+    json_decode(json_encode($h->form()['elements']), true)[3]['items'] ?? [], fn ($e) => ($e['name'] ?? '') === 'ApiUrl'))[0]['validate'] ?? 'x') . '#', 'http://192.168.1.20:5000'), 1);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);
