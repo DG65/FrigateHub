@@ -31,6 +31,11 @@ daraus je Kamera:
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
+Per MQTT schickt Frigate zu einer Erkennung einen Bildausschnitt um das Objekt (Standard: 270 px
+hoch, zugeschnitten). Größe und Zuschnitt stellt man in Frigate je Kamera unter `mqtt:` ein
+(`height`, `crop`, `quality`, `bounding_box`, `timestamp`). Das volle Kamerabild liefert der Knopf
+„Aktuelles Kamerabild holen".
+
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.
 

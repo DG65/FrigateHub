@@ -38,6 +38,9 @@
 - Schnappschuss (0.2.0): Medienobjekt per `IPS_CreateMedia(MEDIATYPE_IMAGE)`, gecacht (schont die
   Platte), Quelle MQTT-`…/snapshot` oder `/api/<kamera>/latest.jpg`. Abgleich holt das Livebild nur,
   solange es kein Medium gibt — nie einen Erkennungs-Schnappschuss überschreiben.
+  Live 28.10. 23:09: MQTT-Schnappschuss kam an, gültiges JPEG 270×270 (Frigate-Standard `mqtt.crop`/
+  `height` 270), API `/api/<cam>/person/snapshot.jpg` dagegen 1280×720. Idee: mit Frigate-Adresse bei
+  Event-Ende `/api/events/<id>/snapshot.jpg` in voller Größe holen.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
