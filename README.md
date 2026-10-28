@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.1.1-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.2.0-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.1.1:** MQTT plus Abgleich über Frigates API. Schnappschüsse als Medienobjekt und ein Konfigurator folgen.
+> **Stand 0.2.0:** MQTT, Abgleich über Frigates API und Schnappschuss als Medienobjekt. Ein Konfigurator folgt.
 
 ## Was tut dieses Modul?
 
@@ -29,6 +29,7 @@ daraus je Kamera:
 | _Zone_: Personen, … | Anzahl je Zone; Zonen lernt die Instanz aus den Ereignissen |
 | Geräusch … | Geräuscherkennung, wenn in Frigate eingeschaltet |
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
+| Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.

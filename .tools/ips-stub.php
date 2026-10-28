@@ -31,6 +31,7 @@ define('VARIABLE_PRESENTATION_SLIDER', 'SLIDER');
 define('VARIABLE_PRESENTATION_SWITCH', 'SWITCH');
 define('VARIABLE_PRESENTATION_ENUMERATION', 'ENUMERATION');
 define('VARIABLE_PRESENTATION_VALUE_INPUT', 'VALUE_INPUT');
+define('MEDIATYPE_IMAGE', 1);
 
 /** Sammelt alles, was das Modul nach außen tut, damit Prüfungen es nachsehen können. */
 class IPSTestState
@@ -51,6 +52,9 @@ class IPSTestState
 
     /** Verknüpfungen: linkID => ['parent'=>int,'target'=>int,'name'=>string,'pos'=>int] */
     public static array $links = [];
+
+    /** Medienobjekte: mediaID => ['type','parent','ident','name','pos','file','cached','content'(Base64)] */
+    public static array $media = [];
 
     /** Übersetzungstabelle des geprüften Moduls, oder null zum Durchreichen. */
     public static ?array $locale = null;
@@ -77,6 +81,7 @@ class IPSTestState
         self::$visualization     = null;
         self::$registeredMessages = [];
         self::$links = [];
+        self::$media = [];
         // $locale bleibt bewusst stehen: Sie beschreibt das Modul, nicht den Prüffall.
     }
 
@@ -140,6 +145,11 @@ function IPS_GetObjectIDByIdent(string $ident, int $parentId)
             return $objectId;
         }
     }
+    foreach (IPSTestState::$media as $mediaId => $m) {
+        if ($m['parent'] === $parentId && $m['ident'] === $ident) {
+            return $mediaId;
+        }
+    }
     return false;
 }
 
@@ -174,6 +184,45 @@ function IPS_SetParent(int $id, int $parent): void
     if (isset(IPSTestState::$links[$id])) {
         IPSTestState::$links[$id]['parent'] = $parent;
     }
+    if (isset(IPSTestState::$media[$id])) {
+        IPSTestState::$media[$id]['parent'] = $parent;
+    }
+}
+
+function IPS_CreateMedia(int $type): int
+{
+    $id = 90000 + count(IPSTestState::$media) + 1;
+    IPSTestState::$media[$id] = ['type' => $type, 'parent' => 0, 'ident' => '', 'name' => '', 'pos' => 0,
+        'file' => '', 'cached' => false, 'content' => null];
+    return $id;
+}
+
+function IPS_SetIdent(int $id, string $ident): void
+{
+    if (isset(IPSTestState::$media[$id])) {
+        IPSTestState::$media[$id]['ident'] = $ident;
+    }
+}
+
+function IPS_SetMediaFile(int $id, string $file, bool $mustExist): void
+{
+    IPSTestState::$media[$id]['file'] = $file;
+}
+
+function IPS_SetMediaCached(int $id, bool $cached): void
+{
+    IPSTestState::$media[$id]['cached'] = $cached;
+}
+
+/** Wie das Original: ohne Dateinamen oder mit ungültigem Base64 schlägt es fehl. */
+function IPS_SetMediaContent(int $id, string $base64): bool
+{
+    if (!isset(IPSTestState::$media[$id]) || IPSTestState::$media[$id]['file'] === ''
+        || base64_decode($base64, true) === false) {
+        return false;
+    }
+    IPSTestState::$media[$id]['content'] = $base64;
+    return true;
 }
 
 function IPS_SetLinkTargetID(int $id, int $target): void
@@ -186,12 +235,18 @@ function IPS_SetName(int $id, string $name): void
     if (isset(IPSTestState::$links[$id])) {
         IPSTestState::$links[$id]['name'] = $name;
     }
+    if (isset(IPSTestState::$media[$id])) {
+        IPSTestState::$media[$id]['name'] = $name;
+    }
 }
 
 function IPS_SetPosition(int $id, int $position): void
 {
     if (isset(IPSTestState::$links[$id])) {
         IPSTestState::$links[$id]['pos'] = $position;
+    }
+    if (isset(IPSTestState::$media[$id])) {
+        IPSTestState::$media[$id]['pos'] = $position;
     }
 }
 

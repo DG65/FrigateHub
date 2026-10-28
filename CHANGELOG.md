@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (Build 4) — 28.10.2026
+
+- **Medienobjekt „Schnappschuss"** (Ident `Schnappschuss`, Datei `media/FrigateHub_<InstanzID>.jpg`, gecacht): Frigates MQTT-Schnappschüsse (`frigate/<kamera>/<objekt>/snapshot`) landen darin. Symcons MQTT-Server reicht die JPEG-Bytes als UTF-8-Zeichen weiter; FrigateHub wandelt sie verlustfrei zurück.
+- `FRIG_BildHolen($id)` / Knopf „Aktuelles Kamerabild holen": Livebild über `/api/<kamera>/latest.jpg?h=720` (braucht die Frigate-Adresse).
+- Der Abgleich legt das Medienobjekt mit dem Livebild an, solange es noch keins gibt; einen vorhandenen Schnappschuss überschreibt er nicht.
+- Neues Formular-Panel „🖼️ Schnappschuss" mit Zeit, Quelle und Größe des letzten Bilds.
+
 ## 0.1.1 (Build 3) — 28.10.2026
 
 - **HTTP-Abgleich:** neue Eigenschaft „Frigate-Adresse" (`ApiUrl`, z. B. `http://192.168.1.20:5000`). Kurz nach dem Übernehmen und nach jedem Symcon-Start liest die Instanz `/api/config` (Schalter, Masken, Zonen) und `/api/stats` (Kamera liefert Bilder) und setzt „Frigate erreichbar". Grund: Frigate schickt Schalterzustände per MQTT nur beim Verbinden, `frigate/onConnect` beantwortet es damit nicht, und Symcons MQTT-Server gibt gespeicherte Nachrichten nicht an neue Instanzen weiter (live geprüft).

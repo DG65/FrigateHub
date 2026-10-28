@@ -187,7 +187,7 @@ class FrigateHubTopics
                 return ['art' => 'aktiv', 'label' => $zweite];
             }
             if ($teile[2] === 'snapshot') {
-                return ['art' => 'ignorieren', 'grund' => 'Schnappschuss als JPEG (Medienobjekt folgt)'];
+                return ['art' => 'schnappschuss', 'label' => $zweite];
             }
         }
 
@@ -307,6 +307,20 @@ class FrigateHubTopics
             return '(Binärdaten, ' . strlen($payload) . ' Bytes)';
         }
         return mb_substr($payload, 0, 40);
+    }
+
+    /**
+     * JPEG-Bytes aus einer MQTT-Nutzlast oder null. Symcons MQTT-Server reicht Binärdaten als
+     * Zeichen U+0000–U+00FF in UTF-8 weiter (live 28.10.2026) — das wird zurückgewandelt.
+     * Rohe Bytes (andere Broker/Clients) gehen unverändert durch.
+     */
+    public static function bildBytes(string $payload): ?string
+    {
+        if (strncmp($payload, "\xFF\xD8\xFF", 3) !== 0 && strncmp($payload, 'ÿØÿ', strlen('ÿØÿ')) === 0
+            && mb_check_encoding($payload, 'UTF-8')) {
+            $payload = (string)mb_convert_encoding($payload, 'ISO-8859-1', 'UTF-8');
+        }
+        return strncmp($payload, "\xFF\xD8\xFF", 3) === 0 ? $payload : null;
     }
 
     /** Topic zum Schalten einer Funktion. */

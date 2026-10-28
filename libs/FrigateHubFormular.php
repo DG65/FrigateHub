@@ -16,6 +16,10 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.2.0' => [
+            '• Neu: Medienobjekt „Schnappschuss" — zeigt das Bild, das Frigate zu jeder Erkennung schickt. Funktioniert per MQTT, auch ohne Frigate-Adresse.',
+            '• Mit Frigate-Adresse holt der Knopf „Aktuelles Kamerabild holen" (FRIG_BildHolen) das Livebild. Beim ersten Abgleich entsteht das Medienobjekt gleich mit, damit du es sofort verlinken kannst.',
+        ],
         '0.1.1' => [
             '• Neu: Frigate-Adresse eintragen (z. B. http://192.168.1.20:5000) — dann holt die Instanz Schalter, Zonen und den Kamerazustand sofort über Frigates API, statt auf MQTT zu warten.',
             '• Masken heißen jetzt kurz „Bewegungsmaske 1" statt „Bewegungsmaske motion_mask_1". Aus 0.1.0 vorhandene Masken-Variablen bitte löschen, sie werden neu angelegt.',

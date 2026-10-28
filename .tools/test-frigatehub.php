@@ -38,14 +38,15 @@ function paket(string $topic, string $payload): string
 
 class TestKamera extends FrigateHubKamera
 {
-    /** Antworten der Frigate-API je Pfad; null = nicht erreichbar. */
+    /** Antworten der Frigate-API je Pfad (Array = JSON, String = roh); fehlt = nicht erreichbar. */
     public static array $api = [];
     public static array $abgerufen = [];
 
-    protected function apiHolen(string $pfad): ?array
+    protected function apiRoh(string $pfad, string $accept): ?string
     {
         self::$abgerufen[] = $pfad;
-        return self::$api[$pfad] ?? null;
+        $a = self::$api[$pfad] ?? null;
+        return is_array($a) ? (string)json_encode($a) : $a;
     }
 
     public function props(array $p): void
@@ -106,7 +107,11 @@ check('Bildvorschau wie live (UTF-8-umkodiert)', FrigateHubTopics::kurzInhalt('i
 check('Binärdaten', FrigateHubTopics::kurzInhalt('objekt', "\x00\x81\xFE"), '(Binärdaten, 3 Bytes)');
 check('Text gekürzt', FrigateHubTopics::kurzInhalt('objekt', str_repeat('ä', 50)), str_repeat('ä', 40));
 check('JSON-Hinweis', FrigateHubTopics::kurzInhalt('events', '{"a":1}'), '(JSON, 7 Zeichen)');
-check('Schnappschuss ignoriert', FrigateHubTopics::deuten('frigate/Door-Cam/person/snapshot', 'frigate', 'Door-Cam', $z)['art'], 'ignorieren');
+check('Schnappschuss-Topic', FrigateHubTopics::deuten('frigate/Door-Cam/person/snapshot', 'frigate', 'Door-Cam', $z), ['art' => 'schnappschuss', 'label' => 'person']);
+$jpeg = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00" . implode('', array_map('chr', range(0, 255))) . "\xFF\xD9";
+check('Bild roh', FrigateHubTopics::bildBytes($jpeg), $jpeg);
+check('Bild wie live (UTF-8-umkodiert) verlustfrei zurück', FrigateHubTopics::bildBytes(mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')), $jpeg);
+check('kein Bild', FrigateHubTopics::bildBytes('{"a":1}'), null);
 check('eigenes Präfix', FrigateHubTopics::deuten('cam/nvr/Door-Cam/person', '/cam/nvr/', 'Door-Cam', $z)['art'], 'objekt');
 check('Set-Topic', FrigateHubTopics::setTopic('frigate', 'Door-Cam', 'zone/einfahrt'), 'frigate/Door-Cam/zone/einfahrt/set');
 check('ON', FrigateHubTopics::anAus('ON'), true);
@@ -360,6 +365,17 @@ check('Topics gelistet', count(array_filter($alle, fn ($l) => strpos($l, 'frigat
 $k->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding("\xFF\xD8\xFF\xE0" . str_repeat("\x00", 96), 'UTF-8', 'ISO-8859-1')));
 $alle = labels($k->form()['elements']);
 check('Schnappschuss im Panel als Bild', count(array_filter($alle, fn ($l) => strpos($l, 'person/snapshot  =  (Bild, 100 Bytes)') !== false)), 1);
+$mid = IPS_GetObjectIDByIdent('Schnappschuss', 1);
+check('Medienobjekt angelegt', $mid !== false && IPSTestState::$media[$mid]['type'] === MEDIATYPE_IMAGE, true);
+check('Medium: Inhalt = JPEG-Bytes', base64_decode((string)IPSTestState::$media[$mid]['content']), "\xFF\xD8\xFF\xE0" . str_repeat("\x00", 96));
+check('Medium: gecacht, eigene Datei', [IPSTestState::$media[$mid]['cached'], IPSTestState::$media[$mid]['file']], [true, 'media/FrigateHub_1.jpg']);
+check('Medium: Name/Position', [IPSTestState::$media[$mid]['name'], IPSTestState::$media[$mid]['pos']], ['Schnappschuss', 9]);
+$k->ReceiveData(paket('frigate/Door-Cam/car/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
+check('zweites Bild: dasselbe Medium', [count(IPSTestState::$media), base64_decode((string)IPSTestState::$media[$mid]['content'])], [1, $jpeg]);
+check('Bildstatus nennt Objekt', strpos(labels($k->form()['elements'])[array_key_first(array_filter(labels($k->form()['elements']), fn ($l) => strpos($l, '✅ Zuletzt: Schnappschuss') === 0))] ?? '', 'Schnappschuss Auto vom') !== false, true);
+$k->ReceiveData(paket('frigate/Door-Cam/dog/snapshot', 'kaputt'));
+check('kein JPEG → Medium unverändert', base64_decode((string)IPSTestState::$media[$mid]['content']), $jpeg);
+check('BildHolen ohne Adresse', strpos($k->BildHolen(), 'ℹ️') === 0, true);
 check('Abgleich-Hinweis ohne Adresse', count(array_filter($alle, fn ($l) => strpos($l, 'ℹ️ Kein HTTP-Abgleich') === 0)), 1);
 check('Status 104 beschriftet', in_array(104, array_column($form['status'], 'code'), true), true);
 $json = json_encode($form);
@@ -411,14 +427,29 @@ check('nicht erreichbar: keine Schalter', count(array_filter(array_keys($h->vari
 TestKamera::$api = ['/api/config' => ['cameras' => ['Garten' => $kameraConfig]]];
 check('unbekannte Kamera nennt vorhandene', $h->ZustandAnfordern(), '⛔ Frigate kennt keine Kamera „Door-Cam". Vorhanden: Garten.');
 
+$livebild = "\xFF\xD8\xFF\xDBLIVE\xFF\xD9";
 TestKamera::$api = [
     '/api/config' => ['cameras' => ['Door-Cam' => $kameraConfig]],
     '/api/stats'  => ['cameras' => ['Door-Cam' => ['camera_fps' => 5.1, 'detection_fps' => 0.3]], 'service' => ['uptime' => 43]],
+    '/api/Door-Cam/latest.jpg?h=720' => $livebild,
 ];
 TestKamera::$abgerufen = [];
 $text = $h->ZustandAnfordern();
 check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '18 Schalter, 1 Zone(n), Kamera liefert Bilder') !== false, true);
-check('Pfade abgerufen', TestKamera::$abgerufen, ['/api/config', '/api/stats']);
+check('Pfade abgerufen (Livebild, weil noch kein Medium)', TestKamera::$abgerufen, ['/api/config', '/api/stats', '/api/Door-Cam/latest.jpg?h=720']);
+$hm = IPS_GetObjectIDByIdent('Schnappschuss', 5);
+check('Abgleich legt Medium mit Livebild an', base64_decode((string)(IPSTestState::$media[$hm]['content'] ?? '')), $livebild);
+// Ein Schnappschuss einer Erkennung darf der nächste Abgleich nicht mit dem Livebild überschreiben
+$h->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
+TestKamera::$abgerufen = [];
+$h->ZustandAnfordern();
+check('Abgleich holt kein Livebild mehr', in_array('/api/Door-Cam/latest.jpg?h=720', TestKamera::$abgerufen, true), false);
+check('Schnappschuss bleibt', base64_decode((string)IPSTestState::$media[$hm]['content']), $jpeg);
+check('BildHolen per Knopf', strpos($h->BildHolen(), '✅ Livebild vom') === 0 && base64_decode((string)IPSTestState::$media[$hm]['content']) === $livebild, true);
+check('BildHolen meldet ins Formular', in_array('Bildstatus', array_column($h->formFieldUpdates, 0), true), true);
+TestKamera::$api['/api/Door-Cam/latest.jpg?h=720'] = '<html>404</html>';
+check('BildHolen ohne JPEG', $h->BildHolen(), '⛔ Kein Bild von Frigate (Antwort ist kein JPEG).');
+TestKamera::$api['/api/Door-Cam/latest.jpg?h=720'] = $livebild;
 check('Abgleich: erreichbar', $h->GetValue('Verfuegbar'), true);
 check('Abgleich: online', $h->GetValue('Online'), true);
 check('Abgleich: Kontrast', $h->GetValue('Schalter_improve_contrast'), true);

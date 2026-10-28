@@ -27,6 +27,9 @@ class FrigateHubKamera extends IPSModule
     /** Höchstzahl gemerkter Topics fürs Panel „Empfangene Nachrichten". */
     private const TOPIC_MERKER = 80;
 
+    /** Höhe des Livebilds beim Holen über die API (px); Frigate skaliert, spart Speicher. */
+    private const LIVEBILD_HOEHE = 720;
+
     // Positionen: feste Variablen oben, dann Schalter, Objekte, Zonen, Geräusche.
     private const POS_SCHALTER  = 100;
     private const POS_OBJEKT    = 200;
@@ -59,6 +62,7 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterAttributeString('LetzteEventId', '');
         $this->RegisterAttributeString('Schalter', '{}');
         $this->RegisterAttributeString('Abgleichstatus', '');
+        $this->RegisterAttributeString('Bildstatus', '');
         $this->registerFormAttributes();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
@@ -161,6 +165,15 @@ class FrigateHubKamera extends IPSModule
                 }
                 break;
 
+            case 'schnappschuss':
+                $bild = FrigateHubTopics::bildBytes($payload);
+                if ($bild === null) {
+                    $this->SendDebug('Kein JPEG', $topic . ' (' . strlen($payload) . ' Bytes)', 0);
+                    break;
+                }
+                $this->bildSetzen($bild, 'Schnappschuss ' . FrigateHubTopics::objektEinzahl($d['label']));
+                break;
+
             case 'events':
                 $this->eventVerarbeiten($payload);
                 break;
@@ -219,6 +232,26 @@ class FrigateHubKamera extends IPSModule
             : '⛔ Senden fehlgeschlagen — hängt die Instanz unter einem aktiven MQTT-Server oder MQTT-Client? Details im Meldungsprotokoll.';
     }
 
+    /**
+     * Holt das aktuelle Kamerabild über die API (/api/<kamera>/latest.jpg) ins Medienobjekt
+     * „Schnappschuss". Rückgabe: Text für das Formular.
+     */
+    public function BildHolen(): string
+    {
+        if ($this->kamera() === '' || $this->apiUrl() === '') {
+            return 'ℹ️ Dafür braucht es Kamera-ID und Frigate-Adresse. Schnappschüsse zu Erkennungen kommen auch ohne Adresse per MQTT.';
+        }
+        $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?h=' . self::LIVEBILD_HOEHE, 'image/jpeg');
+        if ($bild === null || FrigateHubTopics::bildBytes($bild) === null) {
+            $text = '⛔ Kein Bild von Frigate (' . ($bild === null ? $this->apiFehler : 'Antwort ist kein JPEG') . ').';
+        } else {
+            $this->bildSetzen($bild, 'Livebild');
+            $text = '✅ ' . $this->ReadAttributeString('Bildstatus');
+        }
+        $this->UpdateFormField('Bildstatus', 'caption', $text);
+        return $text;
+    }
+
     /** Vergisst die gelernten Zonen (z. B. nach Umbenennen in Frigate). Variablen bleiben. */
     public function ZonenVergessen(): string
     {
@@ -247,6 +280,14 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
                     ['type' => 'Button', 'caption' => 'Zustand jetzt abfragen', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
+                ],
+            ],
+            [
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖼️  Schnappschuss',
+                'items' => [
+                    ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das letzte Bild, das Frigate zu einer Erkennung schickt (per MQTT, Frigate: snapshots aktiviert). Mit Frigate-Adresse lässt sich auch das aktuelle Kamerabild holen.'],
+                    ['type' => 'Label', 'name' => 'Bildstatus', 'caption' => $this->bildstatus()],
+                    ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
             ],
             [
@@ -287,6 +328,7 @@ class FrigateHubKamera extends IPSModule
             'Voraussetzung: Frigate sendet per MQTT an den MQTT-Server bzw. Broker, unter dem diese Instanz hängt (Frigate-Konfiguration mqtt: host/port/user/password).',
             'Je Kamera eine Instanz. Zähler, Zonen, Geräusche und Schalter entstehen von selbst, sobald Frigate sie zum ersten Mal meldet.',
             'Mit eingetragener Frigate-Adresse fragt die Instanz nach dem Übernehmen und nach jedem Symcon-Start Schalter und Zonen über Frigates API ab. Ohne Adresse schickt Frigate Schalterzustände per MQTT nur, wenn es sich neu verbindet oder etwas umgeschaltet wird.',
+            'Das Medienobjekt „Schnappschuss" entsteht mit dem ersten Bild: dem ersten Schnappschuss einer Erkennung oder, mit Frigate-Adresse, dem aktuellen Kamerabild beim ersten Abgleich. Es liegt im Arbeitsspeicher (schont SSD/SD-Karte) und wird beim Beenden von Symcon gesichert.',
             'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
@@ -343,6 +385,12 @@ class FrigateHubKamera extends IPSModule
         }
         $this->WriteAttributeInteger('LetzteNachricht', time());
 
+        // Ohne Medienobjekt einmal das Livebild holen, damit es gleich verlinkt werden kann.
+        // Ein vorhandener Schnappschuss einer Erkennung wird dabei nicht überschrieben.
+        if (@IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID) === false) {
+            $this->BildHolen();
+        }
+
         return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter'
             . ($geschont > 0 ? ' (davon ' . $geschont . ' gerade erst geschaltet, MQTT-Stand behalten)' : '') . ', '
             . count($this->zonen()) . ' Zone(n)' . (is_numeric($fps) ? ', Kamera ' . ((float)$fps > 0 ? 'liefert Bilder' : 'liefert keine Bilder') : '') . '.';
@@ -364,19 +412,34 @@ class FrigateHubKamera extends IPSModule
         return array_filter(is_array($map) ? $map : [], fn ($t) => (int)$t > $grenze);
     }
 
+    /** GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler). */
+    private function apiHolen(string $pfad): ?array
+    {
+        $antwort = $this->apiRoh($pfad, 'application/json');
+        if ($antwort === null) {
+            return null;
+        }
+        $json = json_decode($antwort, true);
+        if (!is_array($json)) {
+            $this->apiFehler = 'Antwort ist kein JSON';
+            return null;
+        }
+        return $json;
+    }
+
     /**
-     * GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler).
+     * GET auf Frigates API, Antwort roh oder null (Grund in $apiFehler).
      * curl statt Sys_GetURLContentEx (SUITE.md Stolperstein 11); eigene Methode, damit der
      * Prüfstand sie ersetzen kann.
      */
-    protected function apiHolen(string $pfad): ?array
+    protected function apiRoh(string $pfad, string $accept): ?string
     {
         $ch = curl_init($this->apiUrl() . $pfad);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT        => 5,
-            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+            CURLOPT_HTTPHEADER     => ['Accept: ' . $accept],
         ]);
         $antwort = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -390,12 +453,31 @@ class FrigateHubKamera extends IPSModule
             $this->apiFehler = 'HTTP ' . $code . ($code === 401 ? ', Anmeldung verlangt — Port 8971 wird noch nicht unterstützt, bitte Port 5000' : '');
             return null;
         }
-        $json = json_decode((string)$antwort, true);
-        if (!is_array($json)) {
-            $this->apiFehler = 'Antwort ist kein JSON';
-            return null;
+        return (string)$antwort;
+    }
+
+    /**
+     * Schreibt ein JPEG ins Medienobjekt „Schnappschuss" (legt es beim ersten Bild an).
+     * Gecacht: Symcon hält das Bild im Arbeitsspeicher und schreibt es erst beim Beenden —
+     * bei mehreren Schnappschüssen je Erkennung schont das SSD/SD-Karte.
+     */
+    private function bildSetzen(string $jpeg, string $quelle): void
+    {
+        $id = @IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID);
+        if ($id === false) {
+            $id = IPS_CreateMedia(MEDIATYPE_IMAGE);
+            IPS_SetParent($id, $this->InstanceID);
+            IPS_SetIdent($id, 'Schnappschuss');
+            IPS_SetName($id, 'Schnappschuss');
+            IPS_SetPosition($id, 9);
+            IPS_SetMediaFile($id, 'media/FrigateHub_' . $this->InstanceID . '.jpg', false);
+            IPS_SetMediaCached($id, true);
         }
-        return $json;
+        if (!IPS_SetMediaContent($id, base64_encode($jpeg))) {
+            $this->LogMessage('Schnappschuss konnte nicht gespeichert werden (Medienobjekt ' . $id . ')', KL_ERROR);
+            return;
+        }
+        $this->WriteAttributeString('Bildstatus', $quelle . ' vom ' . date('d.m.Y H:i:s') . ' Uhr (' . round(strlen($jpeg) / 1024) . ' KB)');
     }
 
     /** @return string[] */
@@ -601,6 +683,12 @@ class FrigateHubKamera extends IPSModule
         }
         $text = $this->ReadAttributeString('Abgleichstatus');
         return $text !== '' ? $text : 'ℹ️ Noch nicht abgeglichen — geschieht kurz nach dem Übernehmen.';
+    }
+
+    private function bildstatus(): string
+    {
+        $text = $this->ReadAttributeString('Bildstatus');
+        return $text !== '' ? '✅ Zuletzt: ' . $text . '.' : 'ℹ️ Noch kein Bild empfangen.';
     }
 
     private function zonenstatus(): string

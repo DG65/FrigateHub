@@ -35,13 +35,14 @@
 - `libs/FrigateHubTopics.php`: reines PHP, deutet Topics und baut Texte. Prüfstand ruft es direkt.
 - Variablen entstehen einmalig beim ersten Topic (`variableAnlegen`), danach nur `SetValue`:
   Name und Position gehören dann dem Nutzer, kein Update-Sturm.
+- Schnappschuss (0.2.0): Medienobjekt per `IPS_CreateMedia(MEDIATYPE_IMAGE)`, gecacht (schont die
+  Platte), Quelle MQTT-`…/snapshot` oder `/api/<kamera>/latest.jpg`. Abgleich holt das Livebild nur,
+  solange es kein Medium gibt — nie einen Erkennungs-Schnappschuss überschreiben.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
 ## Offen
 
-- Schnappschuss als Medienobjekt über HTTP (`/api/<kamera>/latest.jpg`, `/api/events/<id>/snapshot.jpg`),
-  Port 5000 lokal oder 8971 mit Anmeldung (curl, nicht `Sys_GetURLContentEx`).
 - Konfigurator (passive Erkennung der Kameras aus den Topics).
 - Push-Benachrichtigung bei Alarm (Vorbild `WarnHub::pushToAllWebfronts`).
 - Port 8971 mit Anmeldung (JWT) für den Abgleich, falls Port 5000 nicht freigegeben ist.
