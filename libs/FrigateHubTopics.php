@@ -520,4 +520,20 @@ class FrigateHubTopics
         }
         return ($text !== '' ? $text . ' – ' : '') . $teil;
     }
+
+    /** Auf höchstens $max Bytes kürzen, ohne ein UTF-8-Zeichen zu zerschneiden. */
+    public static function kuerzenBytes(string $text, int $max): string
+    {
+        if (strlen($text) <= $max) {
+            return $text;
+        }
+        $ergebnis = '';
+        foreach (mb_str_split($text) as $zeichen) {
+            if (strlen($ergebnis) + strlen($zeichen) > $max) {
+                break;
+            }
+            $ergebnis .= $zeichen;
+        }
+        return $ergebnis;
+    }
 }

@@ -43,10 +43,12 @@
   Live 28.10. 23:09: MQTT-Schnappschuss kam an, gültiges JPEG 270×270 (Frigate-Standard `mqtt.crop`/
   `height` 270), API `/api/<cam>/person/snapshot.jpg` dagegen 1280×720. Seit 0.2.1 holt jeder
   MQTT-Schnappschuss mit Frigate-Adresse `/api/<cam>/<label>/snapshot.jpg` in voller Größe.
+- Push (0.4.0): Auslöser Review `severity: alert`, einmal je Review-ID (Attribut `LetzterPush`), Ziele
+  per GUID unterschieden (Kachel → `VISU_PostNotificationEx(…, 'Alert', $ton, 0)`, WebFront →
+  `WFC_PushNotification(…, $this->InstanceID)`), Kürzung nach Bytes (SUITE.md Stolperstein 22).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
 ## Offen
 
-- Push-Benachrichtigung bei Alarm (Vorbild `WarnHub::pushToAllWebfronts`).
 - Port 8971 mit Anmeldung (JWT) für den Abgleich, falls Port 5000 nicht freigegeben ist.

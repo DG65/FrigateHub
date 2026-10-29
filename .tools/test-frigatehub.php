@@ -63,6 +63,23 @@ class TestKamera extends FrigateHubKamera
 }
 
 /** Alle Labels eines Formulars rekursiv einsammeln. */
+final class TestPush
+{
+    public static $ergebnis = true;
+}
+
+function VISU_PostNotificationEx(int $id, string $titel, string $text, string $icon, string $ton, int $ziel)
+{
+    $GLOBALS['gepusht'][] = ['VISU', $id, $titel, $text, $icon, $ton, $ziel];
+    return TestPush::$ergebnis ? 4711 : false;
+}
+
+function WFC_PushNotification(int $id, string $titel, string $text, string $ton, int $ziel): bool
+{
+    $GLOBALS['gepusht'][] = ['WFC', $id, $titel, $text, $ton, $ziel];
+    return TestPush::$ergebnis;
+}
+
 function labels(array $elemente): array
 {
     $out = [];
@@ -507,6 +524,71 @@ check('ungültige Adresse: kein Timer', $h->timers['Abgleich']['interval'], 0);
 check('ungültige Adresse: Hinweis', count(array_filter(labels($h->form()['elements']), fn ($l) => strpos($l, '⚠️ Die Frigate-Adresse ist ungültig') === 0)), 1);
 check('Validierung im Formular', preg_match('#' . str_replace('#', '\\#', array_values(array_filter(
     json_decode(json_encode($h->form()['elements']), true)[3]['items'] ?? [], fn ($e) => ($e['name'] ?? '') === 'ApiUrl'))[0]['validate'] ?? 'x') . '#', 'http://192.168.1.20:5000'), 1);
+
+/* =================================================================== Push bei Alarm */
+
+check('Kürzen: kurz bleibt', FrigateHubTopics::kuerzenBytes('Door-Cam', 32), 'Door-Cam');
+$lang = '🚨 ' . str_repeat('ä', 20);
+check('Kürzen: höchstens 32 Bytes', strlen(FrigateHubTopics::kuerzenBytes($lang, 32)) <= 32, true);
+check('Kürzen: gültiges UTF-8', mb_check_encoding(FrigateHubTopics::kuerzenBytes($lang, 32), 'UTF-8'), true);
+check('Kürzen: kein Zeichen zerschnitten', FrigateHubTopics::kuerzenBytes($lang, 32), '🚨 ' . str_repeat('ä', 13));
+
+IPSTestState::$instances[20] = ['InstanceID' => 20, 'Name' => 'Haustür', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+IPSTestState::$instances[30] = ['InstanceID' => 30, 'Name' => 'Dietmar', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{B5B875BB-9B76-45FD-4E67-2607E45B3AC4}']];
+IPSTestState::$instances[31] = ['InstanceID' => 31, 'Name' => 'WebFront', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{3565B1F2-8F7B-4311-A4B6-1BF1D868F39E}']];
+IPSTestState::$instances[32] = ['InstanceID' => 32, 'Name' => 'Lampe', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{FREMD}']];
+$p = new TestKamera(20);
+$p->Create();
+$p->props(['Camera' => 'Door-Cam']);
+$p->ApplyChanges();
+$alarm = function (string $id, string $stufe = 'alert', string $typ = 'new') use ($p): void {
+    $p->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => $typ, 'before' => [], 'after' => [
+        'id' => $id, 'camera' => 'Door-Cam', 'severity' => $stufe, 'start_time' => mktime(18, 6, 0, 10, 28, 2026),
+        'data' => ['objects' => ['person'], 'zones' => ['haustuer'], 'audio' => [], 'sub_labels' => []]]])));
+};
+
+$gepusht = [];
+$alarm('a1');
+check('ohne Ziel kein Push', $gepusht, []);
+check('ohne Ziel: Status', in_array('Push ist aus (kein Ziel eingetragen).', labels($p->form()['elements']), true), true);
+
+$p->props(['PushZiele' => json_encode([['Ziel' => 30], ['Ziel' => 31], ['Ziel' => 30]]), 'PushPause' => 0]);
+$p->ApplyChanges();
+$alarm('a2');
+check('Alarm: zwei Ziele, doppeltes nur einmal', count($gepusht), 2);
+check('Kachel: Ex-Fassung mit Titel', $gepusht[0] ?? null, ['VISU', 30, '🚨 Haustür', '28.10.2026 18:06:00 – Person in haustuer', 'Alert', 'alarm', 0]);
+check('WebFront: WFC mit eigener Instanz', $gepusht[1] ?? null, ['WFC', 31, '🚨 Haustür', '28.10.2026 18:06:00 – Person in haustuer', 'alarm', 20]);
+check('Status: gesendet', strpos($p->ReadAttributeString('Pushstatus'), 'an Dietmar, WebFront gesendet') !== false, true);
+
+$gepusht = [];
+$alarm('a2', 'alert', 'update');
+check('derselbe Alarm nur einmal', $gepusht, []);
+$alarm('a3', 'detection');
+check('Erkennung: kein Push', $gepusht, []);
+$alarm('a3', 'alert', 'update');
+check('Aufstieg zum Alarm: Push', count($gepusht), 2);
+
+$p->props(['PushPause' => 60]);
+$p->ApplyChanges();
+$gepusht = [];
+$alarm('a4');
+check('Mindestabstand: kein Push', $gepusht, []);
+$p->WriteAttributeString('LetzterPush', (string)json_encode(['id' => 'a3', 'zeit' => time() - 61]));
+$alarm('a5');
+check('nach Mindestabstand: Push', count($gepusht), 2);
+
+$p->props(['PushZiele' => json_encode([['Ziel' => 30], ['Ziel' => 32]]), 'PushTon' => 'bell']);
+$p->ApplyChanges();
+$gepusht = [];
+$text = $p->PushTesten();
+check('Probemeldung: Ton', $gepusht[0][5] ?? null, 'bell');
+check('Probemeldung: Teilfehler sichtbar', strpos($text, '⚠️') === 0 && strpos($text, 'Lampe (keine Visualisierung)') !== false, true);
+check('Probemeldung: Formular aktualisiert', end($p->formFieldUpdates), ['Pushstatus', 'caption', $text]);
+TestPush::$ergebnis = false;
+$p->props(['PushZiele' => json_encode([['Ziel' => 30]])]);
+$p->ApplyChanges();
+check('Zustellung scheitert: ⛔', strpos($p->PushTesten(), '⛔') === 0, true);
+TestPush::$ergebnis = true;
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

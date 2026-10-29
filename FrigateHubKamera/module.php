@@ -48,6 +48,17 @@ class FrigateHubKamera extends IPSModule
     /** Wartezeit nach dem Übernehmen bis zum Abgleich (ms) — ApplyChanges nicht blockieren. */
     private const ABGLEICH_VERZOEGERUNG = 2000;
 
+    /**
+     * Push-Ziele: klassisches WebFront (WFC_PushNotification) und Kachel-Visualisierung
+     * (VISU_PostNotificationEx) haben verschiedene Funktionen — beide anbieten (SUITE.md Stolperstein 22).
+     */
+    private const WEBFRONT_GUID = '{3565B1F2-8F7B-4311-A4B6-1BF1D868F39E}';
+    private const KACHEL_GUID   = '{B5B875BB-9B76-45FD-4E67-2607E45B3AC4}';
+
+    /** Töne laut Symcon-Doku, für WebFront und Kachel-Visualisierung gleich. */
+    private const PUSH_TOENE = ['alarm', 'bell', 'boom', 'buzzer', 'connected', 'dark', 'digital', 'drums', 'duck', 'full',
+        'happy', 'horn', 'inception', 'kazoo', 'roll', 'siren', 'space', 'trickling', 'turn'];
+
     public function Create()
     {
         parent::Create();
@@ -55,6 +66,9 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterPropertyString('TopicPrefix', 'frigate');
         $this->RegisterPropertyString('Camera', '');
         $this->RegisterPropertyString('ApiUrl', '');
+        $this->RegisterPropertyString('PushZiele', '[]');
+        $this->RegisterPropertyString('PushTon', 'alarm');
+        $this->RegisterPropertyInteger('PushPause', 60);
 
         $this->RegisterAttributeString('Zonen', '[]');
         $this->RegisterAttributeInteger('LetzteNachricht', 0);
@@ -62,6 +76,8 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterAttributeString('Schalter', '{}');
         $this->RegisterAttributeString('Abgleichstatus', '');
         $this->RegisterAttributeString('Bildstatus', '');
+        $this->RegisterAttributeString('LetzterPush', '{}');
+        $this->RegisterAttributeString('Pushstatus', '');
         $this->registerFormAttributes();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
@@ -247,6 +263,14 @@ class FrigateHubKamera extends IPSModule
     }
 
     /** Vergisst die gelernten Zonen (z. B. nach Umbenennen in Frigate). Variablen bleiben. */
+    /** Probemeldung an alle eingetragenen Ziele. Rückgabe: Text fürs Formular. */
+    public function PushTesten(): string
+    {
+        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), 'Probemeldung von FrigateHub – so sieht ein Alarm aus.');
+        $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
+        return $text;
+    }
+
     public function ZonenVergessen(): string
     {
         $anzahl = count($this->zonen());
@@ -282,6 +306,22 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das Bild der letzten Erkennung (Frigate: snapshots aktiviert). Mit Frigate-Adresse kommt es in voller Größe, sonst als Ausschnitt per MQTT (Größe in Frigate unter mqtt: height/crop). Mit Adresse lässt sich auch das aktuelle Kamerabild holen.'],
                     ['type' => 'Label', 'name' => 'Bildstatus', 'caption' => $this->bildstatus()],
                     ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
+                ],
+            ],
+            [
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push bei Alarm',
+                'items' => [
+                    ['type' => 'Label', 'caption' => 'Meldet jeden neuen Alarm dieser Kamera als Push-Nachricht aufs Handy, einmal je Alarm. Was ein Alarm ist, legst du in Frigate fest (review: alerts: labels / required_zones). Ohne Ziel bleibt der Push aus.'],
+                    ['type' => 'List', 'name' => 'PushZiele', 'caption' => 'Ziele (WebFront oder Kachel-Visualisierung)', 'add' => true, 'delete' => true, 'rowCount' => 3,
+                        'columns' => [[
+                            'caption' => 'Visualisierung', 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
+                            'edit' => ['type' => 'SelectInstance', 'validModules' => [self::KACHEL_GUID, self::WEBFRONT_GUID]],
+                        ]],
+                    ],
+                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Ton', 'options' => $this->tonOptionen()],
+                    ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => 'Mindestabstand zwischen zwei Meldungen', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                    ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
+                    ['type' => 'Button', 'caption' => 'Probemeldung senden', 'onClick' => 'echo FRIG_PushTesten($id);'],
                 ],
             ],
             [
@@ -323,6 +363,7 @@ class FrigateHubKamera extends IPSModule
             'Je Kamera eine Instanz. Zähler, Zonen, Geräusche und Schalter entstehen von selbst, sobald Frigate sie zum ersten Mal meldet.',
             'Mit eingetragener Frigate-Adresse fragt die Instanz nach dem Übernehmen und nach jedem Symcon-Start Schalter und Zonen über Frigates API ab. Ohne Adresse schickt Frigate Schalterzustände per MQTT nur, wenn es sich neu verbindet oder etwas umgeschaltet wird.',
             'Das Medienobjekt „Schnappschuss" entsteht mit dem ersten Bild: dem ersten Schnappschuss einer Erkennung oder, mit Frigate-Adresse, dem aktuellen Kamerabild beim ersten Abgleich. Es liegt im Arbeitsspeicher (schont SSD/SD-Karte) und wird beim Beenden von Symcon gesichert.',
+            'Push bei Alarm: je neuem Alarm eine Meldung an die eingetragenen Visualisierungen, Titel = Name dieser Instanz, Text = Zeit, Objekte und Zonen. Steigt eine Erkennung später zum Alarm auf, kommt die Meldung dann.',
             'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
@@ -578,9 +619,105 @@ class FrigateHubKamera extends IPSModule
         $text = FrigateHubTopics::reviewText($after);
         if ((string)($after['severity'] ?? '') === 'alert') {
             $this->SetValue('LetzterAlarm', $text);
+            $this->alarmMelden((string)($after['id'] ?? ''), $text);
         } else {
             $this->SetValue('LetzteErkennung', $text);
         }
+    }
+
+    /** Einmal je Review-ID, frühestens PushPause Sekunden nach der letzten Meldung. */
+    private function alarmMelden(string $id, string $text): void
+    {
+        if ($this->pushZiele() === []) {
+            return;
+        }
+        $letzter = json_decode($this->ReadAttributeString('LetzterPush'), true);
+        $letzter = is_array($letzter) ? $letzter : [];
+        if ($id !== '' && $id === (string)($letzter['id'] ?? '')) {
+            return;
+        }
+        if (time() - (int)($letzter['zeit'] ?? 0) < max(0, $this->ReadPropertyInteger('PushPause'))) {
+            $this->SendDebug('Push', 'übersprungen (Mindestabstand): ' . $text, 0);
+            return;
+        }
+        $this->WriteAttributeString('LetzterPush', (string)json_encode(['id' => $id, 'zeit' => time()]));
+        $this->pushSenden('🚨 ' . IPS_GetName($this->InstanceID), $text);
+    }
+
+    /** @return int[] gültige Ziel-Instanzen aus der Liste */
+    private function pushZiele(): array
+    {
+        $ziele = [];
+        foreach ((array)json_decode($this->ReadPropertyString('PushZiele'), true) as $zeile) {
+            $id = (int)($zeile['Ziel'] ?? 0);
+            if ($id > 0 && !in_array($id, $ziele, true)) {
+                $ziele[] = $id;
+            }
+        }
+        return $ziele;
+    }
+
+    /** An alle Ziele senden; Ergebnis landet im Attribut Pushstatus. Rückgabe: derselbe Text. */
+    private function pushSenden(string $titel, string $text): string
+    {
+        $ziele = $this->pushZiele();
+        if ($ziele === []) {
+            $status = '⚠️ Kein Ziel eingetragen — bitte unter „Ziele" eine Visualisierung hinzufügen und übernehmen.';
+            $this->WriteAttributeString('Pushstatus', $status);
+            return $status;
+        }
+        // Grenzen laut Doku 32/256 Zeichen; ob Symcon Zeichen oder Bytes zählt, ist offen → nach Bytes kürzen.
+        $titel = FrigateHubTopics::kuerzenBytes($titel, 32);
+        $text = FrigateHubTopics::kuerzenBytes($text, 256);
+        $ton = (string)$this->ReadPropertyString('PushTon');
+        $ok = [];
+        $fehler = [];
+        foreach ($ziele as $ziel) {
+            $name = IPS_InstanceExists($ziel) ? IPS_GetName($ziel) : ('#' . $ziel);
+            $modul = IPS_InstanceExists($ziel) ? (string)(IPS_GetInstance($ziel)['ModuleInfo']['ModuleID'] ?? '') : '';
+            if ($modul === self::KACHEL_GUID && function_exists('VISU_PostNotificationEx')) {
+                // Ex-Fassung: die einfache VISU_PostNotification lieferte live immer false (Stolperstein 22).
+                $gesendet = @VISU_PostNotificationEx($ziel, $titel, $text, 'Alert', $ton, 0);
+            } elseif ($modul === self::WEBFRONT_GUID && function_exists('WFC_PushNotification')) {
+                $gesendet = @WFC_PushNotification($ziel, $titel, $text, $ton, $this->InstanceID);
+            } else {
+                $fehler[] = $name . ' (keine Visualisierung)';
+                continue;
+            }
+            if ($gesendet !== false) {
+                $ok[] = $name;
+            } else {
+                $fehler[] = $name;
+            }
+        }
+        $zeit = date('d.m.Y H:i:s');
+        if ($fehler === []) {
+            $status = '✅ ' . $zeit . ' an ' . implode(', ', $ok) . ' gesendet.';
+        } else {
+            $status = ($ok === [] ? '⛔ ' : '⚠️ ') . $zeit . ' nicht zugestellt an ' . implode(', ', $fehler)
+                . ($ok === [] ? '.' : ', gesendet an ' . implode(', ', $ok) . '.');
+            $this->LogMessage('Push nicht zugestellt an ' . implode(', ', $fehler), KL_WARNING);
+        }
+        $this->WriteAttributeString('Pushstatus', $status);
+        return $status;
+    }
+
+    private function pushstatus(): string
+    {
+        $status = $this->ReadAttributeString('Pushstatus');
+        if ($status !== '') {
+            return $status;
+        }
+        return $this->pushZiele() === [] ? 'Push ist aus (kein Ziel eingetragen).' : 'Noch keine Meldung gesendet.';
+    }
+
+    private function tonOptionen(): array
+    {
+        $optionen = [];
+        foreach (self::PUSH_TOENE as $ton) {
+            $optionen[] = ['caption' => $ton, 'value' => $ton];
+        }
+        return $optionen;
     }
 
     private function senden(string $topic, string $payload): bool

@@ -16,6 +16,10 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.4.0' => [
+            '• Neu: Push bei Alarm. Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen (WebFront oder Kachel-Visualisierung) — jeder neue Frigate-Alarm kommt einmal als Meldung aufs Handy, mit Zeit, Objekt und Zone.',
+            '• Ton und Mindestabstand zwischen zwei Meldungen sind einstellbar, „Probemeldung senden" prüft die Zustellung.',
+        ],
         '0.3.0' => [
             '• Neu: Frigate-Konfigurator. Unter dem MQTT-Server anlegen, Frigate-Adresse eintragen — er listet alle Kameras aus Frigate und legt sie mit einem Klick fertig eingerichtet an.',
         ],

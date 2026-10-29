@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.3.0:** MQTT, Abgleich über Frigates API, Schnappschuss als Medienobjekt und Konfigurator.
+> **Stand 0.4.0:** MQTT, Abgleich über Frigates API, Schnappschuss als Medienobjekt, Konfigurator und Push bei Alarm.
 
 ## Was tut dieses Modul?
 
@@ -35,6 +35,11 @@ Mit eingetragener Frigate-Adresse kommt der Schnappschuss jeder Erkennung in vol
 Kameraauflösung. Ohne Adresse nimmt FrigateHub das Bild, das Frigate per MQTT schickt: einen
 Ausschnitt um das Objekt (Standard: 270 px hoch). Größe und Zuschnitt stellt man in Frigate je Kamera
 unter `mqtt:` ein (`height`, `crop`, `quality`, `bounding_box`, `timestamp`).
+
+**Push bei Alarm:** Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen
+(WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
+Titel ist der Name der Instanz, Text Zeit, Objekt und Zone. Was ein Alarm ist, legt man in Frigate
+fest (`review: alerts: labels` bzw. `required_zones`). Ton und Mindestabstand sind einstellbar.
 
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.

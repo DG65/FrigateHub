@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 (Build 7) — 29.10.2026
+
+- **Push bei Alarm:** Neues Panel „🔔 Push bei Alarm" mit Zielliste (WebFront per `WFC_PushNotification`, Kachel-Visualisierung per `VISU_PostNotificationEx`), Ton und Mindestabstand (Standard 60 s). Auslöser ist ein Review mit `severity: alert` (`new` oder `update`), einmal je Review-ID; steigt eine Erkennung zum Alarm auf, kommt die Meldung dann. Titel = Instanzname, Text = Zeit, Objekte, Zonen; nach Bytes auf 32/256 gekürzt.
+- `FRIG_PushTesten($id)` / Knopf „Probemeldung senden" mit Zustellstatus je Ziel; nicht zugestellte Meldungen landen als Warnung im Meldungsfenster.
+
 ## 0.3.0 (Build 6) — 29.10.2026
 
 - **Neues Modul Frigate-Konfigurator** (`FrigateHubKonfigurator`, Präfix `FRIGC`): hängt unter dem MQTT-Server, liest die Kameras über `/api/config` und `/api/stats` und legt je Kamera eine Frigate-Kamera an, mit Kamera-ID, MQTT-Präfix (`mqtt.topic_prefix`) und Frigate-Adresse. Spalten: Name (friendly_name), Kamera-ID, Erkennung, Auflösung, Zonen, Zustand.
