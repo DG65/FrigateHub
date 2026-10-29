@@ -237,12 +237,21 @@ ein bereits bewertetes Ereignis und entscheidet nach Bereich und Scharfmodus, ob
   `FRIG_MeldungMitSchnappschuss(<Kamera-Instanz>, "Alarm", true)`. Das Bild verschickt FrigateHub an
   die Ziele der Kamera (E-Mail mit Bild über SMTP, Push öffnet die Kamera).
 - Mehrere Kameras: Die Alarmaktionen von OpenHomeAlarm hängen nicht an einem bestimmten Sensor.
-  Entweder eine Aktion je Kamera (alle schicken ihr Bild), oder ein kleines Skript fragt mit
-  `OHA_GetControlState()` den Auslöser ab und ruft die passende Kamera auf.
-- „Scharf → Aufnahme an": Eine eigene Aktion nach erfolgreichem Scharfschalten hat OpenHomeAlarm
-  derzeit nicht (für 2.x angedacht). Bis dahin ein Symcon-Ereignis auf die Statusvariable des
-  Bereichs; das Skript prüft mit `OHA_GetControlState()`, ob der Bereich scharf ist, und schaltet
-  „Aufnahme" bzw. „Objekterkennung" der Kamera.
+  Eine einzige Alarmaktion `FRIGS_MeldungLetzteKamera(<Frigate-Server>, "Alarm", true)` genügt:
+  Sie nimmt die Kamera mit dem jüngsten Alarm (sonst der jüngsten Erkennung) und schickt deren Bild.
+
+**Die Module finden sich von selbst** (wie im NRG-Stack: Modul-GUID, Abruffunktion mit
+Vertragsversion, kein Muss):
+- FrigateHub findet OpenHomeAlarm über dessen Modul-GUID und liest nur `OHA_GetControlState()`.
+  Im Panel „🛡️ OpenHomeAlarm (optional)" der Kamera steht, ob es gefunden wurde und welche Bereiche
+  es meldet. Dort lässt sich einstellen, was beim **Scharfschalten eines Bereichs** geschieht
+  (Aufnahme und/oder Objekterkennung an) und ob das Unscharfschalten wieder ausschaltet. Geschaltet
+  wird nur beim tatsächlichen Wechsel (scharf erst nach der Ausgangsverzögerung), nie beim
+  Übernehmen. Liefert OpenHomeAlarm künftig eine andere Vertrags-Hauptversion, schaltet FrigateHub
+  die Kopplung sichtbar ab, statt falsch zu lesen.
+- Für andere Module bietet die Instanz Frigate-Server `FRIGS_GetCameras($id)`: je Kamera die
+  Variablen für Melder (Alarm, Erkennung, Bewegung, Personen, Zonen-Zähler, online), die Schalter
+  und die Meldefunktion, mit `contractVersion` (derzeit 1.0, Hauptversion nur bei Bruch).
 
 Fragen zu OpenHomeAlarm selbst gehören in dessen Forum-Thread, Fragen zu Kameras und Frigate in
 den von FrigateHub.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0 (Build 25) — 29.10.2026
+
+- **OpenHomeAlarm finden (optional, mit Burki24 abgestimmt):** Die Kamera findet OpenHomeAlarm über dessen Modul-GUID und liest nur `OHA_GetControlState()` (`Partitions.<Bereich>.State.Name`). Neues Panel „🛡️ OpenHomeAlarm (optional)“ mit Statuszeile und Bereichsauswahl: beim tatsächlichen Wechsel auf scharf (`armed`, nicht schon in der Ausgangsverzögerung) Aufnahme und/oder Objekterkennung an, auf Wunsch beim Unscharfschalten wieder aus. Übernehmen schaltet nichts. Andere Vertrags-Hauptversion → Kopplung sichtbar aus.
+- **`FRIGS_GetCameras()`** (Vertrag 1.0): neutrale Kameraliste mit Variablen für Melder, Schalter und Meldefunktion — für Alarmanlagen und Regelwerke, damit sie FrigateHub von selbst finden.
+- **`FRIGS_MeldungLetzteKamera($id, $Text, $Livebild)`:** Bild der Kamera mit dem jüngsten Alarm (sonst Erkennung) — eine Alarmaktion für alle Kameras.
+
 ## 0.11.1 (Build 24) — 29.10.2026
 
 - **Zeitstempel im Livebild:** neue Einstellung „Frigates Zeitstempel ins Livebild“ (Standard an) für Kachel, Meldungsbild und „Aktuelles Kamerabild holen“ (`latest.jpg?timestamp=1`, Aussehen über Frigates `timestamp_style`). Ausschalten, wenn die Kamera selbst schon die Uhrzeit einblendet (Wunsch Dietmar).

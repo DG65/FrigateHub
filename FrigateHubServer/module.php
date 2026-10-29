@@ -152,6 +152,69 @@ class FrigateHubServer extends IPSModule
         $this->hookAntwort(200, $a['kopf']['content-type'] ?? 'image/jpeg', $a['body'], 'no-store');
     }
 
+    /** Vertragsversion von FRIGS_GetCameras() (Major nur bei Bruch erhöhen, SUITE.md-Regel). */
+    public const VERTRAG = '1.0';
+
+    /**
+     * FRIGS_GetCameras($id): neutrale Liste der Kameras dieser Frigate-Instanz für andere Module
+     * (Alarmanlagen wie OpenHomeAlarm, Regelwerke): Variablen-IDs für Melder und Schalter sowie die
+     * Meldefunktion. Nur Kameras, für die es eine FrigateHub-Kamera-Instanz gibt. 0 = gibt es nicht.
+     */
+    public function GetCameras(): array
+    {
+        $kameras = [];
+        foreach ($this->kameraInstanzen() as $kamera => $id) {
+            $v = fn (string $ident): int => (int)(@IPS_GetObjectIDByIdent($ident, $id) ?: 0);
+            $zonen = [];
+            foreach (IPS_GetChildrenIDs($id) as $kind) {
+                $o = IPS_GetObject($kind);
+                if ($o['ObjectType'] === 2 && preg_match('/^Zone_(.+)_person(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
+                    $zonen[] = ['zone' => $m[1], 'name' => $o['ObjectName'], 'personen' => $kind];
+                }
+            }
+            $kameras[] = [
+                'contractVersion' => self::VERTRAG,
+                'kamera'          => (string)$kamera,
+                'name'            => IPS_GetName($id),
+                'instanz'         => $id,
+                'melder'          => ['alarm' => $v('Alarm'), 'erkennung' => $v('Erkennung'), 'bewegung' => $v('Bewegung'), 'personen' => $v('Objekt_person'),
+                    'online' => $v('Online'), 'zonen' => $zonen],
+                'schalter'        => ['aufnahme' => $v('Schalter_recordings'), 'objekterkennung' => $v('Schalter_detect'), 'schnappschuesse' => $v('Schalter_snapshots')],
+                'bild'            => $v('Schnappschuss'),
+                'meldung'         => 'FRIG_MeldungMitSchnappschuss',
+            ];
+        }
+        return $kameras;
+    }
+
+    /**
+     * FRIGS_MeldungLetzteKamera($id, $Text, $Livebild): Meldung mit Bild der Kamera, die zuletzt
+     * einen Alarm (sonst eine Erkennung) hatte — für Alarmaktionen, die nicht wissen, welcher Melder
+     * ausgelöst hat (z. B. OpenHomeAlarm mit mehreren Kameras). Rückgabe: Text.
+     */
+    public function MeldungLetzteKamera(string $Text, bool $Livebild): string
+    {
+        $beste = 0;
+        $zeit = 0;
+        foreach ($this->kameraInstanzen() as $id) {
+            foreach (['LetzterAlarm' => 0, 'LetzteErkennung' => -60] as $ident => $abzug) {
+                $v = @IPS_GetObjectIDByIdent($ident, $id);
+                // Ein Alarm zählt vor einer gleichzeitigen Erkennung (60 s Vorsprung)
+                $t = $v === false || GetValue($v) === '' ? 0 : IPS_GetVariable($v)['VariableUpdated'] + $abzug;
+                if ($t > $zeit) {
+                    [$beste, $zeit] = [$id, $t];
+                }
+            }
+        }
+        if ($beste === 0) {
+            return 'ℹ️ Keine Kamera mit Alarm oder Erkennung gefunden.';
+        }
+        if (!function_exists('FRIG_MeldungMitSchnappschuss')) {
+            return '⛔ FrigateHub-Kamera nicht ansprechbar.';
+        }
+        return IPS_GetName($beste) . ': ' . FRIG_MeldungMitSchnappschuss($beste, $Text, $Livebild);
+    }
+
     /** FRIGS_KachelSchluesselErneuern($id): alte Bild- und Seitenadressen werden ungültig. */
     public function KachelSchluesselErneuern(): string
     {
@@ -374,6 +437,7 @@ class FrigateHubServer extends IPSModule
                     ...$this->apiFormular('Optional: Mit Adresse stehen die Werte gleich nach dem Übernehmen bereit statt erst mit der nächsten Statistik per MQTT.'),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
                     ['type' => 'CheckBox', 'name' => 'LeistungAlsVariablen', 'caption' => 'Leistungswerte zusätzlich als Variablen (CPU, Arbeitsspeicher, GPU, Erkennungszeit, Version, Laufzeit, Speicher belegt) — für Archiv und Diagramme'],
+                    ['type' => 'Label', 'caption' => 'Für andere Module: FRIGS_GetCameras($id) liefert alle Kameras mit den Variablen für Melder und Schalter (Vertrag ' . self::VERTRAG . '). FRIGS_MeldungLetzteKamera($id, "Text", true) schickt das Bild der Kamera mit dem jüngsten Alarm — eine einzige Alarmaktion für alle Kameras.'],
                     ['type' => 'RowLayout', 'items' => [
                         ['type' => 'Button', 'caption' => 'Werte jetzt abfragen', 'onClick' => 'echo FRIGS_ZustandAnfordern($id);'],
                         ['type' => 'Button', 'caption' => '🔄 Frigate neu starten', 'onClick' => 'echo FRIGS_Neustarten($id);',

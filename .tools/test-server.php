@@ -35,6 +35,13 @@ function paket(string $topic, string $payload): string
     ]);
 }
 
+$GLOBALS['meldungen'] = [];
+function FRIG_MeldungMitSchnappschuss(int $id, string $text, bool $livebild): string
+{
+    $GLOBALS['meldungen'][] = [$id, $text, $livebild];
+    return '✅ gesendet';
+}
+
 function nachIdent(array $werte): array
 {
     $out = [];
@@ -253,6 +260,27 @@ check('Kachel-HTML mit Startdaten', strpos((string)$s->GetVisualizationTile(), '
 $alt = $sk;
 $s->KachelSchluesselErneuern();
 check('neuer Schlüssel: alter gilt nicht', $s->hook(['daten' => '1', 'k' => $alt])['code'], 403);
+
+// Vertrag für andere Module und Meldung der letzten Kamera
+IPSTestState::$instances[42] = ['InstanceID' => 42, 'Name' => 'Garten', 'ConnectionID' => 95, 'InstanceStatus' => IS_ACTIVE, 'Properties' => ['Camera' => 'garten'],
+    'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$alarm40 = IPSTestState::addObject(40, 'Alarm', false, 'Alarm');
+IPSTestState::addObject(40, 'Online', true, 'Kamera online');
+IPSTestState::addObject(40, 'Schalter_recordings', true, 'Aufnahme');
+$zone = IPSTestState::addObject(40, 'Zone_Eingangsbereich_person', 0, 'Eingangsbereich: Personen');
+IPSTestState::addObject(40, 'LetzterAlarm', '29.10.2026 16:18:00 – Person', 'Letzter Alarm', 1000);
+IPSTestState::addObject(42, 'LetzteErkennung', '29.10.2026 16:18:30 – Katze', 'Letzte Erkennung', 1030);
+$liste = $s->GetCameras();
+$haus = array_values(array_filter($liste, fn ($k) => $k['kamera'] === 'Door-Cam'))[0] ?? [];
+check('GetCameras: Vertrag, Melder, Zone, Schalter, Meldefunktion', [$haus['contractVersion'] ?? null, $haus['melder']['alarm'] ?? null, $haus['melder']['zonen'][0]['personen'] ?? null,
+    $haus['melder']['zonen'][0]['zone'] ?? null, $haus['schalter']['aufnahme'] > 0, $haus['schalter']['objekterkennung'] ?? null, $haus['meldung'] ?? null],
+    ['1.0', $alarm40, $zone, 'Eingangsbereich', true, 0, 'FRIG_MeldungMitSchnappschuss']);
+check('GetCameras: beide Kameras desselben Brokers', array_column($liste, 'kamera'), ['Door-Cam', 'garten']);
+$text = $s->MeldungLetzteKamera('Alarm!', true);
+check('Alarm 30 s vor einer Erkennung zählt mehr (60 s Vorsprung)', [$GLOBALS['meldungen'][0] ?? null, strpos($text, 'Haustür') === 0], [[40, 'Alarm!', true], true]);
+IPSTestState::addObject(42, 'LetzterAlarm', '29.10.2026 16:20:00 – Person', 'Letzter Alarm', 1100);
+$s->MeldungLetzteKamera('', false);
+check('jüngerer Alarm einer anderen Kamera gewinnt', $GLOBALS['meldungen'][1][0] ?? null, 42);
 
 // Formular und Modulbeschreibung
 $form = (string)$s->GetConfigurationForm();

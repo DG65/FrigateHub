@@ -7,6 +7,7 @@ require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
 require_once __DIR__ . '/../libs/FrigateHubWebhook.php';
 require_once __DIR__ . '/../libs/FrigateHubKachel.php';
+require_once __DIR__ . '/../libs/FrigateHubOha.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -25,7 +26,9 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubFormular;
     use FrigateHubApi;
     use FrigateHubWebhook;
-    use FrigateHubKachel;
+    use FrigateHubKachel {
+        MessageSink as private kachelMessageSink;
+    }
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -77,6 +80,11 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterPropertyInteger('PushPause', 60);
         // KI-Einschätzung (Frigate GenAI): zum Alarm nachreichen, verdächtige Erkennungen melden
         $this->RegisterPropertyBoolean('PushKI', true);
+        // Optionale Kopplung an OpenHomeAlarm: Bereich ('' = aus), was bei scharf geschieht, ob unscharf zurückschaltet
+        $this->RegisterPropertyString('OhaBereich', '');
+        $this->RegisterPropertyInteger('OhaBeiScharf', 1);
+        $this->RegisterPropertyBoolean('OhaBeiUnscharf', false);
+        $this->RegisterAttributeString('OhaLage', '');
 
         $this->RegisterAttributeString('Zonen', '[]');
         $this->RegisterAttributeInteger('LetzteNachricht', 0);
@@ -90,6 +98,16 @@ class FrigateHubKamera extends IPSModule
         $this->registerFormAttributes();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
+    }
+
+    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
+    {
+        $this->kachelMessageSink($TimeStamp, $SenderID, $Message, $Data);
+        if ($Message === IPS_KERNELMESSAGE && ($Data[0] ?? null) === KR_READY) {
+            $this->ohaBeobachten();
+        } elseif ($Message === VM_UPDATE) {
+            $this->ohaPruefen(true);
+        }
     }
 
     public function Destroy()
@@ -123,6 +141,7 @@ class FrigateHubKamera extends IPSModule
         }
 
         $this->filterSetzen();
+        $this->ohaBeobachten();
         $this->SetStatus(IS_ACTIVE);
         // Einmal kurz nach dem Übernehmen (und nach jedem Symcon-Start) abgleichen.
         $this->SetTimerInterval('Abgleich', $this->apiUrl() !== '' ? self::ABGLEICH_VERZOEGERUNG : 0);
@@ -348,6 +367,125 @@ class FrigateHubKamera extends IPSModule
         return $status;
     }
 
+    /* ==================================================================== OpenHomeAlarm (optional) */
+
+    /** Erste OpenHomeAlarm-Instanz oder 0. Kein Muss: ohne OpenHomeAlarm bleibt alles wie gehabt. */
+    private function ohaInstanz(): int
+    {
+        $ids = IPS_GetInstanceListByModuleID(FrigateHubOha::GUID);
+        return $ids === [] ? 0 : (int)$ids[0];
+    }
+
+    /** Antwort von OpenHomeAlarm gedeutet, oder null, wenn es nicht da ist. */
+    private function ohaStand(): ?array
+    {
+        $id = $this->ohaInstanz();
+        if ($id === 0 || !function_exists('OHA_GetControlState')) {
+            return null;
+        }
+        try {
+            return FrigateHubOha::deuten(@OHA_GetControlState($id));
+        } catch (Throwable $e) {
+            return ['ok' => false, 'grund' => $e->getMessage(), 'bereiche' => []];
+        }
+    }
+
+    /**
+     * Auf Änderungen der Variablen von OpenHomeAlarm hören (deren Idents legt FrigateHub bewusst
+     * nicht fest) und den aktuellen Stand merken, ohne zu schalten — Übernehmen löst nichts aus.
+     */
+    private function ohaBeobachten(): void
+    {
+        foreach ($this->GetMessageList() as $sender => $nachrichten) {
+            if ($sender !== 0 && in_array(VM_UPDATE, $nachrichten, true)) {
+                $this->UnregisterMessage($sender, VM_UPDATE);
+            }
+        }
+        $id = $this->ohaInstanz();
+        if (trim($this->ReadPropertyString('OhaBereich')) === '' || $id === 0 || IPS_GetKernelRunlevel() !== KR_READY) {
+            return;
+        }
+        foreach (IPS_GetChildrenIDs($id) as $kind) {
+            if (IPS_GetObject($kind)['ObjectType'] === 2) {
+                $this->RegisterMessage($kind, VM_UPDATE);
+            }
+        }
+        $this->ohaPruefen(false);
+    }
+
+    /** Zustand des Bereichs prüfen; beim tatsächlichen Wechsel scharf/unscharf schalten. */
+    private function ohaPruefen(bool $handeln): void
+    {
+        $bereich = trim($this->ReadPropertyString('OhaBereich'));
+        $stand = $bereich === '' ? null : $this->ohaStand();
+        if ($stand === null || !$stand['ok']) {
+            return;
+        }
+        $lage = FrigateHubOha::lage($stand['bereiche'][$bereich] ?? null);
+        if ($lage === '' || $lage === $this->ReadAttributeString('OhaLage')) {
+            return;
+        }
+        $this->WriteAttributeString('OhaLage', $lage);
+        if (!$handeln) {
+            return;
+        }
+        $was = $this->ReadPropertyInteger('OhaBeiScharf');
+        $idents = array_merge(in_array($was, [1, 3], true) ? ['Schalter_recordings'] : [], in_array($was, [2, 3], true) ? ['Schalter_detect'] : []);
+        if ($lage === 'unscharf' && !$this->ReadPropertyBoolean('OhaBeiUnscharf')) {
+            return;
+        }
+        $an = $lage === 'scharf';
+        foreach ($idents as $ident) {
+            if (@$this->GetIDForIdent($ident) !== false && $this->GetValue($ident) !== $an) {
+                $this->RequestAction($ident, $an);
+            }
+        }
+        if ($idents !== []) {
+            $this->LogMessage('OpenHomeAlarm: Bereich „' . $bereich . '" ' . $lage . ' → ' . implode(', ', array_map(fn ($i) => $i === 'Schalter_recordings' ? 'Aufnahme' : 'Objekterkennung', $idents))
+                . ($an ? ' an' : ' aus'), KL_MESSAGE);
+        }
+    }
+
+    /** Statuszeile und Bereiche fürs Formular. */
+    private function ohaFormular(): array
+    {
+        $id = $this->ohaInstanz();
+        $stand = $this->ohaStand();
+        $bereich = trim($this->ReadPropertyString('OhaBereich'));
+        $optionen = [['caption' => 'aus (keine Kopplung)', 'value' => '']];
+        if ($id === 0) {
+            $status = 'ℹ️ OpenHomeAlarm ist nicht installiert — dann gibt es hier nichts zu tun. FrigateHub arbeitet ohne es genauso.';
+        } elseif ($stand === null || !$stand['ok']) {
+            $status = '⚠️ OpenHomeAlarm #' . $id . ' gefunden, aber ' . ($stand['grund'] ?? 'OHA_GetControlState() fehlt') . '. Kopplung ist aus.';
+        } else {
+            $teile = [];
+            foreach ($stand['bereiche'] as $b => $z) {
+                $teile[] = $b . ' (' . FrigateHubOha::zustandText($z) . ')';
+                $optionen[] = ['caption' => 'Bereich ' . $b, 'value' => (string)$b];
+            }
+            $status = '✅ OpenHomeAlarm #' . $id . ' „' . IPS_GetName($id) . '" gefunden — Bereiche: ' . (implode(', ', $teile) ?: 'keine');
+        }
+        if ($bereich !== '' && !in_array($bereich, array_column($optionen, 'value'), true)) {
+            $optionen[] = ['caption' => 'Bereich ' . $bereich . ' (derzeit nicht gemeldet)', 'value' => $bereich];
+        }
+        return [
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🛡️  OpenHomeAlarm (optional)',
+            'items' => [
+                ['type' => 'Label', 'caption' => 'Optionale Zusammenarbeit mit der Alarmanlage OpenHomeAlarm (Burki24). Melder richtest du in OpenHomeAlarm ein (z. B. „Alarm" oder einen Zonen-Zähler dieser Kamera), Meldungen mit Bild über FRIG_MeldungMitSchnappschuss als Alarmaktion. Hier nur: was diese Kamera tut, wenn ein Bereich scharf oder unscharf wird.'],
+                ['type' => 'Label', 'name' => 'OhaStatus', 'caption' => $status],
+                ['type' => 'Select', 'name' => 'OhaBereich', 'caption' => 'Bereich', 'options' => $optionen],
+                ['type' => 'Select', 'name' => 'OhaBeiScharf', 'caption' => 'Wenn scharf', 'options' => [
+                    ['caption' => 'nichts tun', 'value' => 0],
+                    ['caption' => 'Aufnahme einschalten', 'value' => 1],
+                    ['caption' => 'Objekterkennung einschalten', 'value' => 2],
+                    ['caption' => 'Aufnahme und Objekterkennung einschalten', 'value' => 3],
+                ]],
+                ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => 'Beim Unscharfschalten wieder ausschalten'],
+                ['type' => 'Label', 'caption' => 'Geschaltet wird nur beim tatsächlichen Wechsel (scharf erst nach der Ausgangsverzögerung), nicht beim Übernehmen. Frigate bestätigt den neuen Zustand, die Variablen folgen.'],
+            ],
+        ];
+    }
+
     /** Vergisst die gelernten Zonen (z. B. nach Umbenennen in Frigate). Variablen bleiben. */
     public function ZonenVergessen(): string
     {
@@ -421,6 +559,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Button', 'caption' => 'Kachel-Schlüssel erneuern', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
                 ],
             ],
+            $this->ohaFormular(),
             [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🗺️  Zonen',
                 'items' => [

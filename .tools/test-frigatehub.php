@@ -102,6 +102,13 @@ function WFC_PushNotification(int $id, string $titel, string $text, string $ton,
     return TestPush::$ergebnis;
 }
 
+/** OpenHomeAlarm-Attrappe: Antwort von OHA_GetControlState() je Prüffall. */
+$GLOBALS['ohaAntwort'] = null;
+function OHA_GetControlState(int $id): string
+{
+    return (string)json_encode($GLOBALS['ohaAntwort']);
+}
+
 function labels(array $elemente): array
 {
     $out = [];
@@ -648,6 +655,71 @@ $gepusht = [];
 $text = $m->MeldungMitSchnappschuss('x', false);
 check('Kachel lehnt Ziel-Objekt ab: Rückfall ohne Ziel', [array_column($gepusht, 6), strpos($text, '✅') === 0], [[22, 0], true]);
 TestPush::$zielAblehnen = false;
+
+/* =================================================================== OpenHomeAlarm (optional) */
+
+$oha = fn (string $haupt, string $garage = 'disarmed') => ['DefaultPartition' => 'main', 'Partitions' => [
+    'main' => ['State' => ['Name' => $haupt], 'Mode' => ['Name' => 'away']], 'garage' => ['State' => ['Name' => $garage]]]];
+check('OHA deuten', FrigateHubOha::deuten(json_encode($oha('armed')))['bereiche'], ['main' => 'armed', 'garage' => 'disarmed']);
+check('OHA unerwartet', FrigateHubOha::deuten('kaputt')['ok'], false);
+check('OHA neuer Vertrag → aus', FrigateHubOha::deuten(['contractVersion' => '2.0', 'Partitions' => []])['ok'], false);
+check('OHA gleicher Vertrag → ok', FrigateHubOha::deuten(['contractVersion' => '1.3', 'Partitions' => []])['ok'], true);
+check('Lage', array_map([FrigateHubOha::class, 'lage'], ['disarmed', 'exit_delay', 'armed', 'entry_delay', 'alarm', null]), ['unscharf', '', 'scharf', 'scharf', 'scharf', '']);
+
+IPSTestState::$instances[50] = ['InstanceID' => 50, 'Name' => 'Alarmanlage', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => FrigateHubOha::GUID]];
+$ohaVar = IPSTestState::addObject(50, 'State', 0, 'Zustand');
+IPSTestState::$instances[51] = ['InstanceID' => 51, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}']];
+IPSTestState::$instances[23] = ['InstanceID' => 23, 'Name' => 'Haustür', 'ConnectionID' => 51, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$c = new TestKamera(23);
+$c->Create();
+$c->props(['Camera' => 'Door-Cam']);
+$c->ApplyChanges();
+$c->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'OFF'));
+$c->ReceiveData(paket('frigate/Door-Cam/detect/state', 'OFF'));
+$GLOBALS['ohaAntwort'] = $oha('disarmed');
+$f = json_encode($c->form(), JSON_UNESCAPED_UNICODE);
+check('Formular: OHA gefunden mit Bereichen', [strpos($f, '✅ OpenHomeAlarm #50') !== false, strpos($f, 'Bereich garage') !== false], [true, true]);
+check('ohne Bereich: hört nicht auf OHA', isset(IPSTestState::$registeredMessages[$ohaVar]), false);
+$c->props(['OhaBereich' => 'main', 'OhaBeiScharf' => 3, 'OhaBeiUnscharf' => true]);
+IPSTestState::$sentPackets = [];
+$c->ApplyChanges();
+check('mit Bereich: hört auf OHA-Variablen, Übernehmen schaltet nichts', [isset(IPSTestState::$registeredMessages[$ohaVar][VM_UPDATE]), IPSTestState::$sentPackets], [true, []]);
+$GLOBALS['ohaAntwort'] = $oha('exit_delay');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('Ausgangsverzögerung: noch nichts', IPSTestState::$sentPackets, []);
+$GLOBALS['ohaAntwort'] = $oha('armed');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('scharf: Aufnahme und Erkennung an', array_map(fn ($p) => $p['Topic'] . '=' . $p['Payload'], IPSTestState::$sentPackets),
+    ['frigate/Door-Cam/recordings/set=ON', 'frigate/Door-Cam/detect/set=ON']);
+IPSTestState::$sentPackets = [];
+$GLOBALS['ohaAntwort'] = $oha('alarm');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('Alarm im scharfen Zustand: kein erneutes Schalten', IPSTestState::$sentPackets, []);
+$GLOBALS['ohaAntwort'] = $oha('disarmed');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('unscharf: zurück (Variable steht noch auf aus, Frigate hat nicht bestätigt → nichts zu tun)', IPSTestState::$sentPackets, []);
+$c->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'ON'));
+$c->ReceiveData(paket('frigate/Door-Cam/detect/state', 'ON'));
+$GLOBALS['ohaAntwort'] = $oha('armed');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+$GLOBALS['ohaAntwort'] = $oha('disarmed');
+IPSTestState::$sentPackets = [];
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('unscharf mit Häkchen: wieder aus', array_map(fn ($p) => $p['Payload'], IPSTestState::$sentPackets), ['OFF', 'OFF']);
+$c->props(['OhaBeiUnscharf' => false]);
+$c->ApplyChanges();
+$c->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'ON'));
+$GLOBALS['ohaAntwort'] = $oha('armed');
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+$GLOBALS['ohaAntwort'] = $oha('disarmed');
+IPSTestState::$sentPackets = [];
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('unscharf ohne Häkchen: bleibt an', IPSTestState::$sentPackets, []);
+$GLOBALS['ohaAntwort'] = ['contractVersion' => '2.0', 'Partitions' => ['main' => ['State' => ['Name' => 'armed']]]];
+$c->MessageSink(0, $ohaVar, VM_UPDATE, []);
+check('fremde Vertragsversion: Kopplung aus, sichtbar im Formular', [IPSTestState::$sentPackets, strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'FrigateHub bitte aktualisieren') !== false], [[], true]);
+unset(IPSTestState::$instances[50]);
+check('ohne OpenHomeAlarm: Hinweis, nichts kaputt', strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'OpenHomeAlarm ist nicht installiert') !== false, true);
 
 /* =================================================================== Gesichter, Kennzeichen, KI */
 

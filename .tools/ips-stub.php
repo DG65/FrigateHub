@@ -91,10 +91,10 @@ class IPSTestState
     }
 
     /** Legt eine Variable an einer fremden Instanz an und gibt ihre Objekt-ID zurück. */
-    public static function addObject(int $instanceId, string $ident, $value): int
+    public static function addObject(int $instanceId, string $ident, $value, string $name = '', int $updated = 0): int
     {
         $objectId = 10000 + count(self::$objects) + 1;
-        self::$objects[$objectId] = ['instance' => $instanceId, 'ident' => $ident, 'value' => $value];
+        self::$objects[$objectId] = ['instance' => $instanceId, 'ident' => $ident, 'value' => $value, 'name' => $name, 'updated' => $updated];
         return $objectId;
     }
 }
@@ -279,6 +279,11 @@ function IPS_DeleteLink(int $id): void
 function IPS_GetChildrenIDs(int $parent): array
 {
     $kinder = [];
+    foreach (IPSTestState::$objects as $id => $o) {
+        if ($o['instance'] === $parent) {
+            $kinder[] = $id;
+        }
+    }
     foreach (IPSTestState::$links as $id => $link) {
         if ($link['parent'] === $parent) {
             $kinder[] = $id;
@@ -296,7 +301,13 @@ function IPS_GetObject(int $id): array
     if (isset(IPSTestState::$instances[$id])) {
         return ['ObjectID' => $id, 'ObjectType' => 1, 'ObjectName' => IPSTestState::$instances[$id]['Name'] ?? ''];
     }
-    return ['ObjectID' => $id, 'ObjectType' => 2, 'ObjectName' => ''];
+    $o = IPSTestState::$objects[$id] ?? [];
+    return ['ObjectID' => $id, 'ObjectType' => 2, 'ObjectName' => $o['name'] ?? '', 'ObjectIdent' => $o['ident'] ?? ''];
+}
+
+function IPS_GetVariable(int $id): array
+{
+    return ['VariableID' => $id, 'VariableUpdated' => IPSTestState::$objects[$id]['updated'] ?? 0, 'VariableChanged' => IPSTestState::$objects[$id]['updated'] ?? 0];
 }
 
 /**
