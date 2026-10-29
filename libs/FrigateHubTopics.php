@@ -96,6 +96,15 @@ class FrigateHubTopics
         'glass' => 'Glas', 'shatter' => 'Splittern', 'car_alarm' => 'Autoalarm', 'music' => 'Musik',
     ];
 
+    /**
+     * Einstellbare Zahlen je Kamera (frigate/<kamera>/<schlüssel>/state und /set), laut Frigate-Doku.
+     * min/max nach Frigates Konfigurationsprüfung (motion.threshold 1–255, contour_area ≥ 1).
+     */
+    public const ZAHLEN = [
+        'motion_threshold'    => ['ident' => 'Zahl_motion_threshold', 'name' => 'Bewegungsschwelle', 'min' => 1, 'max' => 255],
+        'motion_contour_area' => ['ident' => 'Zahl_motion_contour_area', 'name' => 'Bewegung: Mindestfläche', 'min' => 1, 'max' => 1000],
+    ];
+
     /** Topic-Präfix normalisieren: ohne Schrägstriche am Rand, leer → „frigate". */
     public static function praefix(string $praefix): string
     {
@@ -152,6 +161,9 @@ class FrigateHubTopics
         $zweite = $teile[1];
 
         if ($n >= 3 && end($teile) === 'state') {
+            if ($n === 3 && isset(self::ZAHLEN[$zweite])) {
+                return ['art' => 'zahl', 'schluessel' => $zweite] + self::ZAHLEN[$zweite];
+            }
             if ($n === 3 && isset(self::SCHALTER[$zweite])) {
                 return ['art' => 'schalter', 'schluessel' => $zweite, 'name' => self::SCHALTER[$zweite]];
             }
@@ -578,6 +590,7 @@ class FrigateHubTopics
             'text'     => $objekte === [] ? 'Ereignis' : implode(', ', $objekte),
             'zonen'    => self::zonenAusReview($after),
             'ereignis' => $ereignis,
+            'labels'   => array_values(array_filter(array_map('strval', (array)($after['data']['objects'] ?? [])), fn ($l) => preg_match('/^[a-z0-9_-]{1,40}\z/', $l))),
             'ki'       => self::reviewKi($after),
             'gesehen'  => !empty($after['has_been_reviewed']),
         ];
@@ -641,6 +654,47 @@ class FrigateHubTopics
                 return $text === '' ? null : ['art' => 'beschreibung', 'id' => $id, 'kamera' => $kamera, 'text' => $text, 'zeit' => $zeit];
         }
         return null;
+    }
+
+    /** „2026-10-29" → Unix-Zeit 00:00 Uhr (Ortszeit), sonst null. */
+    public static function tagBeginn(string $tag): ?int
+    {
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})\z/', $tag, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+            return null;
+        }
+        return (int)mktime(0, 0, 0, (int)$m[2], (int)$m[3], (int)$m[1]);
+    }
+
+    /** „start-ende" (Unix-Sekunden) → [start, ende], nur wenn 0 < Dauer ≤ $max und nicht in der Zukunft. */
+    public static function zeitraum(string $text, int $max): ?array
+    {
+        if (!preg_match('/^(\d{9,11})-(\d{9,11})\z/', $text, $m)) {
+            return null;
+        }
+        [$start, $ende] = [(int)$m[1], (int)$m[2]];
+        return $ende > $start && $ende - $start <= $max && $start <= time() ? [$start, $ende] : null;
+    }
+
+    /**
+     * Tage fürs Archiv aus /api/review/summary: neueste zuerst, mit Anzahl Alarme/Erkennungen
+     * und wie viele davon noch nicht gesehen sind.
+     *
+     * @return array<int,array{tag:string,alarme:int,erkennungen:int,offen:int}>
+     */
+    public static function archivTage(array $zusammenfassung): array
+    {
+        $tage = [];
+        foreach ($zusammenfassung as $tag => $z) {
+            if (!is_array($z) || self::tagBeginn((string)$tag) === null) {
+                continue;
+            }
+            $alarme = (int)($z['total_alert'] ?? 0);
+            $erkennungen = (int)($z['total_detection'] ?? 0);
+            $tage[] = ['tag' => (string)$tag, 'alarme' => $alarme, 'erkennungen' => $erkennungen,
+                'offen' => max(0, $alarme + $erkennungen - (int)($z['reviewed_alert'] ?? 0) - (int)($z['reviewed_detection'] ?? 0))];
+        }
+        usort($tage, fn ($a, $b) => strcmp($b['tag'], $a['tag']));
+        return $tage;
     }
 
     /** Frigates Bedrohungsstufe der KI-Einschätzung (potential_threat_level) im Klartext. */

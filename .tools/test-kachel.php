@@ -53,6 +53,15 @@ class TestKachel extends FrigateHubKamera
         return is_array($a) ? (string)json_encode($a) : $a;
     }
 
+    public static array $geschrieben = [];
+    public static array $schreibAntwort = ['code' => 200, 'body' => '{"success":true}'];
+
+    protected function apiSchreiben(string $methode, string $pfad, ?array $json): array
+    {
+        self::$geschrieben[] = [$methode, $pfad, $json];
+        return self::$schreibAntwort;
+    }
+
     protected function apiDurchreichen(string $pfad, string $range, int $zeitlimit): array
     {
         self::$durchgereicht[] = [$pfad, $range, $zeitlimit];
@@ -117,7 +126,7 @@ foreach (['', '../../api/config', $ID . '/../x', $ID . '.webp', '1793259219-abc'
 }
 $e = FrigateHubTopics::reviewEintrag($review);
 check('Eintrag aus echtem Review', $e, ['id' => $ID, 'start' => 1793259219, 'ende' => 1793259224, 'stufe' => 'alarm',
-    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV, 'ki' => null, 'gesehen' => false]);
+    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV, 'labels' => ['on_demand'], 'ki' => null, 'gesehen' => false]);
 check('Eintrag: Erkennung, läuft noch', array_intersect_key((array)FrigateHubTopics::reviewEintrag(['id' => '1793259300.1-ab', 'start_time' => 1793259300.1,
     'end_time' => null, 'severity' => 'detection', 'data' => ['objects' => ['person', 'car'], 'zones' => ['einfahrt']]]), ['stufe' => 1, 'ende' => 1, 'text' => 1, 'zonen' => 1]),
     ['ende' => null, 'stufe' => 'erkennung', 'text' => 'Person, Auto', 'zonen' => ['einfahrt']]);
@@ -363,6 +372,89 @@ check('Variable folgt erst Frigates Bestätigung', $k->GetValue('Schalter_detect
 $k->props(['SeiteBedienung' => false]);
 check('Formular: IPSView-Knopf statt Schlüssel', [strpos((string)$k->GetConfigurationForm(), 'FRIG_SeiteAdresse') !== false,
     strpos($k->SeiteAdresse(), '/hook/frigatehub1?seite=1&k=' . $ks) !== false], [true, true]);
+
+/* ------------------------------------------------------------- Archiv, Zeitraum, Aktionen */
+
+check('Tag gültig', FrigateHubTopics::tagBeginn('2026-10-29'), mktime(0, 0, 0, 10, 29, 2026));
+check('Tag ungültig', [FrigateHubTopics::tagBeginn('2026-02-30'), FrigateHubTopics::tagBeginn('29.10.2026'), FrigateHubTopics::tagBeginn("2026-10-29\n")], [null, null, null]);
+$t = time() - 3600;
+check('Zeitraum gültig', FrigateHubTopics::zeitraum($t . '-' . ($t + 60), 3600), [$t, $t + 60]);
+check('Zeitraum zu lang / verkehrt / Zukunft / Müll', [FrigateHubTopics::zeitraum($t . '-' . ($t + 3601), 3600), FrigateHubTopics::zeitraum(($t + 5) . '-' . $t, 3600),
+    FrigateHubTopics::zeitraum((time() + 100) . '-' . (time() + 160), 3600), FrigateHubTopics::zeitraum('1-2;rm', 3600)], [null, null, null, null]);
+// echte Antwort /api/review/summary (gekürzt, live 29.10.2026)
+check('Archivtage', FrigateHubTopics::archivTage(['last24Hours' => ['total_alert' => 11], '2026-10-28' => ['total_alert' => 5, 'total_detection' => 1, 'reviewed_alert' => 2, 'reviewed_detection' => 0],
+    '2026-10-29' => ['day' => '2026-10-29', 'total_alert' => 6, 'total_detection' => 0, 'reviewed_alert' => 0, 'reviewed_detection' => 0]]),
+    [['tag' => '2026-10-29', 'alarme' => 6, 'erkennungen' => 0, 'offen' => 6], ['tag' => '2026-10-28', 'alarme' => 5, 'erkennungen' => 1, 'offen' => 4]]);
+
+$ks = $k->ReadAttributeString('HookSchluessel');
+$tag = mktime(0, 0, 0, 10, 28, 2026);
+TestKachel::$api['/api/review?cameras=Door-Cam&after=' . $tag . '&before=' . ($tag + 86400) . '&limit=500'] = [$review, ['id' => 'kaputt']];
+TestKachel::$api['/api/review/summary?cameras=Door-Cam'] = ['2026-10-28' => ['total_alert' => 1]];
+$a = $k->hook(['archiv' => '1', 'tag' => '2026-10-28', 'k' => $ks]);
+$d = json_decode($a['inhalt'], true);
+check('Archiv: Tag, ein gültiger Eintrag mit Zeit, Tage', [$a['code'], $d['tag'], count($d['eintraege']), $d['eintraege'][0]['zeit'] ?? null, $d['tage'][0]['tag'] ?? null],
+    [200, '2026-10-28', 1, date(date('Ymd', 1793259219) === date('Ymd') ? 'H:i' : 'd.m. H:i', 1793259219), '2026-10-28']);
+check('Archiv ohne Schlüssel: 403', $k->hook(['archiv' => '1', 'tag' => '2026-10-28'])['code'], 403);
+check('Archiv: Frigate nicht erreichbar → 502', $k->hook(['archiv' => '1', 'tag' => '2026-10-27', 'k' => $ks])['code'], 502);
+
+$z = (time() - 600) . '-' . (time() - 540);
+[$zs, $ze] = explode('-', $z);
+TestKachel::$frigate['/api/Door-Cam/start/' . $zs . '/end/' . $ze . '/clip.mp4'] = ['code' => 200, 'body' => str_repeat('z', 1000), 'kopf' => []];
+$a = $k->hook(['zeitraum' => $z, 'k' => $ks]);
+check('Zeitraum-Clip: 206 aus Frigates start/end-Pfad', [$a['code'], strlen($a['inhalt'])], [206, 1000]);
+check('Zeitraum ungültig: 404, nichts abgerufen', [$k->hook(['zeitraum' => '1-99999999999', 'k' => $ks])['code']], [404]);
+TestKachel::$frigate['/api/Door-Cam/start/' . ($zs - 5) . '/end/' . $ze . '/clip.mp4'] = ['code' => 400, 'body' => '{"success":false,"message":"No recordings found for the specified time range"}', 'kopf' => []];
+$a = $k->hook(['zeitraum' => ($zs - 5) . '-' . $ze, 'k' => $ks]);
+check('keine Aufnahme im Zeitraum: 404 mit Frigates Grund', [$a['code'], strpos($a['inhalt'], 'No recordings found') !== false], [404, true]);
+
+TestKachel::$api['/api/events/' . $EV] = ['id' => $EV, 'retain_indefinitely' => true, 'sub_label' => ['Dietmar', 0.9], 'data' => ['description' => 'Jemand klingelt.']];
+check('Info: Favorit, Name, Beschreibung', json_decode($k->hook(['info' => $EV, 'k' => $ks])['inhalt'], true), ['favorit' => true, 'beschreibung' => 'Jemand klingelt.', 'name' => 'Dietmar']);
+check('Info: kaputte ID 404', $k->hook(['info' => '../x', 'k' => $ks])['code'], 404);
+
+TestKachel::$geschrieben = [];
+$k->RequestAction('Kachel_Gesehen', $ID);
+check('gesehen: POST /api/reviews/viewed', TestKachel::$geschrieben, [['POST', '/api/reviews/viewed', ['ids' => [$ID]]]]);
+check('gesehen: Eintrag markiert', array_values(array_filter($k->daten()['ereignisse'], fn ($e) => $e['id'] === $ID))[0]['gesehen'] ?? null, true);
+$k->RequestAction('Kachel_Favorit', $EV . ':1');
+$k->RequestAction('Kachel_Favorit', $EV . ':0');
+check('Favorit: POST und DELETE retain', array_map(fn ($g) => $g[0] . ' ' . $g[1], array_slice(TestKachel::$geschrieben, 1)),
+    ['POST /api/events/' . $EV . '/retain', 'DELETE /api/events/' . $EV . '/retain']);
+check('Favorit: Rückmeldung an die Kachel', strpos($k->daten()['meldung']['text'] ?? '', '☆') === 0, true);
+$k->RequestAction('Kachel_Export', $z);
+check('Export: Pfad und Name', [TestKachel::$geschrieben[3][1] ?? null, strpos(TestKachel::$geschrieben[3][2]['name'] ?? '', date('d.m.Y', (int)$zs)) !== false],
+    ['/api/export/Door-Cam/start/' . $zs . '/end/' . $ze, true]);
+TestKachel::$schreibAntwort = ['code' => 400, 'body' => '{"success":false,"message":"No recordings found"}'];
+$fehlerText = '';
+try { $k->RequestAction('Kachel_Export', $z); } catch (Throwable $ex) { $fehlerText = $ex->getMessage(); }
+check('Export abgelehnt: Fehler mit Grund, auch in der Kachel', [strpos($fehlerText, 'No recordings found') !== false, strpos($k->daten()['meldung']['text'] ?? '', '⛔') === 0], [true, true]);
+TestKachel::$schreibAntwort = ['code' => 200, 'body' => '{"success":true}'];
+foreach (['Kachel_Gesehen' => '../x', 'Kachel_Favorit' => $EV . ':2', 'Kachel_Export' => '1-2', 'Kachel_PTZ' => 'rm -rf'] as $aktion => $schlecht) {
+    $geworfen = false;
+    try { $k->RequestAction($aktion, $schlecht); } catch (Throwable $ex) { $geworfen = true; }
+    check('ungültig abgewiesen: ' . $aktion, $geworfen, true);
+}
+IPSTestState::$sentPackets = [];
+IPSTestState::$instances[96] = ['InstanceID' => 96, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}']];
+IPSTestState::$instances[1]['ConnectionID'] = 96;
+$k->RequestAction('Kachel_PTZ', 'MOVE_LEFT');
+$k->RequestAction('Kachel_PTZ', 'preset_Einfahrt');
+$k->RequestAction('Zahl_motion_threshold', 999);
+check('PTZ und Schwelle per MQTT (Schwelle begrenzt)', array_map(fn ($p) => $p['Topic'] . '=' . $p['Payload'], IPSTestState::$sentPackets),
+    ['frigate/Door-Cam/ptz=MOVE_LEFT', 'frigate/Door-Cam/ptz=preset_Einfahrt', 'frigate/Door-Cam/motion_threshold/set=255']);
+// Seite: Aktion nur mit Freigabe, dann wie in der Kachel
+IPSTestState::$sentPackets = [];
+check('Seite: PTZ ohne Freigabe 403', $k->hook(['schalten' => 'Kachel_PTZ', 'wert' => 'STOP', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], 403);
+$k->props(['SeiteBedienung' => true]);
+check('Seite: PTZ mit Freigabe', [$k->hook(['schalten' => 'Kachel_PTZ', 'wert' => 'STOP', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], IPSTestState::$sentPackets[0]['Payload'] ?? null], [200, 'STOP']);
+check('Seite: ungültige Aktion → Fehler, nichts gesendet', [$k->hook(['schalten' => 'Kachel_PTZ', 'wert' => 'BOOM', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], count(IPSTestState::$sentPackets)], [502, 1]);
+$k->props(['SeiteBedienung' => false]);
+IPSTestState::$instances[1]['ConnectionID'] = 0;
+
+// Warnmarken
+$k->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'OFF'));
+check('Warnmarke Aufnahme aus', in_array('Aufnahme aus', $k->daten()['warnungen'], true), true);
+$k->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'ON'));
+check('Warnmarke weg', in_array('Aufnahme aus', $k->daten()['warnungen'], true), false);
 
 /* ------------------------------------------------------------- Schlüssel, Kachel, Formular */
 

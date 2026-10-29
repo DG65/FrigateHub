@@ -40,6 +40,8 @@ trait FrigateHubKachel
         $this->RegisterAttributeString('Livestream', '');
         $this->RegisterAttributeString('HookSchluessel', '');
         $this->RegisterAttributeString('Ereignisse', '[]');
+        // PTZ-Fähigkeiten aus /api/<kamera>/ptz/info (beim Abgleich), leer = keine Steuerung
+        $this->RegisterAttributeString('Ptz', '');
         $this->SetVisualizationType(1);
     }
 
@@ -111,6 +113,18 @@ trait FrigateHubKachel
             $this->hookSchalten($get['schalten'], $get['wert'] ?? '');
             return;
         }
+        if (isset($get['archiv'])) {
+            $this->hookArchiv($get['tag'] ?? '');
+            return;
+        }
+        if (isset($get['zeitraum'])) {
+            $this->hookZeitraum($get['zeitraum'], (string)($_SERVER['HTTP_RANGE'] ?? ''));
+            return;
+        }
+        if (isset($get['info'])) {
+            $this->hookInfo($get['info']);
+            return;
+        }
         if (($get['bild'] ?? '') === 'schnappschuss') {
             $this->hookSchnappschuss();
             return;
@@ -142,6 +156,150 @@ trait FrigateHubKachel
 
     /** Schalter, die die eigenständige Seite bedienen darf (dieselben wie in der Kachel). */
     private const SEITE_SCHALTER = ['Schalter_detect', 'Schalter_recordings', 'Schalter_snapshots'];
+
+    /**
+     * Aktionen der Kachel ohne eigene Variable (Wert = Text). In der Kachel über Symcons
+     * requestAction (Anmeldung der Visualisierung), auf der eigenständigen Seite nur mit Freigabe.
+     */
+    private const KACHEL_AKTIONEN = ['Kachel_Gesehen', 'Kachel_Favorit', 'Kachel_Export', 'Kachel_PTZ'];
+
+    /** PTZ-Befehle laut Frigate-Doku (frigate/<kamera>/ptz); Voreinstellungen als preset_<name>. */
+    private const PTZ_BEFEHLE = ['MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT', 'ZOOM_IN', 'ZOOM_OUT', 'STOP'];
+
+    /** Längster Zeitraum für Clip und Export (s). */
+    private const ZEITRAUM_MAX = 3600;
+
+    /**
+     * Aktion aus der Kachel ausführen. Rückgabe false: kein Kachel-Ident (dann ist es ein Schalter).
+     * Fehler als Exception; das Ergebnis erscheint in der Kachel als Meldung.
+     */
+    protected function kachelAktion(string $ident, $wert): bool
+    {
+        if (!in_array($ident, self::KACHEL_AKTIONEN, true)) {
+            return false;
+        }
+        $wert = (string)$wert;
+        switch ($ident) {
+            case 'Kachel_Gesehen':
+                if (!FrigateHubTopics::idGueltig($wert)) {
+                    throw new Exception('Ungültige Ereignis-ID.');
+                }
+                $a = $this->apiSchreiben('POST', '/api/reviews/viewed', ['ids' => [$wert]]);
+                if ($a['code'] !== 200) {
+                    throw new Exception('Frigate nimmt „gesehen" nicht an (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                }
+                $liste = array_map(fn ($e) => is_array($e) && ($e['id'] ?? '') === $wert ? ['gesehen' => true] + $e : $e,
+                    (array)json_decode($this->ReadAttributeString('Ereignisse'), true));
+                $this->WriteAttributeString('Ereignisse', (string)json_encode(array_values($liste)));
+                $this->kachelSenden();
+                return true;
+
+            case 'Kachel_Favorit':
+                [$id, $an] = array_pad(explode(':', $wert, 2), 2, '');
+                if (!FrigateHubTopics::idGueltig($id) || !in_array($an, ['0', '1'], true)) {
+                    throw new Exception('Ungültiger Favorit.');
+                }
+                $a = $this->apiSchreiben($an === '1' ? 'POST' : 'DELETE', '/api/events/' . $id . '/retain', null);
+                if ($a['code'] !== 200) {
+                    throw new Exception('Frigate nimmt den Favoriten nicht an (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                }
+                $this->kachelMelden($an === '1' ? '⭐ Ereignis wird dauerhaft behalten.' : '☆ Ereignis wird wieder normal aufgeräumt.');
+                return true;
+
+            case 'Kachel_Export':
+                $z = FrigateHubTopics::zeitraum($wert, self::ZEITRAUM_MAX);
+                if ($z === null) {
+                    throw new Exception('Ungültiger Zeitraum.');
+                }
+                $name = IPS_GetName($this->InstanceID) . ' ' . date('d.m.Y H:i', $z[0]);
+                $a = $this->apiSchreiben('POST', '/api/export/' . rawurlencode($this->kamera()) . '/start/' . $z[0] . '/end/' . $z[1],
+                    ['playback' => 'realtime', 'name' => $name]);
+                if ($a['code'] !== 200) {
+                    $grund = (string)(json_decode($a['body'], true)['message'] ?? '');
+                    throw new Exception('Export nicht angelegt (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ($grund !== '' ? ': ' . $grund : '') . ').');
+                }
+                $this->kachelMelden('💾 Export „' . $name . '" angelegt — in Frigate unter „Exporte".');
+                return true;
+
+            case 'Kachel_PTZ':
+                if (!in_array($wert, self::PTZ_BEFEHLE, true) && !preg_match('/^preset_[A-Za-z0-9 _.-]{1,64}\z/', $wert)) {
+                    throw new Exception('Unbekannter PTZ-Befehl.');
+                }
+                $this->ptzSenden($wert);
+                return true;
+        }
+        return false;
+    }
+
+    /** Rückmeldung an offene Kacheln (erscheint unten im Bild). */
+    private function kachelMelden(string $text): void
+    {
+        $this->SetBuffer('KachelMeldung', (string)json_encode(['t' => microtime(true), 'text' => $text]));
+        $this->kachelSenden();
+    }
+
+    /**
+     * Archiv eines Tages: alle Reviews der Kamera (neueste zuerst) und die Tage mit Anzahlen für
+     * die Auswahl. Filtern (Stufe, Objekt, ungesehen) macht die Kachel selbst.
+     */
+    private function hookArchiv(string $tag): void
+    {
+        $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
+        $kamera = $this->kamera();
+        if ($this->apiUrl() === '' || $kamera === '') {
+            $this->hookAntwort(404, $json, (string)json_encode(['eintraege' => [], 'tage' => []]));
+            return;
+        }
+        $start = FrigateHubTopics::tagBeginn($tag) ?? mktime(0, 0, 0);
+        $ende = (int)strtotime('+1 day', $start);
+        $reviews = $this->apiHolen('/api/review?cameras=' . rawurlencode($kamera) . '&after=' . $start . '&before=' . $ende . '&limit=500');
+        if ($reviews === null) {
+            $this->hookAntwort(502, $json, (string)json_encode(['fehler' => $this->apiFehlerText()], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        $eintraege = [];
+        foreach ($reviews as $r) {
+            $e = is_array($r) ? FrigateHubTopics::reviewEintrag($r) : null;
+            if ($e !== null) {
+                $eintraege[] = $this->eintragAnzeige($e);
+            }
+        }
+        usort($eintraege, fn ($a, $b) => $b['start'] <=> $a['start']);
+        $zusammenfassung = $this->apiHolen('/api/review/summary?cameras=' . rawurlencode($kamera)) ?? [];
+        $this->hookAntwort(200, $json, (string)json_encode([
+            'tag'       => date('Y-m-d', $start),
+            'eintraege' => $eintraege,
+            'tage'      => FrigateHubTopics::archivTage($zusammenfassung),
+        ], JSON_UNESCAPED_UNICODE));
+    }
+
+    /** Zusatzinfo zu einem Ereignis für die Großansicht: dauerhaft behalten (Favorit)? */
+    private function hookInfo(string $id): void
+    {
+        $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
+        if ($this->apiUrl() === '' || !FrigateHubTopics::idGueltig($id)) {
+            $this->hookAntwort(404, $json, '{}');
+            return;
+        }
+        $e = $this->apiHolen('/api/events/' . $id);
+        $this->hookAntwort($e === null ? 502 : 200, $json, (string)json_encode([
+            'favorit'   => (bool)($e['retain_indefinitely'] ?? false),
+            'beschreibung' => (string)($e['data']['description'] ?? ''),
+            'name'      => is_string($e['sub_label'] ?? null) ? $e['sub_label'] : (string)($e['sub_label'][0] ?? ''),
+        ], JSON_UNESCAPED_UNICODE));
+    }
+
+    /** Aufnahme eines Zeitraums („start-ende", Unix-Sekunden) als Clip, wie hookClip. */
+    private function hookZeitraum(string $zeitraum, string $range): void
+    {
+        $z = FrigateHubTopics::zeitraum($zeitraum, self::ZEITRAUM_MAX);
+        if ($this->apiUrl() === '' || $z === null) {
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
+            return;
+        }
+        $this->clipAusliefern('zeitraum-' . $z[0] . '-' . $z[1],
+            '/api/' . rawurlencode($this->kamera()) . '/start/' . $z[0] . '/end/' . $z[1] . '/clip.mp4', $range);
+    }
 
     /**
      * Eigenständige Seite für IPSView (Webseiten-Element) oder jeden Browser:
@@ -184,8 +342,9 @@ trait FrigateHubKachel
             $this->hookAntwort(405, $json + ['Allow' => 'POST'], (string)json_encode(['ok' => false, 'text' => 'Nur POST.']));
             return;
         }
-        if (!in_array($ident, self::SEITE_SCHALTER, true) || !in_array($wert, ['0', '1'], true)
-            || @$this->GetIDForIdent($ident) === false) {
+        $aktion = in_array($ident, self::KACHEL_AKTIONEN, true);
+        if (!$aktion && (!in_array($ident, self::SEITE_SCHALTER, true) || !in_array($wert, ['0', '1'], true)
+            || @$this->GetIDForIdent($ident) === false)) {
             $this->hookAntwort(400, $json, (string)json_encode(['ok' => false, 'text' => 'Unbekannter Schalter.']));
             return;
         }
@@ -195,7 +354,7 @@ trait FrigateHubKachel
             return;
         }
         try {
-            $this->RequestAction($ident, $wert === '1');
+            $this->RequestAction($ident, $aktion ? $wert : $wert === '1');
         } catch (Throwable $e) {
             $this->hookAntwort(502, $json, (string)json_encode(['ok' => false, 'text' => $e->getMessage()], JSON_UNESCAPED_UNICODE));
             return;
@@ -294,13 +453,20 @@ trait FrigateHubKachel
             $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
             return;
         }
+        $this->clipAusliefern($id, '/api/events/' . $id . '/clip.mp4', $range);
+    }
+
+    /** Clip einmal von Frigate holen, 10 min im Temp-Ordner halten, stückweise ausliefern (Range, 206). */
+    private function clipAusliefern(string $schluessel, string $pfad, string $range): void
+    {
         $this->clipsAufraeumen();
-        $datei = $this->clipDatei($id);
+        $datei = $this->clipDatei($schluessel);
         if (!is_file($datei)) {
-            $a = $this->apiDurchreichen('/api/events/' . $id . '/clip.mp4', '', 60);
+            $a = $this->apiDurchreichen($pfad, '', 60);
             if ($a['code'] !== 200 || $a['body'] === '') {
-                $this->hookAntwort($a['code'] === 404 ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
-                    'Frigate liefert keinen Clip (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                $grund = (string)(json_decode($a['body'], true)['message'] ?? '');
+                $this->hookAntwort(in_array($a['code'], [400, 404], true) ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
+                    'Frigate liefert keinen Clip (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ($grund !== '' ? ': ' . $grund : '') . ').');
                 return;
             }
             file_put_contents($datei, $a['body']);
@@ -413,14 +579,12 @@ trait FrigateHubKachel
         }
         $ereignisse = [];
         foreach ((array)json_decode($this->ReadAttributeString('Ereignisse'), true) as $e) {
-            if (!is_array($e)) {
-                continue;
+            if (is_array($e)) {
+                $ereignisse[] = $this->eintragAnzeige($e);
             }
-            $ereignisse[] = $e + [
-                'zeit'  => date(date('Ymd', (int)$e['start']) === date('Ymd') ? 'H:i' : 'd.m. H:i', (int)$e['start']),
-                'dauer' => $e['ende'] !== null ? max(1, (int)$e['ende'] - (int)$e['start']) : null,
-            ];
         }
+        $ptz = json_decode($this->ReadAttributeString('Ptz'), true);
+        $meldung = json_decode($this->GetBuffer('KachelMeldung'), true);
         $medium = @IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID);
         return [
             'hook'          => $this->hookPfad(),
@@ -443,10 +607,47 @@ trait FrigateHubKachel
             ],
             'ereignisse'    => $ereignisse,
             'schnappschuss' => $medium !== false ? $this->ReadAttributeString('Bildstatus') : '',
+            'ptz'           => is_array($ptz) && $ptz !== [] ? $ptz : null,
+            'meldung'       => is_array($meldung) ? $meldung : null,
+            'warnungen'     => $this->kachelWarnungen(),
             'eigen'         => $eigen,
             'name'          => $eigen ? IPS_GetName($this->InstanceID) : '',
             'bedienung'     => !$eigen || $this->ReadPropertyBoolean('SeiteBedienung'),
         ];
+    }
+
+    /** Ein Ereignis für die Anzeige: Zeit (heute nur Uhrzeit) und Dauer. */
+    private function eintragAnzeige(array $e): array
+    {
+        return $e + [
+            'zeit'  => date(date('Ymd', (int)$e['start']) === date('Ymd') ? 'H:i' : 'd.m. H:i', (int)$e['start']),
+            'dauer' => ($e['ende'] ?? null) !== null ? max(1, (int)$e['ende'] - (int)$e['start']) : null,
+        ];
+    }
+
+    /**
+     * Warnmarken für die Kachel: was gerade in Frigate aus ist und Aufmerksamkeit verdient.
+     *
+     * @return string[]
+     */
+    private function kachelWarnungen(): array
+    {
+        $aus = [];
+        foreach (['Schalter_enabled' => 'Kamera aus', 'Schalter_detect' => 'Erkennung aus', 'Schalter_recordings' => 'Aufnahme aus',
+            'Schalter_snapshots' => 'Schnappschüsse aus'] as $ident => $text) {
+            if ($this->kachelWert($ident) === false) {
+                $aus[] = $text;
+            }
+        }
+        return $aus;
+    }
+
+    /** PTZ-Fähigkeiten merken (Abgleich): features/presets aus /api/<kamera>/ptz/info, sonst leer. */
+    private function ptzMerken(?array $info): void
+    {
+        $features = array_values(array_filter((array)($info['features'] ?? []), 'is_string'));
+        $presets = array_values(array_filter((array)($info['presets'] ?? []), fn ($p) => is_string($p) && preg_match('/^[A-Za-z0-9 _.-]{1,64}\z/', $p)));
+        $this->WriteAttributeString('Ptz', $features === [] && $presets === [] ? '' : (string)json_encode(['features' => $features, 'presets' => $presets]));
     }
 
     /** Wert einer eigenen Variable oder null, wenn es sie (noch) nicht gibt. */

@@ -212,6 +212,14 @@ class FrigateHubKamera extends IPSModule
                 $this->objektUpdateVerarbeiten($payload);
                 break;
 
+            case 'zahl':
+                $zahl = FrigateHubTopics::zahl($payload);
+                if ($zahl !== null) {
+                    $this->zahlSetzen($d['schluessel'], $zahl);
+                    $this->frischMerken($d['schluessel']);
+                }
+                break;
+
             default:
                 $this->SendDebug('Ignoriert', $topic . ' (' . ($d['grund'] ?? '') . ')', 0);
                 break;
@@ -225,6 +233,25 @@ class FrigateHubKamera extends IPSModule
     public function RequestAction($Ident, $Value)
     {
         $ident = (string)$Ident;
+        // Aktionen der Kachel (gesehen, Favorit, Export, PTZ): Fehler erscheinen in der Kachel
+        try {
+            if ($this->kachelAktion($ident, $Value)) {
+                return;
+            }
+        } catch (Throwable $e) {
+            $this->kachelMelden('⛔ ' . $e->getMessage());
+            throw $e;
+        }
+        foreach (FrigateHubTopics::ZAHLEN as $schluessel => $z) {
+            if ($ident === $z['ident']) {
+                $wert = max($z['min'], min($z['max'], (int)$Value));
+                // Wie bei Schaltern: Die Variable folgt erst Frigates Bestätigung (…/state).
+                if ($this->senden(FrigateHubTopics::setTopic($this->ReadPropertyString('TopicPrefix'), $this->kamera(), $schluessel), (string)$wert)) {
+                    $this->frischMerken($schluessel);
+                }
+                return;
+            }
+        }
         $schluessel = $this->schalterSchluessel($ident);
         if ($schluessel === '') {
             throw new Exception('Unbekannte Aktion ' . $ident);
@@ -445,6 +472,14 @@ class FrigateHubKamera extends IPSModule
         }
         $this->zonenLernen(FrigateHubTopics::zonenAusConfig($kameras[$kamera]));
         $this->livestreamPruefen($kameras[$kamera]);
+        $bewegung = (array)($kameras[$kamera]['motion'] ?? []);
+        foreach (['motion_threshold' => 'threshold', 'motion_contour_area' => 'contour_area'] as $schluessel => $feld) {
+            if (is_numeric($bewegung[$feld] ?? null) && !isset($frisch[$schluessel])) {
+                $this->zahlSetzen($schluessel, (int)$bewegung[$feld]);
+            }
+        }
+        // PTZ nur anbieten, wenn Frigate für die Kamera Fähigkeiten meldet (sonst {}, live 29.10.2026)
+        $this->ptzMerken(!empty($kameras[$kamera]['onvif']['host']) ? $this->apiHolen('/api/' . rawurlencode($kamera) . '/ptz/info') : null);
 
         $stats = $this->apiHolen('/api/stats');
         $fps = $stats['cameras'][$kamera]['camera_fps'] ?? null;
@@ -594,6 +629,24 @@ class FrigateHubKamera extends IPSModule
         }
         $this->variableAnlegen($ident, $name, VARIABLETYPE_INTEGER, ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION], $position);
         $this->SetValue($ident, $zahl);
+    }
+
+    /** Einstellbare Zahl (Bewegungsschwelle …) anlegen und setzen; Bedienung per Schieberegler. */
+    private function zahlSetzen(string $schluessel, int $wert): void
+    {
+        $z = FrigateHubTopics::ZAHLEN[$schluessel];
+        $this->variableAnlegen($z['ident'], $z['name'], VARIABLETYPE_INTEGER, ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
+            'MIN' => $z['min'], 'MAX' => $z['max'], 'STEP_SIZE' => 1, 'DIGITS' => 0], self::POS_SCHALTER + 50, true);
+        $this->SetValue($z['ident'], $wert);
+    }
+
+    /** PTZ-Befehl an Frigate (frigate/<kamera>/ptz). */
+    private function ptzSenden(string $befehl): void
+    {
+        $topic = FrigateHubTopics::praefix($this->ReadPropertyString('TopicPrefix')) . '/' . $this->kamera() . '/ptz';
+        if (!$this->senden($topic, $befehl)) {
+            throw new Exception('Keine aktive MQTT-Instanz — PTZ-Befehl nicht gesendet.');
+        }
     }
 
     private function schalterSetzen(string $schluessel, bool $wert): void

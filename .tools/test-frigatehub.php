@@ -112,7 +112,8 @@ check('Bewegung ≠ Bewegungserkennung', FrigateHubTopics::deuten('frigate/Door-
 check('motion/state = Schalter', FrigateHubTopics::deuten('frigate/Door-Cam/motion/state', 'frigate', 'Door-Cam', $z)['schluessel'], 'motion');
 check('detect/state', FrigateHubTopics::deuten('frigate/Door-Cam/detect/state', 'frigate', 'Door-Cam', $z)['name'], 'Objekterkennung');
 check('Maske', FrigateHubTopics::deuten('frigate/Door-Cam/motion_mask/motion_mask_1/state', 'frigate', 'Door-Cam', $z)['schluessel'], 'motion_mask/motion_mask_1');
-check('unbekannter Zustand ignoriert', FrigateHubTopics::deuten('frigate/Door-Cam/motion_threshold/state', 'frigate', 'Door-Cam', $z)['art'], 'ignorieren');
+check('Bewegungsschwelle als Zahl', FrigateHubTopics::deuten('frigate/Door-Cam/motion_threshold/state', 'frigate', 'Door-Cam', $z)['ident'] ?? null, 'Zahl_motion_threshold');
+check('unbekannter Zustand ignoriert', FrigateHubTopics::deuten('frigate/Door-Cam/birdseye_mode/state', 'frigate', 'Door-Cam', $z)['art'], 'ignorieren');
 check('status/detect', FrigateHubTopics::deuten('frigate/Door-Cam/status/detect', 'frigate', 'Door-Cam', $z), ['art' => 'status', 'rolle' => 'detect']);
 check('review_status', FrigateHubTopics::deuten('frigate/Door-Cam/review_status', 'frigate', 'Door-Cam', $z)['art'], 'pruefstatus');
 check('Zonen-Zähler', FrigateHubTopics::deuten('frigate/einfahrt/car', 'frigate', 'Door-Cam', $z), ['art' => 'zone', 'zone' => 'einfahrt', 'label' => 'car']);
@@ -243,7 +244,8 @@ check('Schalter Bewegungserkennung (motion/state)', $k->GetValue('Schalter_motio
 $maske = 'Schalter_motion_mask_1';
 check('Maske als Schalter', $k->variables[$maske]['caption'] ?? null, 'Bewegungsmaske 1');
 check('birdseye_mode nicht als Schalter', count(array_filter(array_keys($k->variables), fn ($i) => strpos($i, 'birdseye_mode') !== false)), 0);
-check('Schwellwert nicht als Schalter', count(array_filter(array_keys($k->variables), fn ($i) => strpos($i, 'threshold') !== false)), 0);
+check('Schwellwert als Zahl mit Aktion, nicht als Schalter', [isset($k->variables['Schalter_motion_threshold']), $k->GetValue('Zahl_motion_threshold'),
+    isset($k->enabledActions['Zahl_motion_threshold']), $k->variables['Zahl_motion_threshold']['presentation']['MAX'] ?? null], [false, 30, true, 255]);
 check('Status/Profil nicht als Objekt', isset($k->variables['Objekt_status']) || isset($k->variables['Objekt_profile']), false);
 $schalter = array_filter(array_keys($k->variables), fn ($i) => strpos($i, 'Schalter_') === 0);
 check('Anzahl Schalter aus echten Topics', count($schalter), 17);
@@ -458,7 +460,7 @@ TestKamera::$api = [
 TestKamera::$abgerufen = [];
 $text = $h->ZustandAnfordern();
 check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '18 Schalter, 1 Zone(n), Kamera liefert Bilder') !== false, true);
-check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/go2rtc/streams', '/api/stats', '/api/Door-Cam/latest.jpg?height=720&h=720', '/api/review?cameras=Door-Cam&limit=8']);
+check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/go2rtc/streams', '/api/Door-Cam/ptz/info', '/api/stats', '/api/Door-Cam/latest.jpg?height=720&h=720', '/api/review?cameras=Door-Cam&limit=8']);
 $hm = IPS_GetObjectIDByIdent('Schnappschuss', 5);
 check('Abgleich legt Medium mit Livebild an', base64_decode((string)(IPSTestState::$media[$hm]['content'] ?? '')), $livebild);
 // MQTT-Schnappschuss mit Adresse: Vollbild über die API statt Ausschnitt

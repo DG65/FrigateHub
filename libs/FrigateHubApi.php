@@ -231,6 +231,39 @@ trait FrigateHubApi
     }
 
     /**
+     * Schreibender Aufruf an Frigates API (POST/DELETE, JSON) mit Anmeldung, soweit vorhanden:
+     * Review gesehen, Ereignis behalten, Export. Prüfstand-Haken.
+     *
+     * @return array{code:int,body:string}
+     */
+    protected function apiSchreiben(string $methode, string $pfad, ?array $json): array
+    {
+        $zugang = $this->apiZugang() ?? $this->zugangUebernehmen();
+        $kopf = ['Content-Type: application/json', 'Accept: application/json'];
+        if ($zugang !== null) {
+            $kopf[] = 'Cookie: ' . $zugang['cookie'] . '=' . $zugang['token'];
+        }
+        $url = $this->apiUrl() . $pfad;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CUSTOMREQUEST  => $methode,
+            CURLOPT_POSTFIELDS     => $json === null ? '' : (string)json_encode($json),
+            CURLOPT_HTTPHEADER     => $kopf,
+        ]);
+        if (strpos($url, 'https://') === 0 && !$this->ReadPropertyBoolean('ZertifikatPruefen')) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        $antwort = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ['code' => $antwort === false ? 0 : $code, 'body' => $antwort === false ? '' : (string)$antwort];
+    }
+
+    /**
      * WebRTC-Verbindungsaufbau mit Frigates go2rtc: SDP-Angebot des Browsers hin, SDP-Antwort
      * zurück (POST /api/go2rtc/webrtc?src=…, in Frigates nginx für die Home-Assistant-Integration,
      * auf Port 8971 mit Anmeldung). Das Video selbst läuft danach direkt zwischen Browser und
