@@ -212,6 +212,41 @@ Ist Port 5000 nicht freigegeben, geht der Weg über Frigates Weboberfläche auf 
 - Frigate erzeugt für Port 8971 ein eigenes Zertifikat. „Zertifikat prüfen" nur einschalten, wenn
   Frigate ein gültiges Zertifikat hat.
 
+## Zusammen mit OpenHomeAlarm (optional)
+
+[OpenHomeAlarm](https://community.symcon.de/t/modul-openhomealarm-flexibles-alarmsystem-fuer-symcon/144342)
+von Burki24 ist eine Alarmanlage für Symcon (Bereiche, Scharfmodi, Verzögerungen, Eskalation).
+Die beiden Module arbeiten über gewöhnliche Symcon-Variablen und Aktionen zusammen. Keines setzt
+das andere voraus, und keines muss vom anderen wissen. Die Aufteilung ist mit Burki24 abgestimmt:
+FrigateHub kümmert sich um Kameras, Zonen, Objekterkennung und Bilder, OpenHomeAlarm bekommt nur
+ein bereits bewertetes Ereignis und entscheidet nach Bereich und Scharfmodus, ob daraus ein Alarm wird.
+
+**FrigateHub → OpenHomeAlarm (Melder):**
+- „Alarm" einer Kamera (Bool) als Sensor mit Auslösewert „wahr" — Frigates eigene Einstufung, also
+  nur Objekte und Zonen, die in Frigate als Alarm gelten.
+- Oder ein Zähler wie „Eingangsbereich: Personen" mit der Regel „Abweichung vom Normalwert",
+  Normalwert 0. Die Zähler zeigen die gerade erkannte Anzahl und fallen danach wieder auf 0 —
+  keine fortlaufende Summe.
+- „Kamera online" als Störungseingang, Normalwert „wahr". Ob eine ausgefallene Kamera nur als
+  Störung erscheint oder das Scharfschalten verhindert, legt man in OpenHomeAlarm fest.
+
+**OpenHomeAlarm → FrigateHub (Aktionen):**
+- Eine Alarmaktion „Schalte auf Wert" auf „Aufnahme" oder „Objekterkennung" der Kamera, mit
+  automatischem Umkehren beim Zurücksetzen.
+- Meldung mit Kamerabild: Alarmaktion „Instanzfunktion ausführen" mit
+  `FRIG_MeldungMitSchnappschuss(<Kamera-Instanz>, "Alarm", true)`. Das Bild verschickt FrigateHub an
+  die Ziele der Kamera (E-Mail mit Bild über SMTP, Push öffnet die Kamera).
+- Mehrere Kameras: Die Alarmaktionen von OpenHomeAlarm hängen nicht an einem bestimmten Sensor.
+  Entweder eine Aktion je Kamera (alle schicken ihr Bild), oder ein kleines Skript fragt mit
+  `OHA_GetControlState()` den Auslöser ab und ruft die passende Kamera auf.
+- „Scharf → Aufnahme an": Eine eigene Aktion nach erfolgreichem Scharfschalten hat OpenHomeAlarm
+  derzeit nicht (für 2.x angedacht). Bis dahin ein Symcon-Ereignis auf die Statusvariable des
+  Bereichs; das Skript prüft mit `OHA_GetControlState()`, ob der Bereich scharf ist, und schaltet
+  „Aufnahme" bzw. „Objekterkennung" der Kamera.
+
+Fragen zu OpenHomeAlarm selbst gehören in dessen Forum-Thread, Fragen zu Kameras und Frigate in
+den von FrigateHub.
+
 ## Abgrenzung
 
 Kameraeigene Ereignisse liefern im Symcon-Store die Module für Reolink, UniFi Protect
