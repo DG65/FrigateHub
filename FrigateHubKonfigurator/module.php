@@ -20,6 +20,7 @@ class FrigateHubKonfigurator extends IPSModule
     use FrigateHubApi;
 
     private const KAMERA_GUID = '{6BB54171-2F24-4653-9061-F2BC352A9D3B}';
+    private const SERVER_GUID = '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}';
 
     public function Create()
     {
@@ -92,7 +93,7 @@ class FrigateHubKonfigurator extends IPSModule
     protected function frigatehubZweck(): array
     {
         return [
-            'Findet alle Kameras deiner Frigate-Instanz und legt je Kamera mit einem Klick eine Frigate-Kamera-Instanz an — mit Kamera-ID, MQTT-Präfix und Frigate-Adresse bereits eingetragen.',
+            'Findet alle Kameras deiner Frigate-Instanz und legt je Kamera mit einem Klick eine Frigate-Kamera-Instanz an — mit Kamera-ID, MQTT-Präfix und Frigate-Adresse bereits eingetragen. Dazu bietet er den Frigate-Server an (Version, Leistung, Speicher, gestörte Kameras).',
         ];
     }
 
@@ -150,6 +151,7 @@ class FrigateHubKonfigurator extends IPSModule
             ];
         }
         $werte = array_merge($werte, $this->verwaisteZeilen($vorhanden, array_column($kameras, 'id'), 'nicht mehr in Frigate'));
+        $werte[] = $this->serverZeile($praefix);
 
         $version = is_string($stats['service']['version'] ?? null) ? ' ' . preg_replace('/-.*$/', '', $stats['service']['version']) : '';
         $text = '✅ ' . count($kameras) . ' ' . (count($kameras) === 1 ? 'Kamera' : 'Kameras') . ' in Frigate' . $version . ' gefunden.';
@@ -157,6 +159,34 @@ class FrigateHubKonfigurator extends IPSModule
             $text .= ' ⚠️ Der Konfigurator hängt unter keinem aktiven MQTT-Server — angelegte Kameras empfangen dann nichts.';
         }
         return [$text, $werte];
+    }
+
+    /** Zeile für die Frigate-Server-Instanz (eine je MQTT-Elternteil). */
+    private function serverZeile(string $praefix): array
+    {
+        $eltern = IPS_GetInstance($this->InstanceID)['ConnectionID'];
+        $vorhanden = 0;
+        foreach (IPS_GetInstanceListByModuleID(self::SERVER_GUID) as $id) {
+            if (IPS_GetInstance($id)['ConnectionID'] === $eltern) {
+                $vorhanden = $id;
+                break;
+            }
+        }
+        return [
+            'name'       => 'Frigate-Server',
+            'kamera'     => '',
+            'erkennung'  => '',
+            'aufloesung' => '',
+            'zonen'      => '',
+            'zustand'    => 'Version, Leistung, Speicher, gestörte Kameras',
+            'instanceID' => $vorhanden,
+            'create'     => [
+                'moduleID'      => self::SERVER_GUID,
+                'name'          => 'Frigate-Server',
+                'configuration' => ['TopicPrefix' => $praefix, 'ApiUrl' => $this->apiUrl(),
+                    'ApiBenutzer' => (string)$this->ReadPropertyString('ApiBenutzer'), 'ZertifikatPruefen' => $this->ReadPropertyBoolean('ZertifikatPruefen')],
+            ],
+        ];
     }
 
     /**

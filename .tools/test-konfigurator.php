@@ -122,7 +122,9 @@ $f = $k->form();
 $werte = element($f['elements'], 'Kameras')['values'];
 check('Status mit Version', element($f['elements'], 'Suchstatus')['caption'], '✅ 2 Kameras in Frigate 0.18.2 gefunden.');
 check('nur lesende Abrufe', TestKonfigurator::$abgerufen, ['/api/config', '/api/stats']);
-check('zwei Zeilen', count($werte), 2);
+check('zwei Kameras und der Server', count($werte), 3);
+check('Server-Zeile', [$werte[2]['name'], $werte[2]['instanceID'], $werte[2]['create']['moduleID'], $werte[2]['create']['configuration']],
+    ['Frigate-Server', 0, '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}', ['TopicPrefix' => 'frigate', 'ApiUrl' => 'http://127.0.0.1:5000', 'ApiBenutzer' => '', 'ZertifikatPruefen' => false]]);
 check('Create-Modul', $werte[0]['create']['moduleID'], '{6BB54171-2F24-4653-9061-F2BC352A9D3B}');
 check('Create-Konfiguration', $werte[0]['create']['configuration'], ['Camera' => 'Door-Cam', 'TopicPrefix' => 'frigate', 'ApiUrl' => 'http://127.0.0.1:5000',
     'ApiBenutzer' => '', 'ZertifikatPruefen' => false]);
@@ -138,12 +140,16 @@ check('Spalten = Zeilenfelder', array_values(array_diff(array_keys($werte[0]), [
 IPSTestState::$instances[10] = ['InstanceID' => 10, 'ConnectionID' => 2, 'Name' => 'Haustür', 'Properties' => ['Camera' => 'Door-Cam'], 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
 // … unter einem anderen Broker zählt nicht
 IPSTestState::$instances[11] = ['InstanceID' => 11, 'ConnectionID' => 99, 'Name' => 'Garten (anderer Broker)', 'Properties' => ['Camera' => 'garten'], 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+// Server-Instanz: unter demselben Broker zugeordnet, unter einem anderen nicht
+IPSTestState::$instances[13] = ['InstanceID' => 13, 'ConnectionID' => 99, 'Name' => 'Server anderer Broker', 'Properties' => [], 'ModuleInfo' => ['ModuleID' => '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}']];
+IPSTestState::$instances[14] = ['InstanceID' => 14, 'ConnectionID' => 2, 'Name' => 'Frigate-Server', 'Properties' => [], 'ModuleInfo' => ['ModuleID' => '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}']];
 // … und eine, deren Kamera es in Frigate nicht mehr gibt
 IPSTestState::$instances[12] = ['InstanceID' => 12, 'ConnectionID' => 2, 'Name' => 'Alte Garage', 'Properties' => ['Camera' => 'garage'], 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
 $werte = element($k->form()['elements'], 'Kameras')['values'];
 check('vorhandene Instanz zugeordnet', $werte[0]['instanceID'], 10);
 check('anderer Broker zählt nicht', $werte[1]['instanceID'], 0);
-check('verwaiste Instanz gelistet', [count($werte), $werte[2]['instanceID'], $werte[2]['zustand'], $werte[2]['name']], [3, 12, 'nicht mehr in Frigate', 'Alte Garage']);
+check('verwaiste Instanz gelistet', [count($werte), $werte[2]['instanceID'], $werte[2]['zustand'], $werte[2]['name']], [4, 12, 'nicht mehr in Frigate', 'Alte Garage']);
+check('vorhandener Server zugeordnet (eigener Broker)', $werte[3]['instanceID'], 14);
 check('verwaiste Instanz ohne create', isset($werte[2]['create']), false);
 
 // Ohne aktiven MQTT-Server: Warnung

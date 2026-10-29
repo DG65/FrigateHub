@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Zugriff auf Frigates HTTP-API — gemeinsam für Kamera und Konfigurator.
+ * Zugriff auf Frigates HTTP-API — gemeinsam für Kamera, Konfigurator und Server.
  *
  * Zwei Wege: Port 5000 ohne Anmeldung (http) oder Port 8971 mit Anmeldung (https). Die Anmeldung
  * läuft wie bei Frigates Weboberfläche: POST /api/login, Frigate setzt ein JWT als Cookie
@@ -30,6 +30,7 @@ trait FrigateHubApi
     private static array $FRIGATEHUB_API_MODULE = [
         '{6BB54171-2F24-4653-9061-F2BC352A9D3B}' => 'FRIG',
         '{AB2DD3FF-1892-4830-8C35-86982AB8D661}' => 'FRIGC',
+        '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}' => 'FRIGS',
     ];
 
     /** In Create() aufrufen. */

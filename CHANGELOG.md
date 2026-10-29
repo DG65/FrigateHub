@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 (Build 18) — 29.10.2026
+
+- **Neue Instanz Frigate-Server** (`FrigateHubServer`, Präfix FRIGS, unter dem MQTT-Server): Frigate erreichbar, Version und „Neueste Version" (aus Frigates `latest_version`), Läuft seit, CPU-Last, Arbeitsspeicher, Erkennungszeit je Detektor, GPU-Last je GPU, Speicher Aufnahmen belegt/frei, „Gestörte Kameras" mit Klartext „Kamerazustand" (keine Bilder, Verbindung schlecht/unbrauchbar, Neuverbindungen der letzten Stunde). Quelle `frigate/stats` und `frigate/available`; mit Frigate-Adresse zusätzlich sofort über `/api/stats`. „Frigate neu starten" (`frigate/restart`, mit Rückfrage, nie retain). Feldnamen und Einheiten an Frigate 0.18.2 geprüft.
+- Konfigurator: zusätzliche Zeile „Frigate-Server" zum Anlegen (eine je MQTT-Server). Die Server-Instanz teilt die Anmeldung über Port 8971 mit Kameras und Konfigurator.
+- Neuer Prüfstand `.tools/test-server.php` (auch in der CI).
+
 ## 0.8.0 (Build 17) — 29.10.2026
 
 - **Eigenständige Seite für IPSView/Browser** (RoboHub-Muster): `/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` liefert die Kachel-Oberfläche mit Kameranamen und eigenem Hintergrund, Daten alle 5 s über `?daten=1`. Anders als bei RoboHub braucht schon die Anzeige den Schlüssel (Kamerabilder sind privat). Schalten über `POST ?schalten=<Ident>&wert=0|1` nur mit Freigabe „Schalter … auf der eigenständigen Seite bedienbar“ (Standard aus), nur die drei Kachel-Schalter, und nur bei aktiver MQTT-Instanz (sonst 502 statt scheinbarem Erfolg). Ohne Freigabe sind die Schalter gesperrt und erklären warum.

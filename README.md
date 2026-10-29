@@ -31,6 +31,23 @@ daraus je Kamera:
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
+Dazu kommt eine Instanz **Frigate-Server** für den Server selbst:
+
+| Variable | Bedeutung |
+|---|---|
+| Frigate erreichbar | Frigate ist mit dem MQTT-Server verbunden (`frigate/available`) |
+| Version, Neueste Version | laufende Version; „0.19.0 verfügbar", sobald Frigate eine neuere kennt |
+| Läuft seit | Start von Frigate |
+| CPU-Last, Arbeitsspeicher | Auslastung des Frigate-Rechners in % |
+| Erkennungszeit _Detektor_ | Dauer einer Objekterkennung in ms, je Detektor (z. B. OpenVINO, Coral) |
+| GPU-Last _GPU_ | Auslastung je Grafikeinheit in % |
+| Speicher Aufnahmen belegt / frei | Platte unter `/media/frigate/recordings` in % bzw. GB |
+| Gestörte Kameras, Kamerazustand | Anzahl und Klartext: Kameras ohne Bilder oder mit schlechter/unbrauchbarer Verbindung |
+
+Die Werte kommen aus `frigate/stats` (Frigate schickt das jede Minute, `mqtt.stats_interval`).
+„Gestörte Kameras" eignet sich als Auslöser für eine Benachrichtigung. Im Formular lässt sich
+Frigate neu starten (`frigate/restart`; Docker muss es mit `restart: unless-stopped` wieder starten).
+
 Mit eingetragener Frigate-Adresse kommt der Schnappschuss jeder Erkennung in voller
 Kameraauflösung. Ohne Adresse nimmt FrigateHub das Bild, das Frigate per MQTT schickt: einen
 Ausschnitt um das Objekt (Standard: 270 px hoch). Größe und Zuschnitt stellt man in Frigate je Kamera
@@ -118,7 +135,8 @@ mqtt:
 2. Instanz **Frigate-Konfigurator** unter dem MQTT-Server anlegen, an den Frigate sendet.
 3. Frigate-Adresse eintragen und übernehmen: `http://192.168.1.20:5000` (ohne Anmeldung) oder
    `https://192.168.1.20:8971` — dann Frigate-Benutzer und Passwort eintragen und **Anmelden**.
-4. In der Liste die gewünschten Kameras **Erstellen** — fertig eingerichtet.
+4. In der Liste die gewünschten Kameras **Erstellen** — fertig eingerichtet. Die letzte Zeile
+   **Frigate-Server** legt die Server-Instanz an.
 
 **Oder von Hand:**
 

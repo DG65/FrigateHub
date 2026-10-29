@@ -63,6 +63,12 @@
   auth_request mit go2rtc-Stream-Prüfung), Medien direkt Browser↔go2rtc:8555 (braucht `go2rtc.webrtc.candidates`
   mit Host-IP). WebSockets (/live/mse, /live/webrtc/api/ws) lassen sich über PHP-Hooks NICHT durchreichen.
   Dietmars Door-Cam: H.264 1920×1080 13 fps + G.711 (WebRTC-tauglich ohne Umwandlung), go2rtc noch ohne Streams.
+- IPSView-Seite (0.8.0): `?seite=1&k=` liefert module.html mit `eigen`-Daten, Abfrage `?daten=1` alle 5 s (nur
+  bei Änderung neu zeichnen, sonst laden die Vorschaubilder ständig neu — Live-Fund), Schalten nur POST +
+  Freigabe `SeiteBedienung`. Anders als RoboHub braucht schon die Anzeige den Schlüssel (Kamerabilder privat).
+- Server-Instanz (0.9.0): `FrigateHubServer` (FRIGS, GUID `{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}`), Auswertung
+  rein in `libs/FrigateHubServerWerte.php`. Live 29.10.2026: `/api/stats` = Inhalt von MQTT `frigate/stats`
+  (stats_interval 60), Speicher in MB, `gpu_usages.*.gpu` als Text „2.51%", `connection_quality` z. B. „poor".
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
