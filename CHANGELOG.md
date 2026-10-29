@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 (Build 11) — 29.10.2026
+
+- **Kachel** (HTML-SDK, `FrigateHubKamera/module.html`, Trait `FrigateHubKachel`): Livebild im einstellbaren Takt (Standard 2 s, nur solange sichtbar, wahlweise mit Erkennungsrahmen `bbox`), Statuszeile (online, Alarm, Erkennung, Bewegung, Zähler je Objekt), Alarm-/Erkennungsrahmen, Schalter Erkennung/Aufnahme/Schnappschüsse (über `requestAction`, folgen der Bestätigung von Frigate), Ereignisleiste der letzten 8 Reviews mit Vorschaubild, Großansicht mit Ereignis-Schnappschuss (1080 px) und Clip.
+- **WebHook** `/hook/frigatehub<ID>` reicht Bilder und Clips durch: `/api/<kamera>/latest.jpg`, `/clips/review/thumb-<kamera>-<id>.webp`, `/api/events/<id>/thumbnail.jpg|snapshot.jpg|clip.mp4`, mit Frigates Anmeldung und Range-Anfragen (Safari/iOS). Zugriff nur mit dem zufälligen Schlüssel der Instanz (Attribut, „Kachel-Schlüssel erneuern"), nur feste Pfade, IDs streng geprüft. Ohne Frigate-Adresse zeigt die Kachel den Schnappschuss aus dem Medienobjekt.
+- Ereignisleiste aus MQTT-`reviews`; ist sie leer, füllt der Abgleich sie einmal über `/api/review`.
+- Neuer Prüfstand `.tools/test-kachel.php` (auch in der CI).
+
 ## 0.5.1 (Build 10) — 29.10.2026
 
 - `http://…:8971`: nginx antwortet 400 „The plain HTTP request was sent to HTTPS port". Abgleich, Konfigurator und Anmelden nennen jetzt die richtige https-Adresse statt „nicht erreichbar (HTTP 400)"; die Statuszeile warnt schon vorher (Fund Dietmar, 29.10.2026).

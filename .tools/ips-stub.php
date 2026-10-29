@@ -32,6 +32,8 @@ define('VARIABLE_PRESENTATION_SWITCH', 'SWITCH');
 define('VARIABLE_PRESENTATION_ENUMERATION', 'ENUMERATION');
 define('VARIABLE_PRESENTATION_VALUE_INPUT', 'VALUE_INPUT');
 define('MEDIATYPE_IMAGE', 1);
+define('KR_READY', 10103);
+define('IPS_KERNELMESSAGE', 10100);
 
 /** Sammelt alles, was das Modul nach außen tut, damit Prüfungen es nachsehen können. */
 class IPSTestState
@@ -39,6 +41,7 @@ class IPSTestState
     /** @var int[] Instanzen, für die IPS_ApplyChanges() aufgerufen wurde. */
     public static array $appliedChanges = [];
     public static array $setProperties  = [];
+    public static int $runlevel = 10103;
 
     public static array $instances    = [];
     public static array $sentPackets  = [];
@@ -217,6 +220,17 @@ function IPS_SetMediaCached(int $id, bool $cached): void
 }
 
 /** Wie das Original: ohne Dateinamen oder mit ungültigem Base64 schlägt es fehl. */
+function IPS_GetMediaContent(int $id): string
+{
+    return (string)(IPSTestState::$media[$id]['content'] ?? '');
+}
+
+/** Symcon läuft (KR_READY), außer ein Prüffall setzt etwas anderes. */
+function IPS_GetKernelRunlevel(): int
+{
+    return IPSTestState::$runlevel;
+}
+
 function IPS_SetMediaContent(int $id, string $base64): bool
 {
     if (!isset(IPSTestState::$media[$id]) || IPSTestState::$media[$id]['file'] === ''

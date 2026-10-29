@@ -536,4 +536,66 @@ class FrigateHubTopics
         }
         return $ergebnis;
     }
+
+    /**
+     * Ein Review als Zeile der Kachel-Ereignisleiste.
+     *
+     * @return array{id:string,start:int,ende:?int,stufe:string,text:string,zonen:string[],ereignis:string}|null
+     */
+    public static function reviewEintrag(array $after): ?array
+    {
+        $id = (string)($after['id'] ?? '');
+        if (!self::idGueltig($id) || !is_numeric($after['start_time'] ?? null)) {
+            return null;
+        }
+        $objekte = [];
+        foreach ((array)($after['data']['objects'] ?? []) as $o) {
+            $objekte[] = self::objektEinzahl((string)$o);
+        }
+        foreach ((array)($after['data']['sub_labels'] ?? []) as $s) {
+            if (is_string($s) && $s !== '') {
+                $objekte[] = '„' . $s . '“';
+            }
+        }
+        foreach ((array)($after['data']['audio'] ?? []) as $a) {
+            $objekte[] = self::geraeuschName((string)$a);
+        }
+        $objekte = array_values(array_unique($objekte));
+        $ereignis = '';
+        foreach ((array)($after['data']['detections'] ?? []) as $e) {
+            if (self::idGueltig((string)$e)) {
+                $ereignis = (string)$e;
+                break;
+            }
+        }
+        return [
+            'id'       => $id,
+            'start'    => (int)floor((float)$after['start_time']),
+            'ende'     => is_numeric($after['end_time'] ?? null) ? (int)ceil((float)$after['end_time']) : null,
+            'stufe'    => (string)($after['severity'] ?? '') === 'alert' ? 'alarm' : 'erkennung',
+            'text'     => $objekte === [] ? 'Ereignis' : implode(', ', $objekte),
+            'zonen'    => self::zonenAusReview($after),
+            'ereignis' => $ereignis,
+        ];
+    }
+
+    /**
+     * Eintrag in die Liste übernehmen (gleiche ID ersetzt), neueste zuerst, höchstens $max.
+     *
+     * @param array<int,array> $liste
+     * @return array<int,array>
+     */
+    public static function reviewsMerken(array $liste, array $eintrag, int $max = 8): array
+    {
+        $liste = array_values(array_filter($liste, fn ($e) => is_array($e) && ($e['id'] ?? '') !== $eintrag['id']));
+        $liste[] = $eintrag;
+        usort($liste, fn ($a, $b) => ($b['start'] ?? 0) <=> ($a['start'] ?? 0));
+        return array_slice($liste, 0, $max);
+    }
+
+    /** Frigate-IDs für Ereignisse und Reviews: „1793259219.675514-nm2in4". Schützt die Pfade im WebHook. */
+    public static function idGueltig(string $id): bool
+    {
+        return (bool)preg_match('/^\d{9,11}\.\d{1,6}-[a-z0-9]{1,12}\z/', $id);
+    }
 }

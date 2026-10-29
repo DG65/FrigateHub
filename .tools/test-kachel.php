@@ -1,0 +1,281 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Prüfstand Kachel und WebHook der Frigate-Kamera — ohne Symcon, ohne Netz.
+ *
+ *   php .tools/test-kachel.php
+ *
+ * Review- und ID-Formate wie von Dietmars Frigate 0.18.2 am 29.10.2026 geliefert
+ * (/api/review, /api/events/<id>/…, /clips/review/thumb-<kamera>-<id>.webp).
+ */
+
+require __DIR__ . '/ips-stub.php';
+require __DIR__ . '/../FrigateHubKamera/module.php';
+
+$fehler = 0;
+$geprueft = 0;
+
+function check(string $name, $ist, $soll): void
+{
+    global $fehler, $geprueft;
+    $geprueft++;
+    if ($ist !== $soll) {
+        $fehler++;
+        echo "✗ {$name}\n    ist:  " . var_export($ist, true) . "\n    soll: " . var_export($soll, true) . "\n";
+    }
+}
+
+function paket(string $topic, string $payload): string
+{
+    return (string)json_encode([
+        'DataID' => '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}', 'PacketType' => 3, 'QualityOfService' => 0,
+        'Retain' => false, 'Topic' => $topic, 'Payload' => $payload,
+    ]);
+}
+
+class TestKachel extends FrigateHubKamera
+{
+    public static array $api = [];
+    /** Antwort für apiDurchreichen je Pfad; fehlt = 404. */
+    public static array $frigate = [];
+    public static array $durchgereicht = [];
+    public array $antworten = [];
+    public int $gesendet = 0;
+
+    protected function apiRoh(string $pfad, string $accept): ?string
+    {
+        $a = self::$api[$pfad] ?? null;
+        return is_array($a) ? (string)json_encode($a) : $a;
+    }
+
+    protected function apiDurchreichen(string $pfad, string $range, int $zeitlimit): array
+    {
+        self::$durchgereicht[] = [$pfad, $range, $zeitlimit];
+        return self::$frigate[$pfad] ?? ['code' => 404, 'body' => '', 'kopf' => []];
+    }
+
+    protected function hookAntwort(int $code, array $kopf, string $inhalt): void
+    {
+        $this->antworten[] = ['code' => $code, 'kopf' => $kopf, 'inhalt' => $inhalt];
+    }
+
+    protected function UpdateVisualizationValue(string $value): void
+    {
+        $this->gesendet++;
+        parent::UpdateVisualizationValue($value);
+    }
+
+    public function props(array $p): void
+    {
+        foreach ($p as $k => $v) {
+            $this->TEST_SetProperty($k, $v);
+        }
+    }
+
+    public function hook(array $get, array $server = []): array
+    {
+        $_GET = $get;
+        $_SERVER = $server;
+        $this->antworten = [];
+        $this->ProcessHookData();
+        return $this->antworten[0];
+    }
+
+    public function daten(): array
+    {
+        return json_decode(IPSTestState::$visualization, true);
+    }
+}
+
+$ID = '1793259219.675514-nm2in4';
+$EV = '1793259219.675514-v5y8hh';
+$review = ['id' => $ID, 'camera' => 'Door-Cam', 'start_time' => 1793259219.675514, 'end_time' => 1793259224, 'severity' => 'alert',
+    'thumb_path' => '/media/frigate/clips/review/thumb-Door-Cam-' . $ID . '.webp',
+    'data' => ['detections' => [$EV], 'objects' => ['on_demand'], 'verified_objects' => [], 'sub_labels' => [], 'zones' => [], 'audio' => []]];
+
+/* ------------------------------------------------------------- reine Hilfen */
+
+check('ID gültig', FrigateHubTopics::idGueltig($ID), true);
+foreach (['', '../../api/config', $ID . '/../x', $ID . '.webp', '1793259219-abc', 'abc.123-x', $ID . "\n"] as $schlecht) {
+    check('ID ungültig: ' . json_encode($schlecht), FrigateHubTopics::idGueltig($schlecht), false);
+}
+$e = FrigateHubTopics::reviewEintrag($review);
+check('Eintrag aus echtem Review', $e, ['id' => $ID, 'start' => 1793259219, 'ende' => 1793259224, 'stufe' => 'alarm',
+    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV]);
+check('Eintrag: Erkennung, läuft noch', array_intersect_key((array)FrigateHubTopics::reviewEintrag(['id' => '1793259300.1-ab', 'start_time' => 1793259300.1,
+    'end_time' => null, 'severity' => 'detection', 'data' => ['objects' => ['person', 'car'], 'zones' => ['einfahrt']]]), ['stufe' => 1, 'ende' => 1, 'text' => 1, 'zonen' => 1]),
+    ['ende' => null, 'stufe' => 'erkennung', 'text' => 'Person, Auto', 'zonen' => ['einfahrt']]);
+check('Eintrag: kaputte ID', FrigateHubTopics::reviewEintrag(['id' => '../x', 'start_time' => 1]), null);
+check('Eintrag: Ereignis-ID geprüft', FrigateHubTopics::reviewEintrag(['id' => $ID, 'start_time' => 1, 'data' => ['detections' => ['../../x']]])['ereignis'], '');
+$liste = [];
+for ($i = 0; $i < 10; $i++) {
+    $liste = FrigateHubTopics::reviewsMerken($liste, ['id' => 'r' . $i, 'start' => 1000 + $i], 8);
+}
+check('Liste: höchstens 8, neueste zuerst', array_column($liste, 'id'), ['r9', 'r8', 'r7', 'r6', 'r5', 'r4', 'r3', 'r2']);
+$liste = FrigateHubTopics::reviewsMerken($liste, ['id' => 'r5', 'start' => 1005, 'ende' => 1010], 8);
+check('Liste: gleiche ID ersetzt', [count($liste), $liste[4]['ende'] ?? null], [8, 1010]);
+
+/* ------------------------------------------------------------- Modul */
+
+IPSTestState::reset();
+IPSTestState::$instances[1] = ['InstanceID' => 1, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+IPSTestState::$instances[90] = ['InstanceID' => 90, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}'],
+    'Properties' => ['Hooks' => json_encode([['Hook' => '/hook/anderes', 'TargetID' => 5]])]];
+$k = new TestKachel(1);
+$k->Create();
+$k->props(['Camera' => 'Door-Cam']);
+$k->ApplyChanges();
+$schluessel = $k->ReadAttributeString('HookSchluessel');
+check('Schlüssel: 32 Hex-Zeichen', (bool)preg_match('/^[0-9a-f]{32}$/', $schluessel), true);
+check('WebHook eingetragen, fremder bleibt', json_decode((string)end(IPSTestState::$setProperties)[2], true),
+    [['Hook' => '/hook/anderes', 'TargetID' => 5], ['Hook' => '/hook/frigatehub1', 'TargetID' => 1]]);
+$k->ApplyChanges();
+check('Schlüssel bleibt beim Übernehmen', $k->ReadAttributeString('HookSchluessel'), $schluessel);
+$d = $k->daten();
+check('Daten: Hook und Schlüssel', [$d['hook'], $d['k']], ['/hook/frigatehub1', $schluessel]);
+check('ohne Adresse: kein Livebild', [$d['api'], $d['live']], [false, 0]);
+
+// Ohne Schlüssel nichts
+check('Hook ohne Schlüssel: 403', $k->hook(['bild' => 'live'])['code'], 403);
+check('Hook falscher Schlüssel: 403', $k->hook(['k' => str_repeat('0', 32), 'bild' => 'live'])['code'], 403);
+check('Hook Schlüssel als Array: 403', $k->hook(['k' => [$schluessel], 'bild' => 'live'])['code'], 403);
+check('ohne Adresse: Livebild 404', $k->hook(['k' => $schluessel, 'bild' => 'live'])['code'], 404);
+check('ohne Adresse: kein Schnappschuss → 404', $k->hook(['k' => $schluessel, 'bild' => 'schnappschuss'])['code'], 404);
+
+// Schnappschuss per MQTT, dann über den Hook
+$jpeg = "\xFF\xD8\xFF\xE0" . str_repeat("\x11", 60) . "\xFF\xD9";
+$k->ReceiveData(paket('frigate/Door-Cam/person/snapshot', mb_convert_encoding($jpeg, 'UTF-8', 'ISO-8859-1')));
+$a = $k->hook(['k' => $schluessel, 'bild' => 'schnappschuss']);
+check('Schnappschuss über Hook', [$a['code'], $a['kopf']['Content-Type'], $a['inhalt'] === $jpeg], [200, 'image/jpeg', true]);
+check('Daten: Schnappschuss-Text', strpos($k->daten()['schnappschuss'], 'Ausschnitt') !== false, true);
+check('Hook ohne Adresse fragt Frigate nie', TestKachel::$durchgereicht, []);
+
+/* ------------------------------------------------------------- mit Frigate-Adresse */
+
+$k->props(['ApiUrl' => 'http://127.0.0.1:5000']);
+$k->ApplyChanges();
+check('mit Adresse: Livebild alle 2 s', [$k->daten()['api'], $k->daten()['live']], [true, 2]);
+$k->props(['KachelLiveTakt' => 600]);
+$k->ApplyChanges();
+check('Takt höchstens 60 s', $k->daten()['live'], 60);
+$k->props(['KachelLiveTakt' => 2]);
+$k->ApplyChanges();
+
+TestKachel::$frigate['/api/Door-Cam/latest.jpg?h=480&bbox=1'] = ['code' => 200, 'body' => 'JPEG', 'kopf' => ['content-type' => 'image/jpeg']];
+$a = $k->hook(['k' => $schluessel, 'bild' => 'live']);
+check('Livebild mit Rahmen', [$a['code'], $a['inhalt'], $a['kopf']['Cache-Control']], [200, 'JPEG', 'no-store']);
+$k->hook(['k' => $schluessel, 'bild' => 'live', 'rahmen' => '0', 'h' => '5000']);
+check('ohne Rahmen, Höhe begrenzt', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?h=1080');
+$k->hook(['k' => $schluessel, 'bild' => 'live', 'h' => '-5']);
+check('Höhe mindestens 120', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?h=120&bbox=1');
+$k->hook(['k' => $schluessel, 'bild' => 'review', 'id' => $ID]);
+check('Review-Vorschau', end(TestKachel::$durchgereicht)[0], '/clips/review/thumb-Door-Cam-' . $ID . '.webp');
+$k->hook(['k' => $schluessel, 'bild' => 'vorschau', 'id' => $EV]);
+check('Objekt-Vorschau', end(TestKachel::$durchgereicht)[0], '/api/events/' . $EV . '/thumbnail.jpg');
+$k->hook(['k' => $schluessel, 'bild' => 'ereignis', 'id' => $EV, 'h' => '1080']);
+check('Ereignis-Schnappschuss', end(TestKachel::$durchgereicht)[0], '/api/events/' . $EV . '/snapshot.jpg?h=1080');
+
+// Keine fremden Pfade
+$vorher = count(TestKachel::$durchgereicht);
+foreach ([['bild' => 'review', 'id' => '../../api/config'], ['bild' => 'ereignis', 'id' => $EV . '/../../../api/config'],
+    ['clip' => '../api/stats'], ['bild' => 'config'], ['pfad' => '/api/config'], []] as $get) {
+    check('abgelehnt: ' . json_encode($get), $k->hook(['k' => $schluessel] + $get)['code'], 404);
+}
+check('abgelehnte Anfragen erreichen Frigate nicht', count(TestKachel::$durchgereicht), $vorher);
+
+// Clip mit Range (Safari/iOS)
+TestKachel::$frigate['/api/events/' . $EV . '/clip.mp4'] = ['code' => 206, 'body' => 'MP4TEIL',
+    'kopf' => ['content-type' => 'video/mp4', 'content-range' => 'bytes 0-6/1734835']];
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=0-6']);
+check('Clip: Range durchgereicht, längere Zeit', array_slice(end(TestKachel::$durchgereicht), 1), ['bytes=0-6', 60]);
+check('Clip: 206 mit Content-Range', [$a['code'], $a['kopf']['Content-Range'], $a['kopf']['Accept-Ranges'], $a['kopf']['Content-Type']],
+    [206, 'bytes 0-6/1734835', 'bytes', 'video/mp4']);
+$k->hook(['k' => $schluessel, 'bild' => 'live'], ['HTTP_RANGE' => 'bytes=0-6']);
+check('Bild: kein Range', end(TestKachel::$durchgereicht)[1], '');
+TestKachel::$frigate['/api/events/' . $EV . '/thumbnail.jpg'] = ['code' => 500, 'body' => 'kaputt', 'kopf' => []];
+$a = $k->hook(['k' => $schluessel, 'bild' => 'vorschau', 'id' => $EV]);
+check('Frigate-Fehler → 502 ohne Inhalt von Frigate', [$a['code'], strpos($a['inhalt'], 'kaputt')], [502, false]);
+TestKachel::$frigate['/api/events/' . $EV . '/thumbnail.jpg'] = ['code' => 0, 'body' => '', 'kopf' => []];
+check('Frigate nicht erreichbar → 502', $k->hook(['k' => $schluessel, 'bild' => 'vorschau', 'id' => $EV])['code'], 502);
+
+/* ------------------------------------------------------------- Daten für die Kachel */
+
+$k->gesendet = 0;
+$k->ReceiveData(paket('frigate/Door-Cam/person', '2'));
+$k->ReceiveData(paket('frigate/Door-Cam/car', '0'));
+$k->ReceiveData(paket('frigate/Door-Cam/all', '2'));
+check('Zähler: nur > 0, ohne „gesamt"', $k->daten()['zaehler'], [['name' => 'Personen', 'anzahl' => 2]]);
+$k->ReceiveData(paket('frigate/Door-Cam/car', '1'));
+check('Zähler: Einzahl bei 1', $k->daten()['zaehler'][1] ?? null, ['name' => 'Auto', 'anzahl' => 1]);
+$k->ReceiveData(paket('frigate/Door-Cam/car', '0'));
+$n = $k->gesendet;
+$k->ReceiveData(paket('frigate/Door-Cam/person', '2'));
+check('unveränderte Daten werden nicht erneut gesendet', $k->gesendet, $n);
+$k->ReceiveData(paket('frigate/Door-Cam/person', '0'));
+check('Zähler auf 0 verschwindet', $k->daten()['zaehler'], []);
+check('Schalter unbekannt = null', $k->daten()['schalter'], ['detect' => null, 'recordings' => null, 'snapshots' => null]);
+$k->ReceiveData(paket('frigate/Door-Cam/detect/state', 'ON'));
+$k->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'OFF'));
+check('Schalter aus MQTT', $k->daten()['schalter'], ['detect' => true, 'recordings' => false, 'snapshots' => null]);
+$k->ReceiveData(paket('frigate/Door-Cam/review_status', 'ALERT'));
+check('Alarm in den Daten', [$k->daten()['alarm'], $k->daten()['erkennung']], [true, true]);
+
+// Ereignisse aus MQTT
+$k->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'new', 'before' => [], 'after' => ['end_time' => null] + $review])));
+$ev = $k->daten()['ereignisse'];
+check('Ereignis aus MQTT', [count($ev), $ev[0]['id'], $ev[0]['dauer'], $ev[0]['zeit']], [1, $ID, null, date(date('Ymd', 1793259219) === date('Ymd') ? 'H:i' : 'd.m. H:i', 1793259219)]);
+$k->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'end', 'before' => [], 'after' => $review])));
+check('Ende ersetzt den Eintrag', [count($k->daten()['ereignisse']), $k->daten()['ereignisse'][0]['dauer']], [1, 5]);
+$fremd = $review;
+$fremd['camera'] = 'Garten';
+$fremd['id'] = '1793259999.1-zz';
+$k->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'new', 'before' => [], 'after' => $fremd])));
+check('fremde Kamera nicht in der Leiste', count($k->daten()['ereignisse']), 1);
+$heute = $review;
+$heute['id'] = sprintf('%d.5-heute1', time() - 60);
+$heute['start_time'] = time() - 60;
+$k->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'new', 'before' => [], 'after' => $heute])));
+check('heute nur Uhrzeit', $k->daten()['ereignisse'][0]['zeit'], date('H:i', time() - 60));
+
+// Leere Leiste füllt der Abgleich aus der API, eine volle nicht
+$k2 = new TestKachel(2);
+IPSTestState::$instances[2] = ['InstanceID' => 2, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$k2->Create();
+$k2->props(['Camera' => 'Door-Cam', 'ApiUrl' => 'http://127.0.0.1:5000']);
+$k2->ApplyChanges();
+TestKachel::$api = ['/api/config' => ['cameras' => ['Door-Cam' => ['enabled' => true]]], '/api/stats' => ['cameras' => ['Door-Cam' => ['camera_fps' => 5.0]]],
+    '/api/Door-Cam/latest.jpg?h=720' => $jpeg, '/api/review?cameras=Door-Cam&limit=8' => [$review, $fremd]];
+$k2->ZustandAnfordern();
+check('Abgleich füllt die Leiste (nur eigene Kamera)', array_column($k2->daten()['ereignisse'], 'id'), [$ID]);
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [];
+$k2->ZustandAnfordern();
+check('volle Leiste bleibt', count($k2->daten()['ereignisse']), 1);
+
+/* ------------------------------------------------------------- Schlüssel, Kachel, Formular */
+
+$text = $k->KachelSchluesselErneuern();
+check('neuer Schlüssel', [strpos($text, '✅') === 0, $k->ReadAttributeString('HookSchluessel') !== $schluessel], [true, true]);
+check('alter Schlüssel gilt nicht mehr', $k->hook(['k' => $schluessel, 'bild' => 'live'])['code'], 403);
+check('Kachel bekommt neuen Schlüssel', $k->daten()['k'], $k->ReadAttributeString('HookSchluessel'));
+$kachel = $k->GetVisualizationTile();
+check('Kachel: HTML mit Startdaten', [strpos($kachel, '<div class="bild" id="bild">') !== false, strpos($kachel, '<script>handleMessage({') !== false], [true, true]);
+$form = json_encode(json_decode($k->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+check('Formular: Kachel-Panel mit Hook', strpos($form, 'Die Bilder laufen über den WebHook /hook/frigatehub1') !== false, true);
+check('Formular: kein Schlüssel im Formular', strpos($form, $k->ReadAttributeString('HookSchluessel')), false);
+
+// Symcon-Start: Hook erst bei KR_READY
+IPSTestState::$runlevel = 10101;
+IPSTestState::$setProperties = [];
+$k3 = new TestKachel(3);
+IPSTestState::$instances[3] = ['InstanceID' => 3, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$k3->Create();
+$k3->ApplyChanges();
+check('beim Start: Hook wartet', [IPSTestState::$setProperties, isset(IPSTestState::$registeredMessages[0][IPS_KERNELMESSAGE])], [[], true]);
+IPSTestState::$runlevel = KR_READY;
+$k3->MessageSink(0, 0, IPS_KERNELMESSAGE, [KR_READY]);
+check('KR_READY: Hook eingetragen', count(IPSTestState::$setProperties), 1);
+
+echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
+exit($fehler === 0 ? 0 : 1);

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --box: rgba(127, 135, 145, .16);
+            --track: rgba(127, 135, 145, .25);
+            --text: #ffffff;
+            --textmuted: #9fb0c0;
+            --accent: #2bb3c0;
+            --alarm: #e5484d;
+            --erkennung: #f5a524;
+            --ok: #3fb950;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --box: rgba(20, 30, 45, .06);
+                --track: rgba(20, 30, 45, .12);
+                --text: #1b2430;
+                --textmuted: #5c6b7a;
+            }
+        }
+
+        html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+        body { font-family: var(--font); color: var(--text); }
+        .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+
+        /* Statuszeile */
+        .kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; }
+        .chip { display: inline-flex; align-items: center; gap: 5px; background: var(--box); border-radius: 999px; padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+        .chip .punkt { width: 8px; height: 8px; border-radius: 50%; background: var(--textmuted); }
+        .chip.ok .punkt { background: var(--ok); }
+        .chip.aus .punkt { background: var(--alarm); }
+        .chip.bewegung .punkt { background: var(--erkennung); animation: puls 1.2s ease-in-out infinite; }
+        .chip.alarm { background: var(--alarm); color: #fff; font-weight: 700; animation: puls 1s ease-in-out infinite; }
+        .chip.zahl { font-weight: 600; }
+        @keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+        /* Livebild */
+        .bild { position: relative; flex: 1 1 auto; min-height: 90px; border-radius: 12px; overflow: hidden; background: #000; cursor: zoom-in; border: 2px solid transparent; transition: border-color .2s; }
+        .bild.alarm { border-color: var(--alarm); box-shadow: 0 0 0 2px rgba(229, 72, 77, .35); animation: rahmen 1s ease-in-out infinite; }
+        .bild.erkennung { border-color: var(--erkennung); }
+        @keyframes rahmen { 0%, 100% { box-shadow: 0 0 0 2px rgba(229, 72, 77, .35); } 50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, .15); } }
+        .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        .bild.offline img { filter: grayscale(1) brightness(.5); }
+        .hinweis { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-size: 13px; color: #d6dde4; pointer-events: none; }
+        .zeit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 6px; padding: 1px 6px; }
+        .knopf-neu { position: absolute; left: 8px; bottom: 6px; border: none; background: rgba(0, 0, 0, .45); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: 13px; cursor: pointer; }
+
+        /* Schalter */
+        .schalter { display: flex; gap: 6px; flex-wrap: wrap; }
+        .sw { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--track); background: none; color: var(--textmuted); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+        .sw .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--track); }
+        .sw.an { color: var(--text); border-color: var(--accent); }
+        .sw.an .dot { background: var(--accent); }
+        .sw.wartet { opacity: .5; pointer-events: none; }
+        .sw[hidden] { display: none; }
+
+        /* Ereignisleiste */
+        .leiste { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; flex: 0 0 auto; scrollbar-width: thin; }
+        .leiste:empty::before { content: 'Noch keine Ereignisse.'; color: var(--textmuted); font-size: 12px; }
+        .karte { flex: 0 0 auto; width: 118px; background: var(--box); border-radius: 10px; overflow: hidden; cursor: pointer; border-top: 3px solid var(--erkennung); }
+        .karte.alarm { border-top-color: var(--alarm); }
+        .karte .vb { width: 100%; height: 66px; object-fit: cover; display: block; background: #111; }
+        .karte .t { padding: 4px 7px 6px; font-size: 11px; line-height: 1.3; }
+        .karte .t b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .karte .t span { color: var(--textmuted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Großansicht */
+        .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
+        .gross[hidden] { display: none; }
+        .gross .leiste-oben { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #fff; font-size: 13px; }
+        .gross .leiste-oben .titel { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gross button { border: 1px solid rgba(255, 255, 255, .35); background: none; color: #fff; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+        .gross button.aktiv { background: rgba(255, 255, 255, .18); }
+        .gross .inhalt { flex: 1 1 auto; position: relative; }
+        .gross img, .gross video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+        @media (max-height: 260px) { .leiste { display: none; } }
+        @media (max-height: 200px) { .schalter { display: none; } }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="kopf" id="kopf"></div>
+        <div class="bild" id="bild">
+            <img id="live" alt="">
+            <div class="hinweis" id="hinweis">Lade …</div>
+            <button class="knopf-neu" id="neu" title="Neu laden" hidden>↻</button>
+            <div class="zeit" id="zeit" hidden></div>
+        </div>
+        <div class="schalter" id="schalter">
+            <button class="sw" data-ident="Schalter_detect" data-key="detect"><span class="dot"></span>Erkennung</button>
+            <button class="sw" data-ident="Schalter_recordings" data-key="recordings"><span class="dot"></span>Aufnahme</button>
+            <button class="sw" data-ident="Schalter_snapshots" data-key="snapshots"><span class="dot"></span>Schnappschüsse</button>
+            <button class="sw" id="rahmen"><span class="dot"></span>Rahmen</button>
+        </div>
+        <div class="leiste" id="leiste"></div>
+    </div>
+
+    <div class="gross" id="gross" hidden>
+        <div class="leiste-oben">
+            <span class="titel" id="grossTitel"></span>
+            <button id="grossBild" hidden>Bild</button>
+            <button id="grossClip" hidden>▶ Clip</button>
+            <button id="grossZu">✕</button>
+        </div>
+        <div class="inhalt" id="grossInhalt"></div>
+    </div>
+
+    <script>
+        var daten = null;          // letzter Stand aus PHP
+        var rahmen = null;         // lokaler Schalter für die Erkennungsrahmen (null = Vorgabe aus PHP)
+        var liveTimer = null;
+        var liveLaeuft = false;
+        var liveFehler = 0;
+        var wartet = {};           // Schalter, deren Bestätigung durch Frigate noch aussteht
+        var grossLive = false;
+        var letzterSchnappschuss = null;
+
+        function el(id) { return document.getElementById(id); }
+
+        function url(param) {
+            var q = 'k=' + encodeURIComponent(daten.k);
+            for (var n in param) { q += '&' + n + '=' + encodeURIComponent(param[n]); }
+            return daten.hook + '?' + q;
+        }
+
+        function hoehe(element, max) {
+            var h = Math.round((element.clientHeight || 270) * (window.devicePixelRatio || 1));
+            return Math.max(240, Math.min(max, Math.ceil(h / 120) * 120));
+        }
+
+        function rahmenAn() { return rahmen === null ? !!daten.rahmen : rahmen; }
+
+        /* ---------------------------------------------------------------- Livebild */
+
+        function liveLaden() {
+            clearTimeout(liveTimer);
+            if (!daten) { return; }
+            if (!daten.api) {
+                // Ohne Frigate-Adresse: letzter Schnappschuss aus dem Medienobjekt
+                if (daten.schnappschuss) {
+                    bildSetzen(url({ bild: 'schnappschuss', t: Date.now() }), daten.schnappschuss);
+                } else {
+                    hinweis('Noch kein Bild. Für das Livebild die Frigate-Adresse in der Instanz eintragen.');
+                }
+                return;
+            }
+            if (document.hidden || !el('gross').hidden && !grossLive) { return; }
+            if (liveLaeuft) { return; }
+            liveLaeuft = true;
+            var ziel = grossLive ? el('grossInhalt') : el('bild');
+            var neu = new Image();
+            neu.onload = function () {
+                liveLaeuft = false;
+                liveFehler = 0;
+                if (grossLive) {
+                    var img = el('grossInhalt').querySelector('img');
+                    if (img) { img.src = neu.src; }
+                } else {
+                    el('live').src = neu.src;
+                    hinweis('');
+                    var z = new Date();
+                    el('zeit').textContent = ('0' + z.getHours()).slice(-2) + ':' + ('0' + z.getMinutes()).slice(-2) + ':' + ('0' + z.getSeconds()).slice(-2);
+                    el('zeit').hidden = false;
+                }
+                naechstes();
+            };
+            neu.onerror = function () {
+                liveLaeuft = false;
+                liveFehler++;
+                if (!grossLive) { hinweis(daten.verfuegbar === false ? 'Frigate nicht erreichbar.' : 'Livebild gerade nicht verfügbar.'); }
+                liveTimer = setTimeout(liveLaden, Math.min(30, 5 * liveFehler) * 1000);
+            };
+            neu.src = url({ bild: 'live', h: hoehe(ziel, 1080), rahmen: rahmenAn() ? 1 : 0, t: Date.now() });
+        }
+
+        function naechstes() {
+            el('neu').hidden = daten.live > 0;
+            // In der Großansicht läuft das Livebild auch bei „nur auf Tipp“ (alle 2 s).
+            var takt = grossLive ? (daten.live || 2) : daten.live;
+            if (takt > 0) { liveTimer = setTimeout(liveLaden, takt * 1000); }
+        }
+
+        function bildSetzen(quelle, text) {
+            el('live').onload = function () { hinweis(''); };
+            el('live').onerror = function () { hinweis('Bild nicht verfügbar.'); };
+            el('live').src = quelle;
+            el('zeit').textContent = text || '';
+            el('zeit').hidden = !text;
+        }
+
+        function hinweis(text) {
+            el('hinweis').textContent = text;
+            el('hinweis').style.display = text ? 'flex' : 'none';
+        }
+
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) { liveLaden(); } else { clearTimeout(liveTimer); }
+        });
+
+        /* ---------------------------------------------------------------- Darstellung */
+
+        function chip(text, klasse, punkt) {
+            var c = document.createElement('span');
+            c.className = 'chip ' + (klasse || '');
+            if (punkt) { var p = document.createElement('span'); p.className = 'punkt'; c.appendChild(p); }
+            c.appendChild(document.createTextNode(text));
+            return c;
+        }
+
+        function zeichnen() {
+            var kopf = el('kopf');
+            kopf.textContent = '';
+            if (daten.verfuegbar === false) {
+                kopf.appendChild(chip('Frigate nicht erreichbar', 'aus', true));
+            } else if (daten.online === false) {
+                kopf.appendChild(chip('Kamera offline', 'aus', true));
+            } else if (daten.online === true) {
+                kopf.appendChild(chip('online', 'ok', true));
+            }
+            if (daten.alarm) { kopf.appendChild(chip('🚨 Alarm', 'alarm')); }
+            else if (daten.erkennung) { kopf.appendChild(chip('Erkennung', 'bewegung', true)); }
+            if (daten.bewegung) { kopf.appendChild(chip('Bewegung', 'bewegung', true)); }
+            (daten.zaehler || []).forEach(function (z) { kopf.appendChild(chip(z.anzahl + ' ' + z.name, 'zahl')); });
+
+            var bild = el('bild');
+            bild.classList.toggle('alarm', !!daten.alarm);
+            bild.classList.toggle('erkennung', !daten.alarm && !!daten.erkennung);
+            bild.classList.toggle('offline', daten.online === false || daten.verfuegbar === false);
+
+            document.querySelectorAll('.sw[data-key]').forEach(function (b) {
+                var wert = daten.schalter ? daten.schalter[b.dataset.key] : null;
+                b.hidden = wert === null || wert === undefined;
+                b.classList.toggle('an', wert === true);
+                if (wartet[b.dataset.ident] !== undefined && wartet[b.dataset.ident] === wert) { delete wartet[b.dataset.ident]; }
+                b.classList.toggle('wartet', wartet[b.dataset.ident] !== undefined);
+            });
+            el('rahmen').hidden = !daten.api;
+            el('rahmen').classList.toggle('an', rahmenAn());
+
+            var leiste = el('leiste');
+            leiste.textContent = '';
+            (daten.ereignisse || []).forEach(function (e) {
+                var k = document.createElement('div');
+                k.className = 'karte' + (e.stufe === 'alarm' ? ' alarm' : '');
+                if (daten.api) {
+                    var vb = document.createElement('img');
+                    vb.className = 'vb';
+                    vb.loading = 'lazy';
+                    vb.alt = '';
+                    vb.src = url({ bild: 'review', id: e.id });
+                    vb.onerror = function () {
+                        // Ältere Reviews haben evtl. kein Vorschaubild mehr: Objektbild probieren
+                        if (e.ereignis && vb.dataset.zweit !== '1') { vb.dataset.zweit = '1'; vb.src = url({ bild: 'vorschau', id: e.ereignis }); }
+                        else { vb.style.visibility = 'hidden'; }
+                    };
+                    k.appendChild(vb);
+                }
+                var t = document.createElement('div');
+                t.className = 't';
+                var b = document.createElement('b');
+                b.textContent = e.text;
+                var s = document.createElement('span');
+                s.textContent = e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : '') + (e.dauer === null ? ' · läuft' : '');
+                t.appendChild(b);
+                t.appendChild(s);
+                k.appendChild(t);
+                k.onclick = function () { ereignisOeffnen(e); };
+                leiste.appendChild(k);
+            });
+        }
+
+        /* ---------------------------------------------------------------- Großansicht */
+
+        function grossOeffnen(titel) {
+            el('grossTitel').textContent = titel;
+            el('grossInhalt').textContent = '';
+            el('grossBild').hidden = true;
+            el('grossClip').hidden = true;
+            el('gross').hidden = false;
+        }
+
+        function grossBild(quelle) {
+            var inhalt = el('grossInhalt');
+            inhalt.textContent = '';
+            var img = document.createElement('img');
+            img.alt = '';
+            img.src = quelle;
+            inhalt.appendChild(img);
+            el('grossBild').classList.add('aktiv');
+            el('grossClip').classList.remove('aktiv');
+        }
+
+        function ereignisOeffnen(e) {
+            grossLive = false;
+            grossOeffnen(e.text + ' · ' + e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : ''));
+            if (!daten.api) { return; }
+            var bildQuelle = e.ereignis ? url({ bild: 'ereignis', id: e.ereignis, h: 1080 }) : url({ bild: 'review', id: e.id });
+            grossBild(bildQuelle);
+            el('grossBild').hidden = false;
+            el('grossBild').onclick = function () { grossBild(bildQuelle); };
+            if (e.ereignis) {
+                el('grossClip').hidden = false;
+                el('grossClip').onclick = function () {
+                    var inhalt = el('grossInhalt');
+                    inhalt.textContent = '';
+                    var v = document.createElement('video');
+                    v.controls = true;
+                    v.autoplay = true;
+                    v.playsInline = true;
+                    v.src = url({ clip: e.ereignis });
+                    inhalt.appendChild(v);
+                    el('grossClip').classList.add('aktiv');
+                    el('grossBild').classList.remove('aktiv');
+                };
+            }
+        }
+
+        el('bild').onclick = function () {
+            if (!daten) { return; }
+            if (!daten.api) {
+                if (daten.schnappschuss) { grossOeffnen('Letzter Schnappschuss · ' + daten.schnappschuss); grossBild(url({ bild: 'schnappschuss', t: Date.now() })); }
+                return;
+            }
+            grossOeffnen('Livebild');
+            grossBild('');
+            grossLive = true;
+            clearTimeout(liveTimer);
+            liveLaeuft = false;
+            liveLaden();
+        };
+
+        el('grossZu').onclick = function () {
+            el('gross').hidden = true;
+            el('grossInhalt').textContent = '';
+            grossLive = false;
+            clearTimeout(liveTimer);
+            liveLaeuft = false;
+            liveLaden();
+        };
+
+        el('neu').onclick = function (ev) { ev.stopPropagation(); liveLaden(); };
+
+        /* ---------------------------------------------------------------- Schalter */
+
+        document.querySelectorAll('.sw[data-ident]').forEach(function (b) {
+            b.onclick = function () {
+                var neu = !b.classList.contains('an');
+                // Kein sofortiges Umfärben: Der Schalter folgt der Bestätigung von Frigate.
+                wartet[b.dataset.ident] = neu;
+                b.classList.add('wartet');
+                setTimeout(function () { delete wartet[b.dataset.ident]; b.classList.remove('wartet'); }, 8000);
+                requestAction(b.dataset.ident, neu);
+            };
+        });
+
+        el('rahmen').onclick = function () {
+            rahmen = !rahmenAn();
+            el('rahmen').classList.toggle('an', rahmen);
+            clearTimeout(liveTimer);
+            liveLaeuft = false;
+            liveLaden();
+        };
+
+        /* ---------------------------------------------------------------- Daten von Symcon */
+
+        function handleMessage(nachricht) {
+            var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;
+            if (!neu || !neu.hook) { return; }
+            var ersterStart = daten === null;
+            var taktGeaendert = daten && (daten.live !== neu.live || daten.api !== neu.api || daten.k !== neu.k);
+            daten = neu;
+            zeichnen();
+            if (ersterStart || taktGeaendert) {
+                liveLaeuft = false;
+                liveLaden();
+            } else if (!daten.api && daten.schnappschuss !== letzterSchnappschuss) {
+                liveLaden();
+            }
+            letzterSchnappschuss = daten.schnappschuss;
+        }
+    </script>
+</body>
+
+</html>

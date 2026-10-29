@@ -16,6 +16,11 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.6.0' => [
+            '• Neu: Die Frigate-Kamera ist jetzt auch eine Kachel für die Kachel-Visualisierung — Livebild mit Erkennungsrahmen, Alarm-Rahmen, Zähler und die letzten Ereignisse mit Vorschaubild.',
+            '• Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip, ein Tipp aufs Livebild vergrößert es. Erkennung, Aufnahme und Schnappschüsse lassen sich direkt in der Kachel schalten.',
+            '• Die Bilder laufen über einen gesicherten WebHook der Instanz, auch wenn der Browser Frigate selbst nicht erreicht. Einstellungen im Panel „🖥️ Kachel".',
+        ],
         '0.5.1' => [
             '• Steht vor Port 8971 versehentlich http:// statt https://, sagt die Instanz das jetzt klar und nennt die richtige Adresse.',
         ],

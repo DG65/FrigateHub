@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../libs/FrigateHubTopics.php';
 require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
+require_once __DIR__ . '/../libs/FrigateHubKachel.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -22,6 +23,7 @@ class FrigateHubKamera extends IPSModule
 {
     use FrigateHubFormular;
     use FrigateHubApi;
+    use FrigateHubKachel;
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -66,6 +68,7 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterPropertyString('TopicPrefix', 'frigate');
         $this->RegisterPropertyString('Camera', '');
         $this->apiRegistrieren();
+        $this->kachelRegistrieren();
         $this->RegisterPropertyString('PushZiele', '[]');
         $this->RegisterPropertyString('PushTon', 'alarm');
         $this->RegisterPropertyInteger('PushPause', 60);
@@ -91,6 +94,7 @@ class FrigateHubKamera extends IPSModule
         }
 
         $this->festeVariablen();
+        $this->kachelUebernehmen();
 
         $kamera = $this->kamera();
         if ($kamera === '') {
@@ -157,6 +161,12 @@ class FrigateHubKamera extends IPSModule
             case 'objekt':
                 $this->zaehlerSetzen(FrigateHubTopics::ident('Objekt', $d['label']),
                     FrigateHubTopics::objektName($d['label']), self::POS_OBJEKT, $payload);
+                if ($d['label'] !== 'all') {
+                    // Für die Kachel: Zähler ohne Variablen-Suche
+                    $zaehler = (array)json_decode($this->GetBuffer('Zaehler'), true);
+                    $zaehler[$d['label']] = (int)FrigateHubTopics::zahl($payload);
+                    $this->SetBuffer('Zaehler', (string)json_encode($zaehler));
+                }
                 break;
 
             case 'zone':
@@ -199,6 +209,7 @@ class FrigateHubKamera extends IPSModule
                 $this->SendDebug('Ignoriert', $topic . ' (' . ($d['grund'] ?? '') . ')', 0);
                 break;
         }
+        $this->kachelSenden();
         return '';
     }
 
@@ -327,6 +338,16 @@ class FrigateHubKamera extends IPSModule
                 ],
             ],
             [
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel',
+                'items' => [
+                    ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Kachel für die Kachel-Visualisierung: Livebild, Alarm, Zähler, die letzten Ereignisse mit Vorschaubild, Schnappschuss und Clip per Tipp sowie Schalter für Erkennung, Aufnahme und Schnappschüsse. Livebild, Vorschaubilder und Clips brauchen die Frigate-Adresse.'],
+                    ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => 'Livebild neu laden alle (0 = nur auf Tipp)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
+                    ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => 'Erkannte Objekte im Livebild einrahmen'],
+                    ['type' => 'Label', 'caption' => 'Die Bilder laufen über den WebHook ' . $this->hookPfad() . ' mit einem geheimen Schlüssel dieser Instanz. Wurde eine Bildadresse weitergegeben, macht ein neuer Schlüssel sie ungültig.'],
+                    ['type' => 'Button', 'caption' => 'Kachel-Schlüssel erneuern', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
+                ],
+            ],
+            [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🗺️  Zonen',
                 'items' => [
                     ['type' => 'Label', 'caption' => $this->zonenstatus()],
@@ -366,6 +387,7 @@ class FrigateHubKamera extends IPSModule
             'Mit eingetragener Frigate-Adresse fragt die Instanz nach dem Übernehmen und nach jedem Symcon-Start Schalter und Zonen über Frigates API ab. Ohne Adresse schickt Frigate Schalterzustände per MQTT nur, wenn es sich neu verbindet oder etwas umgeschaltet wird.',
             'Das Medienobjekt „Schnappschuss" entsteht mit dem ersten Bild: dem ersten Schnappschuss einer Erkennung oder, mit Frigate-Adresse, dem aktuellen Kamerabild beim ersten Abgleich. Es liegt im Arbeitsspeicher (schont SSD/SD-Karte) und wird beim Beenden von Symcon gesichert.',
             'Push bei Alarm: je neuem Alarm eine Meldung an die eingetragenen Visualisierungen, Titel = Name dieser Instanz, Text = Zeit, Objekte und Zonen. Steigt eine Erkennung später zum Alarm auf, kommt die Meldung dann.',
+            'Kachel: Die Instanz lässt sich direkt in die Kachel-Visualisierung legen. Das Livebild lädt nur, solange die Kachel sichtbar ist. Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip, ein Tipp aufs Livebild vergrößert es.',
             'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
@@ -420,6 +442,8 @@ class FrigateHubKamera extends IPSModule
         if (@IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID) === false) {
             $this->BildHolen();
         }
+        $this->ereignisseLaden();
+        $this->kachelSenden();
 
         return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter'
             . ($geschont > 0 ? ' (davon ' . $geschont . ' gerade erst geschaltet, MQTT-Stand behalten)' : '') . ', '
@@ -614,6 +638,7 @@ class FrigateHubKamera extends IPSModule
             return;
         }
         $this->zonenLernen(FrigateHubTopics::zonenAusReview($after));
+        $this->ereignisMerken($after);
         $typ = (string)($r['type'] ?? '');
         if ($typ !== 'new' && $typ !== 'update') {
             return;

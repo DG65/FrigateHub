@@ -53,6 +53,11 @@
   Live 29.10.2026: Konfigurator über https://127.0.0.1:8971 angemeldet, Kameraliste kommt; eine Kamera
   auf derselben Adresse übernimmt den Zugang ohne eigene Anmeldung (Abgleich 18 Schalter, Timer 10 min).
   `http://` auf 8971 → nginx 400 „plain HTTP request was sent to HTTPS port" (seit 0.5.1 erkannt).
+- Kachel (0.6.0): Trait `FrigateHubKachel`, `module.html`. Bilder nur über den WebHook
+  `/hook/frigatehub<ID>?k=<Schlüssel>` (WebHooks sind sonst offen, auch über Connect). Erlaubte Frigate-
+  Pfade fest im Code, IDs per `idGueltig()` (Regex mit `\z`, nicht `$` — `$` ließ „\n" durch, Prüfstand-Fund).
+  Endpunkte live 29.10.2026 geprüft: `/api/review`, `/clips/review/thumb-…webp`, `/api/events/<id>/thumbnail.jpg|snapshot.jpg|clip.mp4`.
+  go2rtc-Restream (RTSP 8554) ist bei Dietmar ohne Streams → kein Live-Video, Livebild = latest.jpg im Takt.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

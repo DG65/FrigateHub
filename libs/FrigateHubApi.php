@@ -230,6 +230,48 @@ trait FrigateHubApi
     }
 
     /**
+     * Bild oder Clip von Frigate holen, um es über den WebHook an den Browser weiterzureichen.
+     * Reicht einen Range-Kopf durch (Safari/iOS spielt Videos nur mit Teilabrufen ab).
+     * Prüfstand-Haken.
+     *
+     * @return array{code:int,body:string,kopf:array<string,string>}
+     */
+    protected function apiDurchreichen(string $pfad, string $range, int $zeitlimit): array
+    {
+        $zugang = $this->apiZugang() ?? $this->zugangUebernehmen();
+        $kopf = [];
+        if ($zugang !== null) {
+            $kopf[] = 'Cookie: ' . $zugang['cookie'] . '=' . $zugang['token'];
+        }
+        if ($range !== '') {
+            $kopf[] = 'Range: ' . $range;
+        }
+        $antwortKopf = [];
+        $url = $this->apiUrl() . $pfad;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => $zeitlimit,
+            CURLOPT_HTTPHEADER     => $kopf,
+            CURLOPT_HEADERFUNCTION => function ($ch, string $zeile) use (&$antwortKopf): int {
+                if (preg_match('/^(content-type|content-range|content-length|accept-ranges):\s*(.+?)\s*$/i', $zeile, $m)) {
+                    $antwortKopf[strtolower($m[1])] = $m[2];
+                }
+                return strlen($zeile);
+            },
+        ]);
+        if (strpos($url, 'https://') === 0 && !$this->ReadPropertyBoolean('ZertifikatPruefen')) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        $antwort = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ['code' => $antwort === false ? 0 : $code, 'body' => $antwort === false ? '' : (string)$antwort, 'kopf' => $antwortKopf];
+    }
+
+    /**
      * Eine HTTP-Anfrage, ohne Auswertung. curl statt Sys_GetURLContentEx (SUITE.md Stolperstein 11).
      * Prüfstand-Haken für die Anmeldung.
      *

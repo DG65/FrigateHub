@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.5.0:** MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator und Push bei Alarm.
+> **Stand 0.6.0:** MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator, Push bei Alarm und eine Kachel mit Livebild, Ereignissen und Clips.
 
 ## Was tut dieses Modul?
 
@@ -35,6 +35,14 @@ Mit eingetragener Frigate-Adresse kommt der Schnappschuss jeder Erkennung in vol
 Kameraauflösung. Ohne Adresse nimmt FrigateHub das Bild, das Frigate per MQTT schickt: einen
 Ausschnitt um das Objekt (Standard: 270 px hoch). Größe und Zuschnitt stellt man in Frigate je Kamera
 unter `mqtt:` ein (`height`, `crop`, `quality`, `bounding_box`, `timestamp`).
+
+**Kachel:** Die Instanz lässt sich direkt in die Kachel-Visualisierung legen. Sie zeigt das
+Livebild (wahlweise mit Rahmen um erkannte Objekte), einen roten Rahmen bei Alarm, die Zähler und
+die letzten Ereignisse mit Vorschaubild. Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip,
+ein Tipp aufs Livebild vergrößert es; Erkennung, Aufnahme und Schnappschüsse lassen sich direkt
+schalten. Die Bilder holt die Instanz selbst bei Frigate und reicht sie über einen eigenen
+WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf braucht einen
+geheimen Schlüssel der Instanz; der lässt sich im Panel „Kachel" erneuern.
 
 **Push bei Alarm:** Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen
 (WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
