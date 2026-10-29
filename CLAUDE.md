@@ -50,9 +50,11 @@
   Login setzt nur ein Cookie (kein Token im Inhalt); `/auth` nimmt Bearer ODER Cookie, verlängert aber
   nur Cookie-Tokens → FrigateHub schickt das Token als Cookie. nginx reicht das neue Set-Cookie durch.
   Passwort nie speichern; `ApiPasswort` ist nur Durchreiche (Muster MeterHub/Inexogy).
+  Live 29.10.2026: Konfigurator über https://127.0.0.1:8971 angemeldet, Kameraliste kommt; eine Kamera
+  auf derselben Adresse übernimmt den Zugang ohne eigene Anmeldung (Abgleich 18 Schalter, Timer 10 min).
+  `http://` auf 8971 → nginx 400 „plain HTTP request was sent to HTTPS port" (seit 0.5.1 erkannt).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
 ## Offen
 
-- Anmeldung über 8971 live mit echtem Benutzer (Dietmar gibt das Passwort selbst in der Konsole ein).
