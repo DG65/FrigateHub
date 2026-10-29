@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.10.0 (Build 20) — 29.10.2026
+## 0.10.0 (Build 21) — 29.10.2026
+
+- Build 21 (Live-Fund): Die Server-Kachel überspringt Kamera-Instanzen, die während einer Modulaktualisierung kurz nicht ansprechbar sind (Symcon meldete „InstanceInterface is not available").
 
 - **Gesichter, Kennzeichen, Klassifizierung, KI:** `frigate/tracked_object_update` (face/lpr/classification/description) ergibt die Variablen „Erkannte Person“, „Kennzeichen“, „Klassifizierung“, „KI-Beschreibung“ (entstehen erst mit den ersten Daten; Beschreibungen ohne Kameraangabe werden über die eigenen Objekt-IDs zugeordnet). Frigates Review-`metadata` (GenAI: title, shortSummary, potential_threat_level) ergibt „KI-Beschreibung“ und „KI-Einschätzung“ (INTERVALS unauffällig/verdächtig/kritisch). Push: KI-Zusammenfassung zum gemeldeten Alarm nachreichen, verdächtige Erkennungen melden (Häkchen, Standard an, einmal je Review).
 - **Archiv in der Kachel:** Tagesauswahl aus `/api/review/summary` (Anzahl, neu), Filter Alarm/Erkennung/ungesehen/KI-Verdacht/Objekt, Aufnahme eines Zeitraums (`/api/<kamera>/start/<s>/end/<e>/clip.mp4`, höchstens 1 h, stückweise wie Clips).

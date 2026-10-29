@@ -186,8 +186,15 @@ class FrigateHubServer extends IPSModule
         $eltern = IPS_GetInstance($this->InstanceID)['ConnectionID'];
         $out = [];
         foreach (IPS_GetInstanceListByModuleID(self::KAMERA_GUID) as $id) {
-            $kamera = trim((string)IPS_GetProperty($id, 'Camera'));
-            if ($kamera !== '' && IPS_GetInstance($id)['ConnectionID'] === $eltern && !isset($out[$kamera])) {
+            // Während einer Modulaktualisierung ist die Kamera kurz nicht ansprechbar
+            // („InstanceInterface is not available", live 29.10.2026) — dann überspringen.
+            try {
+                $kamera = trim((string)@IPS_GetProperty($id, 'Camera'));
+                $passt = $kamera !== '' && (int)@IPS_GetInstance($id)['ConnectionID'] === $eltern;
+            } catch (Throwable $e) {
+                continue;
+            }
+            if ($passt && !isset($out[$kamera])) {
                 $out[$kamera] = $id;
             }
         }
