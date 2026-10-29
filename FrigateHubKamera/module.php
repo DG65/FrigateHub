@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/FrigateHubTopics.php';
 require_once __DIR__ . '/../libs/FrigateHubFormular.php';
+require_once __DIR__ . '/../libs/FrigateHubApi.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -20,6 +21,7 @@ require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 class FrigateHubKamera extends IPSModule
 {
     use FrigateHubFormular;
+    use FrigateHubApi;
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -45,9 +47,6 @@ class FrigateHubKamera extends IPSModule
 
     /** Wartezeit nach dem Übernehmen bis zum Abgleich (ms) — ApplyChanges nicht blockieren. */
     private const ABGLEICH_VERZOEGERUNG = 2000;
-
-    /** Grund des letzten fehlgeschlagenen API-Aufrufs. */
-    private string $apiFehler = '';
 
     public function Create()
     {
@@ -337,13 +336,6 @@ class FrigateHubKamera extends IPSModule
         return trim((string)$this->ReadPropertyString('Camera'));
     }
 
-    /** Frigate-Adresse ohne Schrägstrich am Ende, leer wenn nicht (gültig) eingetragen. */
-    private function apiUrl(): string
-    {
-        $url = rtrim(trim((string)$this->ReadPropertyString('ApiUrl')), '/');
-        return preg_match('#^https?://[^\s/]+$#', $url) ? $url : '';
-    }
-
     /** Schalter, Zonen und Erreichbarkeit über die HTTP-API holen. Rückgabe: Text fürs Formular. */
     private function abgleichen(): string
     {
@@ -405,50 +397,6 @@ class FrigateHubKamera extends IPSModule
         $map = json_decode($this->GetBuffer('Frisch'), true);
         $grenze = time() - self::SCHONFRIST;
         return array_filter(is_array($map) ? $map : [], fn ($t) => (int)$t > $grenze);
-    }
-
-    /** GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler). */
-    private function apiHolen(string $pfad): ?array
-    {
-        $antwort = $this->apiRoh($pfad, 'application/json');
-        if ($antwort === null) {
-            return null;
-        }
-        $json = json_decode($antwort, true);
-        if (!is_array($json)) {
-            $this->apiFehler = 'Antwort ist kein JSON';
-            return null;
-        }
-        return $json;
-    }
-
-    /**
-     * GET auf Frigates API, Antwort roh oder null (Grund in $apiFehler).
-     * curl statt Sys_GetURLContentEx (SUITE.md Stolperstein 11); eigene Methode, damit der
-     * Prüfstand sie ersetzen kann.
-     */
-    protected function apiRoh(string $pfad, string $accept): ?string
-    {
-        $ch = curl_init($this->apiUrl() . $pfad);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT        => 5,
-            CURLOPT_HTTPHEADER     => ['Accept: ' . $accept],
-        ]);
-        $antwort = curl_exec($ch);
-        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $fehler = curl_error($ch);
-        curl_close($ch);
-        if ($antwort === false) {
-            $this->apiFehler = $fehler !== '' ? $fehler : 'keine Antwort';
-            return null;
-        }
-        if ($code !== 200) {
-            $this->apiFehler = 'HTTP ' . $code . ($code === 401 ? ', Anmeldung verlangt — Port 8971 wird noch nicht unterstützt, bitte Port 5000' : '');
-            return null;
-        }
-        return (string)$antwort;
     }
 
     /**

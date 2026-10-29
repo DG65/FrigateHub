@@ -280,6 +280,45 @@ class FrigateHubTopics
         return $out;
     }
 
+    /**
+     * Kameraliste für den Konfigurator aus /api/config (und optional /api/stats).
+     * Name = friendly_name, falls in Frigate gesetzt, sonst die Kamera-ID.
+     *
+     * @return array<int,array{id:string,name:string,aktiv:bool,erkennung:bool,aufloesung:string,zonen:int,bilder:?bool}>
+     */
+    public static function kamerasAusConfig(array $config, ?array $stats): array
+    {
+        $out = [];
+        foreach ((array)($config['cameras'] ?? []) as $id => $k) {
+            if (!is_string($id) || !is_array($k)) {
+                continue;
+            }
+            $anzeige = $k['friendly_name'] ?? null;
+            $breite = $k['detect']['width'] ?? null;
+            $hoehe = $k['detect']['height'] ?? null;
+            $fps = $k['detect']['fps'] ?? null;
+            $kameraFps = $stats['cameras'][$id]['camera_fps'] ?? null;
+            $out[] = [
+                'id'         => $id,
+                'name'       => is_string($anzeige) && $anzeige !== '' ? $anzeige : $id,
+                'aktiv'      => ($k['enabled'] ?? true) === true,
+                'erkennung'  => ($k['detect']['enabled'] ?? false) === true,
+                'aufloesung' => is_numeric($breite) && is_numeric($hoehe)
+                    ? $breite . '×' . $hoehe . (is_numeric($fps) ? ' @ ' . $fps . ' fps' : '') : '',
+                'zonen'      => count((array)($k['zones'] ?? [])),
+                'bilder'     => is_numeric($kameraFps) ? (float)$kameraFps > 0 : null,
+            ];
+        }
+        usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        return $out;
+    }
+
+    /** MQTT-Präfix aus /api/config (mqtt.topic_prefix), Standard „frigate". */
+    public static function praefixAusConfig(array $config): string
+    {
+        return self::praefix((string)($config['mqtt']['topic_prefix'] ?? ''));
+    }
+
     /** Zonen-IDs einer Kamera aus /api/config. */
     public static function zonenAusConfig(array $kamera): array
     {

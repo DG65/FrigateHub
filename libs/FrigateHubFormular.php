@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.3.0' => [
+            '• Neu: Frigate-Konfigurator. Unter dem MQTT-Server anlegen, Frigate-Adresse eintragen — er listet alle Kameras aus Frigate und legt sie mit einem Klick fertig eingerichtet an.',
+        ],
         '0.2.1' => [
             '• Schnappschuss in voller Größe: Mit Frigate-Adresse holt die Instanz das Bild jeder Erkennung jetzt in Kameraauflösung statt des kleinen MQTT-Ausschnitts.',
         ],
@@ -34,7 +37,6 @@ trait FrigateHubFormular
         ],
     ];
 
-    // Repo noch nicht angelegt (Arbeitsname, 28.10.2026) — Adressen sind Platzhalter für DG65/FrigateHub.
     private static $FRIGATEHUB_REPO_URL     = 'https://github.com/DG65/FrigateHub';
     private static $FRIGATEHUB_ISSUES_URL   = 'https://github.com/DG65/FrigateHub/issues';
     private static $FRIGATEHUB_LICENSE_URL  = 'https://github.com/DG65/FrigateHub/blob/beta/LICENSE';

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 (Build 6) — 29.10.2026
+
+- **Neues Modul Frigate-Konfigurator** (`FrigateHubKonfigurator`, Präfix `FRIGC`): hängt unter dem MQTT-Server, liest die Kameras über `/api/config` und `/api/stats` und legt je Kamera eine Frigate-Kamera an, mit Kamera-ID, MQTT-Präfix (`mqtt.topic_prefix`) und Frigate-Adresse. Spalten: Name (friendly_name), Kamera-ID, Erkennung, Auflösung, Zonen, Zustand.
+- Vorhandene Kameras werden über Kamera-ID und denselben MQTT-Elternteil erkannt; Instanzen ohne Kamera in Frigate erscheinen als „nicht mehr in Frigate".
+- HTTP-Zugriff in den gemeinsamen Trait `FrigateHubApi` ausgelagert. Eigener Prüfstand `.tools/test-konfigurator.php` (auch in der CI).
+
 ## 0.2.1 (Build 5) — 28.10.2026
 
 - **Schnappschuss in voller Größe:** Mit Frigate-Adresse holt die Instanz bei jedem MQTT-Schnappschuss `/api/<kamera>/<objekt>/snapshot.jpg` (live 1280×720 statt 270×270). Ist die API nicht erreichbar, bleibt es beim MQTT-Ausschnitt, im Bildstatus als „(Ausschnitt …)" gekennzeichnet.

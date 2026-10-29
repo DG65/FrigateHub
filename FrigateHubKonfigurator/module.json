@@ -1,0 +1,18 @@
+{
+  "id": "{AB2DD3FF-1892-4830-8C35-86982AB8D661}",
+  "name": "FrigateHubKonfigurator",
+  "type": 4,
+  "vendor": "Frigate",
+  "aliases": [
+    "Frigate-Konfigurator"
+  ],
+  "url": "https://github.com/DG65/FrigateHub",
+  "parentRequirements": [
+    "{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}"
+  ],
+  "childRequirements": [],
+  "implemented": [
+    "{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}"
+  ],
+  "prefix": "FRIGC"
+}

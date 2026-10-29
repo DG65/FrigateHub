@@ -6,9 +6,10 @@
   eigenständig wie ESPHomeHub, `DG65/FrigateHub`, Präfix `FRIG`. Kein Repo, kein Commit ohne Freigabe.
 - Übernimmt die handwerklichen Konventionen aus `/Users/dietmar/Nextcloud/Claude/SUITE.md`
   (Formular-Optik, Darstellungen, Store-Review). NRG-Stack passt inhaltlich nicht.
-- Module/Präfixe: `FrigateHubKamera` (FRIG, Kind von MQTT-Server/-Client). Reserviert:
-  Konfigurator-GUID `{AB2DD3FF-1892-4830-8C35-86982AB8D661}`, Präfix FRIGC (nie denselben Präfix
-  wie die Kamera, sonst „Cannot redeclare function").
+- Module/Präfixe: `FrigateHubKamera` (FRIG) und `FrigateHubKonfigurator` (FRIGC, GUID
+  `{AB2DD3FF-1892-4830-8C35-86982AB8D661}`), beide Kind von MQTT-Server/-Client. Nie denselben Präfix
+  (sonst „Cannot redeclare function"). Der Konfigurator hängt unter dem MQTT-Server, damit Symcon die
+  angelegten Kameras dort anschließt (Muster CometWiFi); er empfängt nichts (Sperrfilter).
 - Abgrenzung: bgersmann/UnifiProtect, Reolink, ONVIF liefern kameraeigene Ereignisse; FrigateHub ist
   die herstellerneutrale Analyse. Nicht doppeln.
 
@@ -33,6 +34,7 @@
 ## Bauweise
 
 - `libs/FrigateHubTopics.php`: reines PHP, deutet Topics und baut Texte. Prüfstand ruft es direkt.
+- `libs/FrigateHubApi.php`: Trait für Frigates HTTP-API (curl), `apiRoh()` ist der Prüfstand-Haken.
 - Variablen entstehen einmalig beim ersten Topic (`variableAnlegen`), danach nur `SetValue`:
   Name und Position gehören dann dem Nutzer, kein Update-Sturm.
 - Schnappschuss (0.2.0): Medienobjekt per `IPS_CreateMedia(MEDIATYPE_IMAGE)`, gecacht (schont die
@@ -46,6 +48,5 @@
 
 ## Offen
 
-- Konfigurator (passive Erkennung der Kameras aus den Topics).
 - Push-Benachrichtigung bei Alarm (Vorbild `WarnHub::pushToAllWebfronts`).
 - Port 8971 mit Anmeldung (JWT) für den Abgleich, falls Port 5000 nicht freigegeben ist.

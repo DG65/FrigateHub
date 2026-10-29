@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.2.1-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.3.0-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.2.0:** MQTT, Abgleich über Frigates API und Schnappschuss als Medienobjekt. Ein Konfigurator folgt.
+> **Stand 0.3.0:** MQTT, Abgleich über Frigates API, Schnappschuss als Medienobjekt und Konfigurator.
 
 ## Was tut dieses Modul?
 
@@ -54,6 +54,15 @@ mqtt:
 ```
 
 ## Einrichtung
+
+**Am schnellsten mit dem Konfigurator:**
+
+1. Modulverwaltung → Repository-URL dieses Moduls hinzufügen.
+2. Instanz **Frigate-Konfigurator** unter dem MQTT-Server anlegen, an den Frigate sendet.
+3. Frigate-Adresse eintragen (z. B. `http://192.168.1.20:5000`) und übernehmen.
+4. In der Liste die gewünschten Kameras **Erstellen** — fertig eingerichtet.
+
+**Oder von Hand:**
 
 1. Modulverwaltung → Repository-URL dieses Moduls hinzufügen.
 2. Instanz **Frigate-Kamera** anlegen und als übergeordnete Instanz den MQTT-Server wählen, an
