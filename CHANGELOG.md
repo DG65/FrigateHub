@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2 (Build 15) — 29.10.2026
+
+- **Kachel erkennt fehlenden Ton:** Kommen 5 s nach Videostart keine Tonpakete, hat der Stream keine abspielbare Tonspur (Kamera ohne Ton oder z. B. AAC). Nach dem Einschalten des Tons misst die Kachel 4 s lang den Pegel; bleibt er unverändert unter −60 dB, schickt die Kamera nur digitale Stille (typisch: Line-Eingang ohne Mikrofon). In beiden Fällen zeigt der Tonknopf „🔇 kein Ton" mit Erklärung. Fund an Dietmars Geutebrück EFD-2251 (nur Line-in, kein Mikrofon): Pegel konstant 0,00024 auch bei Eingangslautstärke 255.
+
 ## 0.7.1 (Build 14) — 29.10.2026
 
 - Kachel-Großansicht: Die obere Leiste (Ereignistitel, Bild/Clip, ✕) lag über Symcons Kacheltitel und Vergrößern-Knopf. Sie beginnt jetzt wie die normale Ansicht 46 px tiefer (Fund Dietmar, 29.10.2026).

@@ -54,6 +54,8 @@
         .bild.video .marke { display: inline-flex; }
         .ton { position: absolute; right: 8px; top: 6px; border: none; background: rgba(0, 0, 0, .45); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: 13px; cursor: pointer; display: none; }
         .bild.video .ton { display: block; }
+        .ton.ohne { opacity: .7; font-size: 11px; }
+        .meldung { position: absolute; left: 8px; right: 8px; bottom: 6px; font-size: 11px; line-height: 1.35; color: #fff; background: rgba(0, 0, 0, .7); border-radius: 6px; padding: 4px 8px; }
         .bild.video .zeit { display: none; }
         .bild.offline img { filter: grayscale(1) brightness(.5); }
         .hinweis { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-size: 13px; color: #d6dde4; pointer-events: none; }
@@ -104,6 +106,7 @@
             <span class="marke">LIVE</span>
             <button class="ton" id="ton" title="Ton">🔇</button>
             <div class="hinweis" id="hinweis">Lade …</div>
+            <div class="meldung" id="meldung" hidden></div>
             <button class="knopf-neu" id="neu" title="Neu laden" hidden>↻</button>
             <div class="zeit" id="zeit" hidden></div>
         </div>
@@ -138,6 +141,9 @@
         var pc = null;             // WebRTC-Verbindung zu go2rtc (über den WebHook aufgebaut)
         var videoLaeuft = false;
         var videoVersuche = 0;
+        var tonZustand = '';       // '' = unbekannt, 'ok', 'keineSpur', 'stille' (je Verbindung neu)
+        var tonTimer = null;
+        var meldungTimer = null;
         var videoTimer = null;
 
         function el(id) { return document.getElementById(id); }
@@ -229,6 +235,7 @@
             if (!daten || !daten.video || pc || document.hidden || !window.RTCPeerConnection) { return; }
             if (videoVersuche >= 3) { return; }   // dreimal gescheitert: beim Standbild bleiben
             videoVersuche++;
+            tonZuruecksetzen();
             var verbindung = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
             pc = verbindung;
             verbindung.addTransceiver('video', { direction: 'recvonly' });
@@ -278,6 +285,7 @@
 
         function videoStoppen() {
             clearTimeout(videoTimer);
+            clearTimeout(tonTimer);
             if (pc) { try { pc.close(); } catch (e) { } }
             pc = null;
             videoLaeuft = false;
@@ -293,14 +301,98 @@
             hinweis('');
             el('bild').classList.add('video');
             el('rahmen').hidden = true;   // Rahmen gibt es nur im Standbild
+            // Kommen nach 5 s keine Tonpakete, hat der Stream keine abspielbare Tonspur
+            clearTimeout(tonTimer);
+            var verbindung = pc;
+            tonTimer = setTimeout(function () {
+                tonPakete(verbindung).then(function (pakete) {
+                    if (pc === verbindung && pakete === 0 && tonZustand === '') { tonOhne('keineSpur'); }
+                });
+            }, 5000);
         });
 
         el('ton').onclick = function (ev) {
             ev.stopPropagation();
+            if (tonZustand === 'keineSpur' || tonZustand === 'stille') { meldung(TON_TEXT[tonZustand]); return; }
             var v = el('video');
             v.muted = !v.muted;
             el('ton').textContent = v.muted ? '🔇' : '🔊';
+            if (!v.muted && tonZustand === '') { tonStillePruefen(pc); }
         };
+
+        /* ---------------------------------------------------------------- Ton prüfen */
+
+        var TON_TEXT = {
+            keineSpur: 'Kein Ton: Der Stream enthält keine Tonspur, die der Browser abspielen kann. Entweder liefert die Kamera keinen Ton, '
+                + 'oder er kommt z. B. als AAC – dann in Frigates go2rtc beim Stream eine zweite Quelle „ffmpeg:<Stream>#audio=opus“ ergänzen.',
+            stille: 'Kein Ton: Die Kamera schickt nur Stille. Meist ist kein Mikrofon angeschlossen (viele Kameras haben nur einen '
+                + 'Line-Eingang) oder der Audioeingang ist in der Kamera ausgeschaltet.'
+        };
+
+        function tonZuruecksetzen() {
+            clearTimeout(tonTimer);
+            tonZustand = '';
+            el('ton').classList.remove('ohne');
+            el('ton').textContent = '🔇';
+            el('ton').title = 'Ton';
+            meldung('');
+        }
+
+        function tonOhne(art) {
+            tonZustand = art;
+            el('video').muted = true;
+            el('ton').classList.add('ohne');
+            el('ton').textContent = '🔇 kein Ton';
+            el('ton').title = TON_TEXT[art];
+            meldung(TON_TEXT[art]);
+        }
+
+        /** Empfangene Tonpakete der Verbindung, -1 wenn sich das nicht feststellen lässt. */
+        function tonPakete(verbindung) {
+            if (!verbindung || !verbindung.getStats) { return Promise.resolve(-1); }
+            return verbindung.getStats().then(function (st) {
+                var pakete = 0;
+                st.forEach(function (s) { if (s.type === 'inbound-rtp' && s.kind === 'audio') { pakete += s.packetsReceived || 0; } });
+                return pakete;
+            }).catch(function () { return -1; });
+        }
+
+        /**
+         * Nach dem Einschalten des Tons 4 s lang den Pegel lesen (der Browser misst ihn nur, solange nicht stumm).
+         * Ein Mikrofon rauscht immer; ein Pegel, der unverändert unter -60 dB bleibt, ist digitale Stille.
+         * Kennt der Browser keinen Pegel (audioLevel), bleibt es ohne Urteil.
+         */
+        function tonStillePruefen(verbindung) {
+            var proben = [];
+            var nullen = 0;            // direkt nach dem Einschalten meldet Chrome teils noch 0
+            clearTimeout(tonTimer);
+            (function messen() {
+                tonTimer = setTimeout(function () {
+                    if (pc !== verbindung || el('video').muted) { return; }
+                    verbindung.getStats().then(function (st) {
+                        var pegel = null;
+                        st.forEach(function (s) { if (s.type === 'inbound-rtp' && s.kind === 'audio' && typeof s.audioLevel === 'number') { pegel = s.audioLevel; } });
+                        if (pegel === null || pc !== verbindung) { return; }
+                        if (pegel === 0 && proben.length === 0) {
+                            if (++nullen >= 8) { tonOhne('stille'); } else { messen(); }
+                            return;
+                        }
+                        proben.push(pegel);
+                        var gleich = proben.every(function (p) { return Math.abs(p - proben[0]) < 0.00001; });
+                        if (!gleich || proben[0] >= 0.001) { tonZustand = 'ok'; return; }
+                        if (proben.length >= 8) { tonOhne('stille'); return; }
+                        messen();
+                    }).catch(function () { });
+                }, 500);
+            })();
+        }
+
+        function meldung(text) {
+            clearTimeout(meldungTimer);
+            el('meldung').textContent = text;
+            el('meldung').hidden = !text;
+            if (text) { meldungTimer = setTimeout(function () { el('meldung').hidden = true; }, 10000); }
+        }
 
         /* ---------------------------------------------------------------- Darstellung */
 

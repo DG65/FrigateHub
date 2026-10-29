@@ -45,7 +45,7 @@ WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf br
 geheimen Schlüssel der Instanz; der lässt sich im Panel „Kachel" erneuern.
 
 **Livevideo in der Kachel:** Hat Frigates eingebauter Restream (go2rtc) einen Stream für die
-Kamera, spielt die Kachel echtes Video mit Ton statt des Standbilds — im Heimnetz, per WebRTC.
+Kamera, spielt die Kachel echtes Video (mit Ton, wenn die Kamera welchen liefert) statt des Standbilds — im Heimnetz, per WebRTC.
 Dafür in der Frigate-Konfiguration (Beispiel, Namen und Zugang wie in der eigenen Kamera):
 
 ```yaml
@@ -71,6 +71,13 @@ Im Docker-Aufruf Port 8555 (TCP und UDP) freigeben. Die Kamera muss H.264 liefer
 kaum ein Browser). Nach dem Neustart von Frigate in der Instanz „Zustand jetzt abfragen" — das
 Panel „🖥️ Kachel" zeigt dann „Livevideo über go2rtc-Stream …". Unterwegs (außerhalb des
 Heimnetzes) zeigt die Kachel weiter das Standbild.
+
+**Ton:** Das Video startet stumm (Vorgabe der Browser), 🔇 schaltet den Ton ein. Der Browser
+spielt G.711 (PCMU/PCMA) und Opus; Ton im AAC-Format bringt go2rtc nur mit einer zweiten Quelle
+`- ffmpeg:haustuer#audio=opus` beim Stream mit. Die Kachel erkennt zwei Fälle selbst und zeigt
+dann „🔇 kein Ton" mit Erklärung: Der Stream hat keine abspielbare Tonspur, oder die Kamera schickt
+nur Stille. Das Zweite ist typisch für Kameras mit Line-Eingang ohne angeschlossenes Mikrofon und
+lässt sich erst nach dem Einschalten des Tons messen.
 
 **Push bei Alarm:** Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen
 (WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
