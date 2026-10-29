@@ -103,6 +103,9 @@ trait FrigateHubApi
         if ($a['code'] === 401) {
             return $this->anmeldungMelden('⛔ Frigate lehnt Benutzer oder Passwort ab.');
         }
+        if (self::httpAufHttps($a)) {
+            return $this->anmeldungMelden('⛔ Dieser Port erwartet https:// — Adresse auf ' . $this->httpsVorschlag() . ' ändern, übernehmen und neu anmelden.');
+        }
         if ($a['code'] === 429) {
             return $this->anmeldungMelden('⛔ Zu viele Anmeldeversuche — Frigate sperrt kurz, bitte etwas warten.');
         }
@@ -158,6 +161,9 @@ trait FrigateHubApi
     /** Satz fürs Formular zum letzten Fehlschlag: Anmeldung fehlt/abgelaufen oder nicht erreichbar. */
     private function apiFehlerText(): string
     {
+        if ($this->apiFehler === 'HTTP 400, Port erwartet https') {
+            return 'Frigate unter ' . $this->apiUrl() . ' erwartet https:// — bitte die Adresse auf ' . $this->httpsVorschlag() . ' ändern und übernehmen.';
+        }
         if (strpos($this->apiFehler, 'HTTP 401') === 0) {
             return 'Frigate unter ' . $this->apiUrl() . ' antwortet, ' . (strpos($this->apiFehler, 'abgelaufen') !== false
                 ? 'aber die Anmeldung ist abgelaufen — bitte neu anmelden.'
@@ -210,6 +216,10 @@ trait FrigateHubApi
             } else {
                 $this->apiFehler = 'HTTP 401, Frigate verlangt eine Anmeldung — Benutzer und Passwort eintragen und „Anmelden"';
             }
+            return null;
+        }
+        if (self::httpAufHttps($a)) {
+            $this->apiFehler = 'HTTP 400, Port erwartet https';
             return null;
         }
         if ($a['code'] !== 200) {
@@ -270,6 +280,10 @@ trait FrigateHubApi
         if (!is_array($z) || !isset($z['cookie'], $z['token'], $z['ablauf'])) {
             return null;
         }
+        // Ein Zugang gehört zu einem Frigate-Server: nach Wechsel von Host oder Port nicht mehr senden.
+        if (isset($z['server']) && $z['server'] !== $this->apiServer()) {
+            return null;
+        }
         return (int)$z['ablauf'] > time() + 60 ? $z : null;
     }
 
@@ -301,6 +315,7 @@ trait FrigateHubApi
 
     private function zugangSpeichern(array $zugang): void
     {
+        $zugang['server'] = $this->apiServer();
         $this->WriteAttributeString('ApiZugang', (string)json_encode($zugang));
         $this->WriteAttributeString('Anmeldefehler', '');
         $this->SetTimerInterval('Anmeldung', self::$FRIGATEHUB_AUFFRISCHEN);
@@ -315,6 +330,9 @@ trait FrigateHubApi
 
     private function anmeldestatus(): string
     {
+        if (strpos($this->apiUrl(), 'http://') === 0 && substr($this->apiUrl(), -5) === ':8971') {
+            return '⚠️ Port 8971 braucht https:// — Adresse auf ' . $this->httpsVorschlag() . ' ändern und übernehmen.';
+        }
         $zugang = $this->apiZugang();
         if ($zugang !== null) {
             return '✅ Angemeldet als ' . $zugang['benutzer'] . ', Zugang gültig bis ' . date('d.m.Y H:i', $zugang['ablauf']) . ' (wird automatisch verlängert).';
@@ -324,6 +342,23 @@ trait FrigateHubApi
             return $fehler;
         }
         return strpos($this->apiUrl(), 'https://') === 0 ? 'Nicht angemeldet.' : 'Keine Anmeldung nötig (Port 5000).';
+    }
+
+    /** Host und Port der Frigate-Adresse, ohne Schema. */
+    private function apiServer(): string
+    {
+        return (string)preg_replace('#^https?://#', '', $this->apiUrl());
+    }
+
+    private function httpsVorschlag(): string
+    {
+        return 'https://' . $this->apiServer();
+    }
+
+    /** nginx-Antwort, wenn http an einen https-Port geht (Frigate Port 8971, live 29.10.2026). */
+    private static function httpAufHttps(array $a): bool
+    {
+        return $a['code'] === 400 && stripos((string)$a['body'], 'plain HTTP request was sent to HTTPS port') !== false;
     }
 
     /**

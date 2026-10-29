@@ -64,6 +64,10 @@ class TestAnmeldung extends FrigateHubKamera
     protected function apiAnfrage(string $methode, string $pfad, array $kopf, ?string $inhalt): array
     {
         $this->anfragen[] = [$methode, $pfad, array_values($kopf), $inhalt];
+        if (strpos((string)$this->ReadPropertyString('ApiUrl'), 'http://') === 0 && strpos((string)$this->ReadPropertyString('ApiUrl'), ':8971') !== false) {
+            // nginx auf Port 8971, live 29.10.2026
+            return ['code' => 400, 'body' => '<html><head><title>400 The plain HTTP request was sent to HTTPS port</title></head></html>', 'cookies' => [], 'fehler' => ''];
+        }
         if ($pfad === '/api/login') {
             if (self::$anmeldungAus) {
                 return ['code' => 404, 'body' => '{"message":"Authentication is disabled"}', 'cookies' => [], 'fehler' => ''];
@@ -205,6 +209,24 @@ check('Abmelden', [$e->Abmelden(), $e->timers['Anmeldung']['interval']], ['Nicht
 TestAnmeldung::$anmeldungAus = true;
 check('Anmeldung in Frigate abgeschaltet', strpos($e->Anmelden('admin', 'x'), 'ℹ️ Frigate hat die Anmeldung') === 0, true);
 check('ohne Adresse', (neu(6, ['Camera' => 'X']))->Anmelden('admin', 'x'), '⚠️ Erst eine gültige Frigate-Adresse eintragen und übernehmen.');
+
+/* ------------------------------------------------------------- http auf Port 8971 (Dietmar, 29.10.2026) */
+TestAnmeldung::$anmeldungAus = false;
+TestAnmeldung::$cookieName = 'frigate_token';
+$f = neu(7, ['Camera' => 'Door-Cam', 'ApiUrl' => 'https://127.0.0.1:8971']);
+$f->ApplyChanges();
+$f->Anmelden('admin', TestAnmeldung::$passwort);
+$f->props(['ApiUrl' => 'http://127.0.0.1:8971']);
+$f->ApplyChanges();
+$text = $f->ZustandAnfordern();
+check('http auf 8971: klarer Hinweis', strpos($text, 'erwartet https:// — bitte die Adresse auf https://127.0.0.1:8971 ändern und übernehmen.') !== false, true);
+check('http auf 8971: nicht „nicht erreichbar"', strpos($text, 'nicht erreichbar'), false);
+check('http auf 8971: Statuszeile warnt', strpos((string)json_encode(json_decode($f->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), '⚠️ Port 8971 braucht https://') !== false, true);
+check('http auf 8971: Anmelden erklärt', strpos($f->Anmelden('admin', TestAnmeldung::$passwort), '⛔ Dieser Port erwartet https://') === 0, true);
+$f->props(['ApiUrl' => 'https://127.0.0.1:8971']);
+check('zurück auf https: Zugang gilt weiter', $f->AnmeldungTeilen() !== '', true);
+$f->props(['ApiUrl' => 'https://192.168.2.50:8971']);
+check('anderer Server: Zugang wird nicht gesendet', $f->AnmeldungTeilen(), '');
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.5.1' => [
+            '• Steht vor Port 8971 versehentlich http:// statt https://, sagt die Instanz das jetzt klar und nennt die richtige Adresse.',
+        ],
         '0.5.0' => [
             '• Neu: Anmeldung an Frigate über Port 8971 (https://…:8971). Benutzer und Passwort eintragen, „Anmelden" — das Passwort wird nicht gespeichert, nur Frigates Zugangsschlüssel, und der wird automatisch verlängert.',
             '• Instanzen mit derselben Frigate-Adresse teilen sich die Anmeldung: einmal im Konfigurator anmelden genügt für alle Kameras.',

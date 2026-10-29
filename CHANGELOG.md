@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 (Build 10) — 29.10.2026
+
+- `http://…:8971`: nginx antwortet 400 „The plain HTTP request was sent to HTTPS port". Abgleich, Konfigurator und Anmelden nennen jetzt die richtige https-Adresse statt „nicht erreichbar (HTTP 400)"; die Statuszeile warnt schon vorher (Fund Dietmar, 29.10.2026).
+- Der Zugang ist an Host und Port gebunden und wird nach einem Serverwechsel nicht mehr mitgeschickt.
+
 ## 0.5.0 (Build 9) — 29.10.2026
 
 - **Anmeldung über Port 8971:** Neuer Trait-Teil in `FrigateHubApi` für Kamera und Konfigurator. `POST /api/login`, das JWT aus dem Set-Cookie (Name aus `auth.cookie_name`) liegt im Attribut `ApiZugang`, das Passwort wird nicht gespeichert (Property `ApiPasswort` nur als Durchreiche, nach der Anmeldung geleert). Anfragen schicken das Token als Cookie; Frigate verlängert es per Set-Cookie, der Timer „Anmeldung" fragt dafür alle 10 min `/api/version` ab. 401 mit Token → Zugang verworfen, Hinweis im Formular und Warnung im Meldungsfenster.
