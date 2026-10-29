@@ -315,7 +315,7 @@ class FrigateHubKamera extends IPSModule
         if ($this->kamera() === '' || $this->apiUrl() === '') {
             return 'ℹ️ Dafür braucht es Kamera-ID und Frigate-Adresse. Schnappschüsse zu Erkennungen kommen auch ohne Adresse per MQTT.';
         }
-        $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(self::LIVEBILD_HOEHE), 'image/jpeg');
+        $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(self::LIVEBILD_HOEHE) . $this->zeitstempel(), 'image/jpeg');
         if ($bild === null || FrigateHubTopics::bildBytes($bild) === null) {
             $text = '⛔ Kein Bild von Frigate (' . ($bild === null ? $this->apiFehler : 'Antwort ist kein JPEG') . ').';
         } else {
@@ -410,6 +410,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Kachel für die Kachel-Visualisierung: Livebild, Alarm, Zähler, die letzten Ereignisse mit Vorschaubild, Schnappschuss und Clip per Tipp sowie Schalter für Erkennung, Aufnahme und Schnappschüsse. Livebild, Vorschaubilder und Clips brauchen die Frigate-Adresse.'],
                     ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => 'Livebild neu laden alle (0 = nur auf Tipp)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
                     ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => 'Erkannte Objekte im Livebild einrahmen'],
+                    ['type' => 'CheckBox', 'name' => 'Zeitstempel', 'caption' => 'Frigates Zeitstempel ins Livebild (Kachel, Meldungsbild, „Aktuelles Kamerabild holen") — aus, wenn die Kamera selbst schon die Uhrzeit einblendet'],
                     ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => 'Livevideo, wenn Frigates go2rtc einen Stream für die Kamera hat'],
                     ['type' => 'Label', 'name' => 'Videostatus', 'caption' => $this->videostatus()],
                     ['type' => 'Label', 'caption' => 'Die Bilder laufen über den WebHook ' . $this->hookPfad() . ' mit einem geheimen Schlüssel dieser Instanz. Wurde eine Bildadresse weitergegeben, macht ein neuer Schlüssel sie ungültig.'],
@@ -614,7 +615,7 @@ class FrigateHubKamera extends IPSModule
     private function meldungsbild(bool $livebild): int
     {
         if ($livebild && $this->kamera() !== '' && $this->apiUrl() !== '') {
-            $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(1080) . '&bbox=1', 'image/jpeg');
+            $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(1080) . '&bbox=1' . $this->zeitstempel(), 'image/jpeg');
             if ($bild !== null && FrigateHubTopics::bildBytes($bild) !== null) {
                 $id = $this->mediumSchreiben('Meldungsbild', 'Meldungsbild', 10, '_meldung', $bild);
                 if ($id > 0) {

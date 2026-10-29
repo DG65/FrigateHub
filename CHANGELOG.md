@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1 (Build 24) — 29.10.2026
+
+- **Zeitstempel im Livebild:** neue Einstellung „Frigates Zeitstempel ins Livebild“ (Standard an) für Kachel, Meldungsbild und „Aktuelles Kamerabild holen“ (`latest.jpg?timestamp=1`, Aussehen über Frigates `timestamp_style`). Ausschalten, wenn die Kamera selbst schon die Uhrzeit einblendet (Wunsch Dietmar).
+
 ## 0.11.0 (Build 23) — 29.10.2026
 
 - **`FRIG_MeldungMitSchnappschuss($id, $Text, $Livebild)`:** Meldung mit Kamerabild an alle Ziele, als Aktion für Alarmanlagen und Regeln (OpenHomeAlarm, Automat, Skripte). Das Livebild (mit Rahmen) kommt in ein eigenes Medienobjekt „Meldungsbild“, der Erkennungs-Schnappschuss bleibt unangetastet.

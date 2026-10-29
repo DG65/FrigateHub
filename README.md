@@ -79,6 +79,10 @@ Weiter in der Kachel:
 - **📅 Archiv:** alle Ereignisse eines Tages (Auswahl mit Anzahl je Tag), filterbar nach Alarm,
   Erkennung, ungesehen, KI-Verdacht und Objekt. „🎞 Aufnahme" spielt die Aufnahme ab einer Uhrzeit
   (1–30 min) — vorausgesetzt, Frigate hat in dieser Zeit aufgezeichnet.
+- **Zeitstempel:** Livebild, Meldungsbild und „Aktuelles Kamerabild holen" tragen Frigates
+  Zeitstempel (abschaltbar, Aussehen über `timestamp_style` in Frigate). Für die Schnappschüsse zu
+  Ereignissen gilt Frigates `snapshots: timestamp: true`. In Aufnahmen und Clips schreibt Frigate
+  keinen Zeitstempel — dort hilft nur die Uhrzeit-Einblendung der Kamera selbst.
 - **PTZ:** Kann Frigate die Kamera schwenken oder zoomen (`/api/<kamera>/ptz/info`), erscheint in
   der vergrößerten Liveansicht ein Steuerkreuz mit den Voreinstellungen.
 

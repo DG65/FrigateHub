@@ -34,6 +34,8 @@ trait FrigateHubKachel
         $this->RegisterPropertyInteger('KachelLiveTakt', 2);
         $this->RegisterPropertyBoolean('KachelRahmen', true);
         $this->RegisterPropertyBoolean('KachelVideo', true);
+        // Frigates Zeitstempel im Livebild (Kachel, Meldungsbild, „Bild holen"); die Kamera-Einblendung bleibt davon unberührt
+        $this->RegisterPropertyBoolean('Zeitstempel', true);
         // Eigenständige Seite (IPSView/Browser): Anzeige mit Schlüssel, Schalten nur mit Freigabe
         $this->RegisterPropertyBoolean('SeiteBedienung', false);
         $this->RegisterAttributeString('Livestream', '');
@@ -382,7 +384,7 @@ trait FrigateHubKachel
         switch ((string)($get['bild'] ?? '')) {
             case 'live':
                 $rahmen = isset($get['rahmen']) ? $get['rahmen'] === '1' : $this->ReadPropertyBoolean('KachelRahmen');
-                return '/api/' . rawurlencode($kamera) . '/latest.jpg?' . FrigateHubTopics::hoehe($h) . ($rahmen ? '&bbox=1' : '');
+                return '/api/' . rawurlencode($kamera) . '/latest.jpg?' . FrigateHubTopics::hoehe($h) . ($rahmen ? '&bbox=1' : '') . $this->zeitstempel();
             case 'review':
                 return FrigateHubTopics::idGueltig($id) ? '/clips/review/thumb-' . rawurlencode($kamera) . '-' . $id . '.webp' : null;
             case 'vorschau':
@@ -600,6 +602,12 @@ trait FrigateHubKachel
             'name'          => $eigen ? IPS_GetName($this->InstanceID) : '',
             'bedienung'     => !$eigen || $this->ReadPropertyBoolean('SeiteBedienung'),
         ];
+    }
+
+    /** Abfragezusatz für Frigates Zeitstempel im Livebild (latest.jpg?timestamp=1), wenn eingeschaltet. */
+    private function zeitstempel(): string
+    {
+        return $this->ReadPropertyBoolean('Zeitstempel') ? '&timestamp=1' : '';
     }
 
     /** Ein Ereignis für die Anzeige: Zeit (heute nur Uhrzeit) und Dauer. */
