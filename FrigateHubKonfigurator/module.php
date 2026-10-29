@@ -124,7 +124,7 @@ class FrigateHubKonfigurator extends IPSModule
         }
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
-            return ['⛔ Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . ').' . (strpos($this->apiFehler, 'HTTP 401') === 0 ? '' : ' Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?'),
+            return ['⛔ ' . $this->apiFehlerText(),
                 $this->verwaisteZeilen($vorhanden, [], 'Frigate nicht erreichbar')];
         }
         $stats = $this->apiHolen('/api/stats');

@@ -155,6 +155,17 @@ trait FrigateHubApi
         return preg_match('#^https?://[^\s/]+$#', $url) ? $url : '';
     }
 
+    /** Satz fürs Formular zum letzten Fehlschlag: Anmeldung fehlt/abgelaufen oder nicht erreichbar. */
+    private function apiFehlerText(): string
+    {
+        if (strpos($this->apiFehler, 'HTTP 401') === 0) {
+            return 'Frigate unter ' . $this->apiUrl() . ' antwortet, ' . (strpos($this->apiFehler, 'abgelaufen') !== false
+                ? 'aber die Anmeldung ist abgelaufen — bitte neu anmelden.'
+                : 'verlangt aber eine Anmeldung — Benutzer und Passwort eintragen und „Anmelden".');
+        }
+        return 'Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . '). Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?';
+    }
+
     /** GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler). */
     private function apiHolen(string $pfad): ?array
     {

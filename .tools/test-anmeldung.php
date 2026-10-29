@@ -120,7 +120,9 @@ IPSTestState::reset();
 $a = neu(1, ['Camera' => 'Door-Cam', 'ApiUrl' => $URL]);
 $a->ApplyChanges();
 check('ohne Zugang: Timer aus', $a->timers['Anmeldung']['interval'], 0);
-check('Status: nicht angemeldet', strpos($a->ZustandAnfordern(), 'Frigate verlangt eine Anmeldung') !== false, true);
+$text = $a->ZustandAnfordern();
+check('Status: verlangt Anmeldung', strpos($text, 'antwortet, verlangt aber eine Anmeldung') !== false, true);
+check('401 heißt nicht „nicht erreichbar"', strpos($text, 'nicht erreichbar'), false);
 check('ohne Zugang kein Cookie gesendet', count(array_filter($a->anfragen[0][2], fn ($k) => strpos($k, 'Cookie:') === 0)), 0);
 
 /* ------------------------------------------------------------- Anmelden */
@@ -169,7 +171,7 @@ TestAnmeldung::$gueltig = [];
 $text = $a->ZustandAnfordern();
 check('abgelaufen: Zugang verworfen', $a->ReadAttributeString('ApiZugang'), '');
 check('abgelaufen: Timer aus', $a->timers['Anmeldung']['interval'], 0);
-check('abgelaufen: Hinweis', strpos($text, 'Anmeldung abgelaufen') !== false, true);
+check('abgelaufen: Hinweis', strpos($text, 'aber die Anmeldung ist abgelaufen — bitte neu anmelden.') !== false, true);
 check('abgelaufen: Meldung im Log', in_array('Frigate-Anmeldung abgelaufen, bitte in der Instanz neu anmelden', IPSTestState::$logMessages, true), true);
 check('abgelaufen: Statuszeile', strpos($a->GetConfigurationForm(), 'abgelaufen') !== false, true);
 // Kein erneutes Teilen eines Tokens, das Frigate schon abgelehnt hat? b hält noch seine Kopie — die ist

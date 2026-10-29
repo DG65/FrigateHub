@@ -1,11 +1,12 @@
 # Changelog
 
-## 0.5.0 (Build 8) — 29.10.2026
+## 0.5.0 (Build 9) — 29.10.2026
 
 - **Anmeldung über Port 8971:** Neuer Trait-Teil in `FrigateHubApi` für Kamera und Konfigurator. `POST /api/login`, das JWT aus dem Set-Cookie (Name aus `auth.cookie_name`) liegt im Attribut `ApiZugang`, das Passwort wird nicht gespeichert (Property `ApiPasswort` nur als Durchreiche, nach der Anmeldung geleert). Anfragen schicken das Token als Cookie; Frigate verlängert es per Set-Cookie, der Timer „Anmeldung" fragt dafür alle 10 min `/api/version` ab. 401 mit Token → Zugang verworfen, Hinweis im Formular und Warnung im Meldungsfenster.
 - Instanzen mit derselben https-Adresse teilen den Zugang (`FRIG_AnmeldungTeilen`/`FRIGC_AnmeldungTeilen`). Der Konfigurator gibt Benutzer und Zertifikatsprüfung an angelegte Kameras weiter.
 - Frigates selbst signiertes Zertifikat wird standardmäßig angenommen (Schalter „Zertifikat prüfen").
 - Neuer Prüfstand `.tools/test-anmeldung.php` (auch in der CI).
+- Build 9: Bei HTTP 401 heißt es „antwortet, verlangt aber eine Anmeldung" statt „nicht erreichbar" (live-Fund am echten Port 8971).
 
 ## 0.4.0 (Build 7) — 29.10.2026
 

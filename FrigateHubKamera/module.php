@@ -385,7 +385,7 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
-            $text = '⛔ ' . date('d.m.Y H:i:s') . ': Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . ').' . (strpos($this->apiFehler, 'HTTP 401') === 0 ? '' : ' Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?');
+            $text = '⛔ ' . date('d.m.Y H:i:s') . ': ' . $this->apiFehlerText();
             $this->LogMessage('Abgleich mit Frigate fehlgeschlagen: ' . $this->apiFehler, KL_WARNING);
             return $text;
         }
