@@ -153,15 +153,18 @@ trait FrigateHubKachel
     private function hookSeite(): void
     {
         $abruf = json_encode($this->hookPfad() . '?k=' . $this->ReadAttributeString('HookSchluessel'));
+        $daten = (string)json_encode($this->kachelDaten(true));
         $html = file_get_contents(__DIR__ . '/../FrigateHubKamera/module.html')
             . '<script>'
             . 'var seiteAbruf=' . $abruf . ';'
+            // Nur Geändertes weitergeben: Neu zeichnen lädt sonst alle 5 s die Vorschaubilder neu
+            . 'var seiteStand=' . json_encode($daten) . ';'
             . 'function seiteLaden(){fetch(seiteAbruf+"&daten=1",{cache:"no-store"}).then(function(r){return r.ok?r.text():null;})'
-            . '.then(function(t){if(t){handleMessage(t);}}).catch(function(){});}'
+            . '.then(function(t){if(t&&t!==seiteStand){seiteStand=t;handleMessage(t);}}).catch(function(){});}'
             . 'function requestAction(ident,wert){fetch(seiteAbruf+"&schalten="+encodeURIComponent(ident)+"&wert="+(wert?1:0),{method:"POST"})'
             . '.then(function(r){return r.json();}).then(function(a){if(!a.ok){meldung(a.text);}}).catch(function(){});'
             . 'setTimeout(seiteLaden,1500);setTimeout(seiteLaden,4000);}'
-            . 'handleMessage(' . json_encode($this->kachelDaten(true)) . ');'
+            . 'handleMessage(seiteStand);'
             . 'setInterval(function(){if(!document.hidden){seiteLaden();}},5000);'
             . '</script>';
         $this->hookAntwort(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-store',

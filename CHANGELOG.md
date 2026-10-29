@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.8.0 (Build 16) — 29.10.2026
+## 0.8.0 (Build 17) — 29.10.2026
 
 - **Eigenständige Seite für IPSView/Browser** (RoboHub-Muster): `/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` liefert die Kachel-Oberfläche mit Kameranamen und eigenem Hintergrund, Daten alle 5 s über `?daten=1`. Anders als bei RoboHub braucht schon die Anzeige den Schlüssel (Kamerabilder sind privat). Schalten über `POST ?schalten=<Ident>&wert=0|1` nur mit Freigabe „Schalter … auf der eigenständigen Seite bedienbar“ (Standard aus), nur die drei Kachel-Schalter, und nur bei aktiver MQTT-Instanz (sonst 502 statt scheinbarem Erfolg). Ohne Freigabe sind die Schalter gesperrt und erklären warum.
+- Build 17 (Live-Fund): Die Seite gibt nur geänderte Daten an die Oberfläche weiter. Vorher zeichnete sie alle 5 s neu und lud dabei die Vorschaubilder der Ereignisse jedes Mal neu (schwarze Karten).
 - Adresse auf Knopfdruck („Adresse für IPSView anzeigen“, `FRIG_SeiteAdresse`), damit der Schlüssel nicht im Formular steht.
 
 ## 0.7.2 (Build 15) — 29.10.2026

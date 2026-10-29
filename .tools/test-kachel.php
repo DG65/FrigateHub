@@ -333,8 +333,11 @@ $seite = $k->hook(['seite' => '1', 'k' => $ks]);
 check('Seite: 200 HTML ohne Zwischenspeicher', [$seite['code'], $seite['kopf']['Content-Type'], $seite['kopf']['Cache-Control']],
     [200, 'text/html; charset=utf-8', 'no-store']);
 check('Seite: Kachel-HTML mit Startdaten und Abfrage', [strpos($seite['inhalt'], '<div class="bild" id="bild">') !== false,
-    strpos($seite['inhalt'], 'handleMessage({') !== false, strpos($seite['inhalt'], 'function requestAction(') !== false,
+    strpos($seite['inhalt'], 'handleMessage(seiteStand)') !== false, strpos($seite['inhalt'], 'function requestAction(') !== false,
     strpos($seite['inhalt'], 'setInterval(') !== false], [true, true, true, true]);
+// Startdaten müssen zeichengleich mit ?daten=1 sein, sonst zeichnet die Seite nach 5 s grundlos neu
+preg_match('/var seiteStand=("(?:[^"\\\\]|\\\\.)*");/', $seite['inhalt'], $m);
+check('Seite: Startdaten = Abfragedaten', json_decode($m[1] ?? '""'), $k->hook(['daten' => '1', 'k' => $ks])['inhalt']);
 $d = json_decode($k->hook(['daten' => '1', 'k' => $ks])['inhalt'], true);
 check('Seiten-Daten: eigen, Name, ohne Freigabe nicht bedienbar', [$d['eigen'], $d['name'] !== '', $d['bedienung'], $d['k']], [true, true, false, $ks]);
 check('Kachel-Daten: nicht eigen, bedienbar', [$k->daten()['eigen'], $k->daten()['name'], $k->daten()['bedienung']], [false, '', true]);
