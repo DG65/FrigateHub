@@ -16,6 +16,10 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.5.0' => [
+            '• Neu: Anmeldung an Frigate über Port 8971 (https://…:8971). Benutzer und Passwort eintragen, „Anmelden" — das Passwort wird nicht gespeichert, nur Frigates Zugangsschlüssel, und der wird automatisch verlängert.',
+            '• Instanzen mit derselben Frigate-Adresse teilen sich die Anmeldung: einmal im Konfigurator anmelden genügt für alle Kameras.',
+        ],
         '0.4.0' => [
             '• Neu: Push bei Alarm. Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen (WebFront oder Kachel-Visualisierung) — jeder neue Frigate-Alarm kommt einmal als Meldung aufs Handy, mit Zeit, Objekt und Zone.',
             '• Ton und Mindestabstand zwischen zwei Meldungen sind einstellbar, „Probemeldung senden" prüft die Zustellung.',

@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.4.0:** MQTT, Abgleich über Frigates API, Schnappschuss als Medienobjekt, Konfigurator und Push bei Alarm.
+> **Stand 0.5.0:** MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator und Push bei Alarm.
 
 ## Was tut dieses Modul?
 
@@ -64,7 +64,8 @@ mqtt:
 
 1. Modulverwaltung → Repository-URL dieses Moduls hinzufügen.
 2. Instanz **Frigate-Konfigurator** unter dem MQTT-Server anlegen, an den Frigate sendet.
-3. Frigate-Adresse eintragen (z. B. `http://192.168.1.20:5000`) und übernehmen.
+3. Frigate-Adresse eintragen und übernehmen: `http://192.168.1.20:5000` (ohne Anmeldung) oder
+   `https://192.168.1.20:8971` — dann Frigate-Benutzer und Passwort eintragen und **Anmelden**.
 4. In der Liste die gewünschten Kameras **Erstellen** — fertig eingerichtet.
 
 **Oder von Hand:**
@@ -77,12 +78,26 @@ mqtt:
 4. Optional, aber empfohlen: **Frigate-Adresse** eintragen, z. B. `http://192.168.1.20:5000`
    (Frigates API ohne Anmeldung; Port 5000 muss im Docker-Aufruf freigegeben sein). Dann holt
    die Instanz Schalter, Zonen und den Kamerazustand sofort nach dem Übernehmen und nach jedem
-   Symcon-Start. Port 8971 (mit Anmeldung) wird noch nicht unterstützt.
+   Symcon-Start. Alternativ Port 8971 (`https://…:8971`) mit Frigate-Benutzer und Passwort.
 5. Übernehmen. Ohne Frigate-Adresse erscheinen Schalter erst, wenn Frigate sich neu mit dem
    MQTT-Server verbindet oder etwas umgeschaltet wird — Frigate schickt sie nur dann.
 
 Das Panel **Empfangene Nachrichten** zeigt, was von Frigate ankommt — hilfreich, wenn eine
 Variable fehlt.
+
+### Anmeldung über Port 8971
+
+Ist Port 5000 nicht freigegeben, geht der Weg über Frigates Weboberfläche auf Port 8971:
+
+- Benutzer und Passwort eines Frigate-Benutzers eintragen, **Anmelden**. Das Passwort wird nur
+  für diese Anmeldung benutzt und nicht gespeichert. FrigateHub behält Frigates Zugangsschlüssel
+  (in der Instanz, nicht im Formular sichtbar; Symcon verschlüsselt seine Datenbank nicht).
+- Frigate verlängert den Schlüssel, solange Symcon läuft (Abfrage alle 10 min). War Symcon
+  länger aus als Frigates `auth.session_length` (Standard 24 h), einmal neu anmelden.
+- Alle FrigateHub-Instanzen mit derselben Adresse nutzen die Anmeldung mit — im Konfigurator
+  einmal anmelden genügt.
+- Frigate erzeugt für Port 8971 ein eigenes Zertifikat. „Zertifikat prüfen" nur einschalten, wenn
+  Frigate ein gültiges Zertifikat hat.
 
 ## Abgrenzung
 

@@ -124,7 +124,8 @@ check('Status mit Version', element($f['elements'], 'Suchstatus')['caption'], 'â
 check('nur lesende Abrufe', TestKonfigurator::$abgerufen, ['/api/config', '/api/stats']);
 check('zwei Zeilen', count($werte), 2);
 check('Create-Modul', $werte[0]['create']['moduleID'], '{6BB54171-2F24-4653-9061-F2BC352A9D3B}');
-check('Create-Konfiguration', $werte[0]['create']['configuration'], ['Camera' => 'Door-Cam', 'TopicPrefix' => 'frigate', 'ApiUrl' => 'http://127.0.0.1:5000']);
+check('Create-Konfiguration', $werte[0]['create']['configuration'], ['Camera' => 'Door-Cam', 'TopicPrefix' => 'frigate', 'ApiUrl' => 'http://127.0.0.1:5000',
+    'ApiBenutzer' => '', 'ZertifikatPruefen' => false]);
 check('Create-Name', $werte[1]['create']['name'], 'Garten hinten');
 check('noch nicht angelegt', [$werte[0]['instanceID'], $werte[1]['instanceID']], [0, 0]);
 check('Zustand', [$werte[0]['zustand'], $werte[1]['zustand']], ['liefert Bilder', 'in Frigate deaktiviert']);

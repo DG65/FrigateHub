@@ -38,6 +38,7 @@ class IPSTestState
 {
     /** @var int[] Instanzen, für die IPS_ApplyChanges() aufgerufen wurde. */
     public static array $appliedChanges = [];
+    public static array $setProperties  = [];
 
     public static array $instances    = [];
     public static array $sentPackets  = [];
@@ -74,6 +75,7 @@ class IPSTestState
     {
         self::$instances         = [];
         self::$appliedChanges    = [];
+        self::$setProperties     = [];
         self::$sentPackets       = [];
         self::$debug             = [];
         self::$logMessages       = [];
@@ -292,6 +294,12 @@ function IPS_GetObject(int $id): array
  * Formularknopf sie aufruft und der Formular-Prüfstand sonst nicht unterscheiden könnte,
  * ob `IPS_ApplyChanges` eine Symcon-Kernfunktion oder ein verunglückter Modul-Wrapper ist.
  */
+function IPS_SetProperty(int $id, string $name, $value): bool
+{
+    IPSTestState::$setProperties[] = [$id, $name, $value];
+    return true;
+}
+
 function IPS_ApplyChanges(int $id): void
 {
     IPSTestState::$appliedChanges[] = $id;

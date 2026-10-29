@@ -65,7 +65,7 @@ class FrigateHubKamera extends IPSModule
 
         $this->RegisterPropertyString('TopicPrefix', 'frigate');
         $this->RegisterPropertyString('Camera', '');
-        $this->RegisterPropertyString('ApiUrl', '');
+        $this->apiRegistrieren();
         $this->RegisterPropertyString('PushZiele', '[]');
         $this->RegisterPropertyString('PushTon', 'alarm');
         $this->RegisterPropertyInteger('PushPause', 60);
@@ -86,6 +86,9 @@ class FrigateHubKamera extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+        if ($this->apiUebernehmen()) {
+            return;
+        }
 
         $this->festeVariablen();
 
@@ -294,8 +297,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => 'Kamera-ID'],
                     ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT-Präfix (Frigate: mqtt.topic_prefix, Standard „frigate")'],
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
-                    ['type' => 'Label', 'caption' => 'Frigate-Adresse für den Abgleich (optional): Frigates API ohne Anmeldung, meist Port 5000, z. B. http://192.168.1.20:5000. Port 5000 muss im Docker-Aufruf freigegeben sein. Ohne Adresse kommen Schalter erst, wenn Frigate sie per MQTT meldet.'],
-                    ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
+                    ...$this->apiFormular('Optional, aber empfohlen: Ohne Adresse kommen Schalter erst, wenn Frigate sie per MQTT meldet, und Schnappschüsse nur als Ausschnitt.'),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
                     ['type' => 'Button', 'caption' => 'Zustand jetzt abfragen', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
                 ],
@@ -383,7 +385,7 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
-            $text = '⛔ ' . date('d.m.Y H:i:s') . ': Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . '). Stimmt die Adresse, und ist Port 5000 im Docker-Aufruf freigegeben?';
+            $text = '⛔ ' . date('d.m.Y H:i:s') . ': Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . ').' . (strpos($this->apiFehler, 'HTTP 401') === 0 ? '' : ' Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?');
             $this->LogMessage('Abgleich mit Frigate fehlgeschlagen: ' . $this->apiFehler, KL_WARNING);
             return $text;
         }

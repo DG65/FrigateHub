@@ -46,9 +46,13 @@
 - Push (0.4.0): Auslöser Review `severity: alert`, einmal je Review-ID (Attribut `LetzterPush`), Ziele
   per GUID unterschieden (Kachel → `VISU_PostNotificationEx(…, 'Alert', $ton, 0)`, WebFront →
   `WFC_PushNotification(…, $this->InstanceID)`), Kürzung nach Bytes (SUITE.md Stolperstein 22).
+- Anmeldung (0.5.0) am Frigate-Quellcode geprüft (`frigate/api/auth.py`, `nginx/conf/auth_request.conf`):
+  Login setzt nur ein Cookie (kein Token im Inhalt); `/auth` nimmt Bearer ODER Cookie, verlängert aber
+  nur Cookie-Tokens → FrigateHub schickt das Token als Cookie. nginx reicht das neue Set-Cookie durch.
+  Passwort nie speichern; `ApiPasswort` ist nur Durchreiche (Muster MeterHub/Inexogy).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
 ## Offen
 
-- Port 8971 mit Anmeldung (JWT) für den Abgleich, falls Port 5000 nicht freigegeben ist.
+- Anmeldung über 8971 live mit echtem Benutzer (Dietmar gibt das Passwort selbst in der Konsole ein).

@@ -25,13 +25,16 @@ class FrigateHubKonfigurator extends IPSModule
     {
         parent::Create();
 
-        $this->RegisterPropertyString('ApiUrl', '');
+        $this->apiRegistrieren();
         $this->registerFormAttributes();
     }
 
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+        if ($this->apiUebernehmen()) {
+            return;
+        }
 
         $this->SetReceiveDataFilter(FrigateHubTopics::sperrfilter());
         $this->SetStatus($this->apiUrl() === '' ? 104 : IS_ACTIVE);
@@ -51,8 +54,7 @@ class FrigateHubKonfigurator extends IPSModule
             [
                 'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🔎  Kameras in Frigate',
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Frigate-Adresse: Frigates API ohne Anmeldung, meist Port 5000, z. B. http://192.168.1.20:5000. Port 5000 muss im Docker-Aufruf freigegeben sein. Die Adresse wird an jede angelegte Kamera weitergegeben.'],
-                    ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
+                    ...$this->apiFormular('Adresse und Benutzer werden an jede angelegte Kamera weitergegeben, die Kameras nutzen die Anmeldung mit.'),
                     ['type' => 'Label', 'name' => 'Suchstatus', 'caption' => $status],
                     [
                         'type'     => 'Configurator',
@@ -98,7 +100,8 @@ class FrigateHubKonfigurator extends IPSModule
     {
         return [
             'Den Konfigurator unter dem MQTT-Server bzw. MQTT-Client anlegen, an den Frigate sendet. Die angelegten Kameras hängen dann am selben MQTT-Server.',
-            'Die Liste kommt bei jedem Öffnen frisch aus Frigates API (/api/config). Der Konfigurator sendet nichts an Frigate und ändert dort nichts.',
+            'Die Liste kommt bei jedem Öffnen frisch aus Frigates API (/api/config). Der Konfigurator liest nur und ändert in Frigate nichts.',
+            'Mit Port 8971 hier einmal anmelden: Die angelegten Kameras übernehmen Benutzer und Anmeldung.',
             'Eine Kamera gilt als vorhanden, wenn eine Frigate-Kamera-Instanz mit derselben Kamera-ID unter demselben MQTT-Server existiert. Instanzen, deren Kamera es in Frigate nicht mehr gibt, stehen mit Hinweis in der Liste.',
         ];
     }
@@ -121,7 +124,7 @@ class FrigateHubKonfigurator extends IPSModule
         }
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
-            return ['⛔ Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . '). Stimmt die Adresse, und ist Port 5000 im Docker-Aufruf freigegeben?',
+            return ['⛔ Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . ').' . (strpos($this->apiFehler, 'HTTP 401') === 0 ? '' : ' Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?'),
                 $this->verwaisteZeilen($vorhanden, [], 'Frigate nicht erreichbar')];
         }
         $stats = $this->apiHolen('/api/stats');
@@ -141,7 +144,8 @@ class FrigateHubKonfigurator extends IPSModule
                 'create'     => [
                     'moduleID'      => self::KAMERA_GUID,
                     'name'          => $k['name'],
-                    'configuration' => ['Camera' => $k['id'], 'TopicPrefix' => $praefix, 'ApiUrl' => $this->apiUrl()],
+                    'configuration' => ['Camera' => $k['id'], 'TopicPrefix' => $praefix, 'ApiUrl' => $this->apiUrl(),
+                        'ApiBenutzer' => (string)$this->ReadPropertyString('ApiBenutzer'), 'ZertifikatPruefen' => $this->ReadPropertyBoolean('ZertifikatPruefen')],
                 ],
             ];
         }
