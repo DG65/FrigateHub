@@ -60,6 +60,11 @@ class TestKamera extends FrigateHubKamera
     {
         return json_decode($this->GetConfigurationForm(), true);
     }
+
+    public function eintraege(): array
+    {
+        return (array)json_decode($this->ReadAttributeString('Ereignisse'), true);
+    }
 }
 
 /** Alle Labels eines Formulars rekursiv einsammeln. */
@@ -589,6 +594,74 @@ $p->props(['PushZiele' => json_encode([['Ziel' => 30]])]);
 $p->ApplyChanges();
 check('Zustellung scheitert: ⛔', strpos($p->PushTesten(), '⛔') === 0, true);
 TestPush::$ergebnis = true;
+
+/* =================================================================== Gesichter, Kennzeichen, KI */
+
+$OBJ = '1793287117.388128-gynf0d';
+$REV = '1793287116.988998-qk9qd8';
+check('Topic tracked_object_update', FrigateHubTopics::deuten('frigate/tracked_object_update', 'frigate', 'Door-Cam', []), ['art' => 'objektupdate']);
+check('Filter enthält tracked_object_update', strpos(FrigateHubTopics::empfangsfilter('Door-Cam', []), 'tracked_object_update') !== false, true);
+check('Gesicht', FrigateHubTopics::objektUpdate(['type' => 'face', 'id' => $OBJ, 'name' => 'Dietmar', 'score' => 0.874, 'camera' => 'Door-Cam', 'timestamp' => 1793287120.1]),
+    ['art' => 'gesicht', 'id' => $OBJ, 'kamera' => 'Door-Cam', 'text' => 'Dietmar (87 %)', 'zeit' => date('d.m.Y H:i:s', 1793287120)]);
+check('Gesicht ohne Namen (unter Schwelle) → nichts', FrigateHubTopics::objektUpdate(['type' => 'face', 'id' => $OBJ, 'name' => null, 'score' => 0.4, 'camera' => 'Door-Cam']), null);
+check('Kennzeichen mit Namen', FrigateHubTopics::objektUpdate(['type' => 'lpr', 'id' => $OBJ, 'plate' => 'OG-DG 65', 'name' => 'Tesla', 'score' => 0.91, 'camera' => 'Door-Cam'])['text'], 'OG-DG 65 – Tesla (91 %)');
+check('Kennzeichen ohne Namen', FrigateHubTopics::objektUpdate(['type' => 'lpr', 'id' => $OBJ, 'plate' => 'B-X 1', 'name' => null, 'camera' => 'c'])['text'], 'B-X 1');
+check('Klassifizierung', FrigateHubTopics::objektUpdate(['type' => 'classification', 'id' => $OBJ, 'sub_label' => 'Paketbote', 'model' => 'kleidung', 'score' => 0.8, 'camera' => 'c'])['text'], 'Paketbote [kleidung] (80 %)');
+check('Beschreibung ohne Kamera', array_intersect_key((array)FrigateHubTopics::objektUpdate(['type' => 'description', 'id' => $OBJ, 'description' => 'Eine Person klingelt.']), ['kamera' => 1, 'text' => 1]),
+    ['kamera' => '', 'text' => 'Eine Person klingelt.']);
+check('kaputte ID → nichts', FrigateHubTopics::objektUpdate(['type' => 'face', 'id' => '../x', 'name' => 'A']), null);
+$meta = ['title' => 'Person an der Haustür', 'shortSummary' => 'Eine Person geht zur Haustür, klingelt und wartet kurz.', 'scene' => 'lang', 'potential_threat_level' => 1, 'confidence' => 0.8];
+check('KI-Einschätzung', FrigateHubTopics::reviewKi(['data' => ['metadata' => $meta]]), ['titel' => 'Person an der Haustür', 'zusammenfassung' => 'Eine Person geht zur Haustür, klingelt und wartet kurz.', 'stufe' => 1]);
+check('ohne Einschätzung (metadata null, live 29.10.)', FrigateHubTopics::reviewKi(['data' => ['metadata' => null]]), null);
+check('Stufe begrenzt', FrigateHubTopics::reviewKi(['data' => ['metadata' => ['title' => 'x', 'potential_threat_level' => 7]]])['stufe'], 2);
+
+$ki = new TestKamera(21);
+IPSTestState::$instances[21] = ['InstanceID' => 21, 'Name' => 'Haustür', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$ki->Create();
+$ki->props(['Camera' => 'Door-Cam', 'PushZiele' => json_encode([['Ziel' => 30]]), 'PushPause' => 0]);
+$ki->ApplyChanges();
+$objekt = fn (array $u) => $ki->ReceiveData(paket('frigate/tracked_object_update', (string)json_encode($u)));
+$objekt(['type' => 'face', 'id' => $OBJ, 'name' => 'Dietmar', 'score' => 0.87, 'camera' => 'Garten', 'timestamp' => 1793287120]);
+check('Gesicht fremder Kamera ignoriert', isset($ki->variables['ErkanntePerson']), false);
+$objekt(['type' => 'face', 'id' => $OBJ, 'name' => 'Dietmar', 'score' => 0.87, 'camera' => 'Door-Cam', 'timestamp' => 1793287120]);
+check('Erkannte Person', [$ki->GetValue('ErkanntePerson'), $ki->variables['ErkanntePerson']['position']], [date('d.m.Y H:i:s', 1793287120) . ' – Dietmar (87 %)', 9]);
+$objekt(['type' => 'lpr', 'id' => $OBJ, 'plate' => 'OG-DG 65', 'name' => null, 'camera' => 'Door-Cam', 'timestamp' => 1793287121]);
+check('Kennzeichen', strpos($ki->GetValue('Kennzeichen'), '– OG-DG 65') !== false, true);
+$objekt(['type' => 'description', 'id' => $OBJ, 'description' => 'Eine Person klingelt.']);
+check('Beschreibung zu unbekanntem Objekt ignoriert', isset($ki->variables['KIBeschreibung']), false);
+$review = function (string $typ, string $stufe, $metadata) use ($ki, $OBJ, $REV): void {
+    $ki->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => $typ, 'before' => [], 'after' => [
+        'id' => $REV, 'camera' => 'Door-Cam', 'severity' => $stufe, 'start_time' => 1793287116.98,
+        'data' => ['objects' => ['person'], 'zones' => ['Eingangsbereich'], 'detections' => [$OBJ], 'sub_labels' => [], 'audio' => [], 'metadata' => $metadata]]])));
+};
+$gepusht = [];
+$review('new', 'detection', null);
+$objekt(['type' => 'description', 'id' => $OBJ, 'description' => 'Eine Person klingelt.']);
+check('Beschreibung zu eigenem Objekt', strpos($ki->GetValue('KIBeschreibung'), 'Eine Person klingelt.') !== false, true);
+check('Erkennung ohne KI: kein Push', $gepusht, []);
+$review('end', 'detection', array_merge($meta, ['potential_threat_level' => 0]));
+check('KI unauffällig bei Erkennung: kein Push, Variablen gesetzt', [$gepusht, $ki->GetValue('KIStufe'), strpos($ki->GetValue('KIBeschreibung'), 'Person an der Haustür: Eine Person geht') !== false], [[], 0, true]);
+check('KI-Stufe als INTERVALS (Integer)', [$ki->variables['KIStufe']['type'], isset($ki->variables['KIStufe']['presentation']['INTERVALS']), isset($ki->variables['KIStufe']['presentation']['OPTIONS'])], [VARIABLETYPE_INTEGER, true, false]);
+$review('update', 'detection', $meta);
+check('KI verdächtig bei Erkennung: Push', [count($gepusht), $gepusht[0][2] ?? null, $gepusht[0][3] ?? null], [1, '⚠️ Haustür: verdächtig', $meta['shortSummary']]);
+$review('update', 'detection', $meta);
+check('dasselbe Review nur einmal', count($gepusht), 1);
+
+$REV2 = '1793287200.111111-abc123';
+$gepusht = [];
+$ki->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'new', 'before' => [], 'after' => [
+    'id' => $REV2, 'camera' => 'Door-Cam', 'severity' => 'alert', 'start_time' => 1793287200, 'data' => ['objects' => ['person'], 'zones' => [], 'detections' => [], 'audio' => [], 'sub_labels' => [], 'metadata' => null]]])));
+$ki->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'end', 'before' => [], 'after' => [
+    'id' => $REV2, 'camera' => 'Door-Cam', 'severity' => 'alert', 'start_time' => 1793287200, 'end_time' => 1793287230,
+    'data' => ['objects' => ['person'], 'zones' => [], 'detections' => [], 'audio' => [], 'sub_labels' => [], 'metadata' => array_merge($meta, ['potential_threat_level' => 0])]]])));
+check('Alarm, dann KI nachgereicht', array_map(fn ($g) => $g[2], $gepusht), ['🚨 Haustür', '🤖 Haustür']);
+check('Kachel-Eintrag mit KI', $ki->eintraege()[0]['ki']['titel'] ?? null, 'Person an der Haustür');
+$ki->props(['PushKI' => false]);
+$ki->ApplyChanges();
+$ki->WriteAttributeString('LetzterKiPush', '');
+$gepusht = [];
+$review('update', 'detection', $meta);
+check('PushKI aus: keine KI-Meldung', $gepusht, []);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

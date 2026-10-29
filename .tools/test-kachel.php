@@ -117,7 +117,7 @@ foreach (['', '../../api/config', $ID . '/../x', $ID . '.webp', '1793259219-abc'
 }
 $e = FrigateHubTopics::reviewEintrag($review);
 check('Eintrag aus echtem Review', $e, ['id' => $ID, 'start' => 1793259219, 'ende' => 1793259224, 'stufe' => 'alarm',
-    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV]);
+    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV, 'ki' => null, 'gesehen' => false]);
 check('Eintrag: Erkennung, läuft noch', array_intersect_key((array)FrigateHubTopics::reviewEintrag(['id' => '1793259300.1-ab', 'start_time' => 1793259300.1,
     'end_time' => null, 'severity' => 'detection', 'data' => ['objects' => ['person', 'car'], 'zones' => ['einfahrt']]]), ['stufe' => 1, 'ende' => 1, 'text' => 1, 'zonen' => 1]),
     ['ende' => null, 'stufe' => 'erkennung', 'text' => 'Person, Auto', 'zonen' => ['einfahrt']]);

@@ -131,6 +131,8 @@ class FrigateHubTopics
                     return ['art' => 'events'];
                 case 'reviews':
                     return ['art' => 'reviews'];
+                case 'tracked_object_update':
+                    return ['art' => 'objektupdate'];
             }
             return null;
         }
@@ -436,7 +438,7 @@ class FrigateHubTopics
      */
     public static function empfangsfilter(string $kamera, array $zonen): string
     {
-        $merkmale = array_merge([$kamera], $zonen, ['available', 'events', 'reviews']);
+        $merkmale = array_merge([$kamera], $zonen, ['available', 'events', 'reviews', 'tracked_object_update']);
         $merkmale = array_map(fn ($m) => preg_quote((string)$m), array_filter($merkmale, 'strlen'));
         return '.*(' . implode('|', $merkmale) . ').*';
     }
@@ -576,6 +578,8 @@ class FrigateHubTopics
             'text'     => $objekte === [] ? 'Ereignis' : implode(', ', $objekte),
             'zonen'    => self::zonenAusReview($after),
             'ereignis' => $ereignis,
+            'ki'       => self::reviewKi($after),
+            'gesehen'  => !empty($after['has_been_reviewed']),
         ];
     }
 
@@ -591,6 +595,83 @@ class FrigateHubTopics
         $liste[] = $eintrag;
         usort($liste, fn ($a, $b) => ($b['start'] ?? 0) <=> ($a['start'] ?? 0));
         return array_slice($liste, 0, $max);
+    }
+
+    /**
+     * frigate/tracked_object_update deuten: Gesicht, Kennzeichen, Klassifizierung oder KI-Beschreibung.
+     * Felder laut Frigate-Doku (MQTT, 0.16+). Gesichter ohne Namen (Versuch unter der Schwelle) → null.
+     *
+     * @return array{art:string,id:string,kamera:string,text:string,zeit:string}|null
+     *   art: gesicht | kennzeichen | klassifizierung | beschreibung; kamera '' bei beschreibung (Frigate schickt keine)
+     */
+    public static function objektUpdate(array $u): ?array
+    {
+        $id = (string)($u['id'] ?? '');
+        if (!self::idGueltig($id)) {
+            return null;
+        }
+        $kamera = (string)($u['camera'] ?? '');
+        $zeit = self::zeit($u['timestamp'] ?? null);
+        $prozent = fn ($s): string => is_numeric($s) ? ' (' . (int)round((float)$s * 100) . ' %)' : '';
+        switch ((string)($u['type'] ?? '')) {
+            case 'face':
+                $name = $u['name'] ?? null;
+                if (!is_string($name) || trim($name) === '' || $name === 'unknown') {
+                    return null;
+                }
+                return ['art' => 'gesicht', 'id' => $id, 'kamera' => $kamera, 'text' => trim($name) . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+            case 'lpr':
+                $kennzeichen = trim((string)($u['plate'] ?? ''));
+                $name = is_string($u['name'] ?? null) ? trim($u['name']) : '';
+                if ($kennzeichen === '' && $name === '') {
+                    return null;
+                }
+                $text = $kennzeichen !== '' ? $kennzeichen . ($name !== '' ? ' – ' . $name : '') : $name;
+                return ['art' => 'kennzeichen', 'id' => $id, 'kamera' => $kamera, 'text' => $text . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+            case 'classification':
+                $wert = trim((string)($u['sub_label'] ?? $u['attribute'] ?? ''));
+                if ($wert === '') {
+                    return null;
+                }
+                $modell = trim((string)($u['model'] ?? ''));
+                return ['art' => 'klassifizierung', 'id' => $id, 'kamera' => $kamera,
+                    'text' => $wert . ($modell !== '' ? ' [' . $modell . ']' : '') . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+            case 'description':
+                $text = trim((string)($u['description'] ?? ''));
+                return $text === '' ? null : ['art' => 'beschreibung', 'id' => $id, 'kamera' => $kamera, 'text' => $text, 'zeit' => $zeit];
+        }
+        return null;
+    }
+
+    /** Frigates Bedrohungsstufe der KI-Einschätzung (potential_threat_level) im Klartext. */
+    public const KI_STUFEN = [0 => 'unauffällig', 1 => 'verdächtig', 2 => 'kritisch'];
+
+    /**
+     * KI-Einschätzung eines Reviews (data.metadata, Frigate 0.17+, ReviewMetadata im Frigate-Quellcode):
+     * title, shortSummary, scene, potential_threat_level 0–2. Ohne Einschätzung → null.
+     *
+     * @return array{titel:string,zusammenfassung:string,stufe:?int}|null
+     */
+    public static function reviewKi(array $after): ?array
+    {
+        $m = $after['data']['metadata'] ?? null;
+        if (!is_array($m)) {
+            return null;
+        }
+        $titel = trim((string)($m['title'] ?? ''));
+        $kurz = trim((string)($m['shortSummary'] ?? ''));
+        if ($kurz === '') {
+            $kurz = trim((string)($m['scene'] ?? ''));
+        }
+        if ($titel === '' && $kurz === '') {
+            return null;
+        }
+        $stufe = $m['potential_threat_level'] ?? null;
+        return [
+            'titel'           => $titel,
+            'zusammenfassung' => $kurz !== '' ? $kurz : $titel,
+            'stufe'           => is_numeric($stufe) ? max(0, min(2, (int)$stufe)) : null,
+        ];
     }
 
     /** Frigate-IDs für Ereignisse und Reviews: „1793259219.675514-nm2in4". Schützt die Pfade im WebHook. */

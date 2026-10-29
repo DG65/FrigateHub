@@ -72,6 +72,8 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterPropertyString('PushZiele', '[]');
         $this->RegisterPropertyString('PushTon', 'alarm');
         $this->RegisterPropertyInteger('PushPause', 60);
+        // KI-Einschätzung (Frigate GenAI): zum Alarm nachreichen, verdächtige Erkennungen melden
+        $this->RegisterPropertyBoolean('PushKI', true);
 
         $this->RegisterAttributeString('Zonen', '[]');
         $this->RegisterAttributeInteger('LetzteNachricht', 0);
@@ -81,6 +83,7 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterAttributeString('Bildstatus', '');
         $this->RegisterAttributeString('LetzterPush', '{}');
         $this->RegisterAttributeString('Pushstatus', '');
+        $this->RegisterAttributeString('LetzterKiPush', '');
         $this->registerFormAttributes();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
@@ -203,6 +206,10 @@ class FrigateHubKamera extends IPSModule
 
             case 'reviews':
                 $this->reviewVerarbeiten($payload);
+                break;
+
+            case 'objektupdate':
+                $this->objektUpdateVerarbeiten($payload);
                 break;
 
             default:
@@ -334,6 +341,7 @@ class FrigateHubKamera extends IPSModule
                     ],
                     ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Ton', 'options' => $this->tonOptionen()],
                     ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => 'Mindestabstand zwischen zwei Meldungen', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                    ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => 'KI-Einschätzung von Frigate (GenAI) zum Alarm nachreichen und verdächtige Erkennungen melden'],
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
                     ['type' => 'Button', 'caption' => 'Probemeldung senden', 'onClick' => 'echo FRIG_PushTesten($id);'],
                 ],
@@ -631,6 +639,7 @@ class FrigateHubKamera extends IPSModule
             return;
         }
         $this->zonenLernen(FrigateHubTopics::zonenAusEvent($after));
+        $this->eigeneObjekteMerken([(string)($after['id'] ?? '')]);
         $typ = (string)($e['type'] ?? '');
         if ($typ === 'new' || $typ === 'end') {
             $this->SetValue('LetztesObjekt', FrigateHubTopics::eventText($after));
@@ -646,18 +655,91 @@ class FrigateHubKamera extends IPSModule
             return;
         }
         $this->zonenLernen(FrigateHubTopics::zonenAusReview($after));
+        $this->eigeneObjekteMerken(array_map('strval', (array)($after['data']['detections'] ?? [])));
         $this->ereignisMerken($after);
         $typ = (string)($r['type'] ?? '');
-        if ($typ !== 'new' && $typ !== 'update') {
+        if ($typ === 'new' || $typ === 'update') {
+            $text = FrigateHubTopics::reviewText($after);
+            if ((string)($after['severity'] ?? '') === 'alert') {
+                $this->SetValue('LetzterAlarm', $text);
+                $this->alarmMelden((string)($after['id'] ?? ''), $text);
+            } else {
+                $this->SetValue('LetzteErkennung', $text);
+            }
+        }
+        // Nach dem Alarm-Push: die KI-Einschätzung kommt meist mit einem späteren update/end
+        $ki = FrigateHubTopics::reviewKi($after);
+        if ($ki !== null) {
+            $this->kiVerarbeiten((string)($after['id'] ?? ''), $ki, FrigateHubTopics::zeit($after['start_time'] ?? null));
+        }
+    }
+
+    /**
+     * Gesicht, Kennzeichen, Klassifizierung, KI-Objektbeschreibung (frigate/tracked_object_update).
+     * Das Topic ist kameraübergreifend: Gesicht/Kennzeichen/Klassifizierung tragen die Kamera, die
+     * Beschreibung nur die Objekt-ID — die wird gegen die eigenen Objekte der letzten Zeit geprüft.
+     */
+    private function objektUpdateVerarbeiten(string $payload): void
+    {
+        $u = json_decode($payload, true);
+        $d = is_array($u) ? FrigateHubTopics::objektUpdate($u) : null;
+        if ($d === null) {
             return;
         }
-        $text = FrigateHubTopics::reviewText($after);
-        if ((string)($after['severity'] ?? '') === 'alert') {
-            $this->SetValue('LetzterAlarm', $text);
-            $this->alarmMelden((string)($after['id'] ?? ''), $text);
-        } else {
-            $this->SetValue('LetzteErkennung', $text);
+        $eigen = $d['kamera'] !== '' ? $d['kamera'] === $this->kamera()
+            : in_array($d['id'], (array)json_decode($this->GetBuffer('EigeneObjekte'), true), true);
+        if (!$eigen) {
+            return;
         }
+        $ziel = [
+            'gesicht'         => ['ErkanntePerson', 'Erkannte Person', 9],
+            'kennzeichen'     => ['Kennzeichen', 'Kennzeichen', 10],
+            'klassifizierung' => ['Klassifizierung', 'Klassifizierung', 11],
+            'beschreibung'    => ['KIBeschreibung', 'KI-Beschreibung', 12],
+        ][$d['art']];
+        $zeit = $d['zeit'] !== '' ? $d['zeit'] : date('d.m.Y H:i:s');
+        $this->variableAnlegen($ziel[0], $ziel[1], VARIABLETYPE_STRING, self::anzeigeText(), $ziel[2]);
+        $this->SetValue($ziel[0], FrigateHubTopics::kuerzenBytes($zeit . ' – ' . $d['text'], 1000));
+    }
+
+    /** Objekt-IDs dieser Kamera merken (für Beschreibungen ohne Kameraangabe), die letzten 100. */
+    private function eigeneObjekteMerken(array $ids): void
+    {
+        $liste = (array)json_decode($this->GetBuffer('EigeneObjekte'), true);
+        foreach ($ids as $id) {
+            if (FrigateHubTopics::idGueltig($id) && !in_array($id, $liste, true)) {
+                $liste[] = $id;
+            }
+        }
+        $this->SetBuffer('EigeneObjekte', (string)json_encode(array_slice($liste, -100)));
+    }
+
+    /**
+     * KI-Einschätzung eines Reviews: Variablen setzen; einmal je Review per Push nachreichen, wenn
+     * der Alarm schon gemeldet wurde, oder melden, wenn die KI eine Erkennung verdächtig findet.
+     */
+    private function kiVerarbeiten(string $id, array $ki, string $zeit): void
+    {
+        $this->variableAnlegen('KIBeschreibung', 'KI-Beschreibung', VARIABLETYPE_STRING, self::anzeigeText(), 12);
+        $this->SetValue('KIBeschreibung', FrigateHubTopics::kuerzenBytes(($zeit !== '' ? $zeit : date('d.m.Y H:i:s')) . ' – '
+            . ($ki['titel'] !== '' && $ki['titel'] !== $ki['zusammenfassung'] ? $ki['titel'] . ': ' : '') . $ki['zusammenfassung'], 1000));
+        if ($ki['stufe'] !== null) {
+            $this->variableAnlegen('KIStufe', 'KI-Einschätzung', VARIABLETYPE_INTEGER, self::anzeigeStufen(FrigateHubTopics::KI_STUFEN), 13);
+            $this->SetValue('KIStufe', $ki['stufe']);
+        }
+        if (!$this->ReadPropertyBoolean('PushKI') || $id === '' || $this->ReadAttributeString('LetzterKiPush') === $id || $this->pushZiele() === []) {
+            return;
+        }
+        $gemeldet = (string)(json_decode($this->ReadAttributeString('LetzterPush'), true)['id'] ?? '') === $id;
+        if ($gemeldet) {
+            $titel = '🤖 ' . IPS_GetName($this->InstanceID);
+        } elseif (($ki['stufe'] ?? 0) >= 1) {
+            $titel = '⚠️ ' . IPS_GetName($this->InstanceID) . ': ' . FrigateHubTopics::KI_STUFEN[$ki['stufe']];
+        } else {
+            return;
+        }
+        $this->WriteAttributeString('LetzterKiPush', $id);
+        $this->pushSenden($titel, $ki['zusammenfassung']);
     }
 
     /** Einmal je Review-ID, frühestens PushPause Sekunden nach der letzten Meldung. */
@@ -870,6 +952,19 @@ class FrigateHubKamera extends IPSModule
                 ['Value' => true, 'Caption' => $ja, 'IconActive' => false, 'IconValue' => '', 'ColorActive' => true, 'ColorValue' => $nichtGut ? $gruen : 0xFB8C00],
             ]),
         ];
+    }
+
+    /** Ganzzahl mit Klartext je Wert — bei Integer wirken nur INTERVALS (SUITE.md Stolperstein 9). */
+    private static function anzeigeStufen(array $texte): array
+    {
+        $farben = [0 => 0x43A047, 1 => 0xFB8C00, 2 => 0xE53935];
+        $intervalle = [];
+        foreach ($texte as $wert => $text) {
+            $intervalle[] = ['IntervalMinValue' => $wert, 'IntervalMaxValue' => $wert, 'ConstantActive' => true, 'ConstantValue' => $text,
+                'ConversionFactor' => 1, 'PrefixActive' => false, 'SuffixActive' => false, 'DigitsActive' => false, 'IconActive' => false,
+                'IconValue' => '', 'ColorActive' => isset($farben[$wert]), 'ColorValue' => $farben[$wert] ?? -1];
+        }
+        return ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'INTERVALS_ACTIVE' => true, 'INTERVALS' => (string)json_encode($intervalle)];
     }
 
     private static function anzeigeText(): array
