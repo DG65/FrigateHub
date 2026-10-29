@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.10.0 (Build 21) — 29.10.2026
+## 0.10.0 (Build 22) — 29.10.2026
+
+- Build 22 (Live-Funde): Archiv-Karten zeigen ihr Vorschaubild wieder in der Karte (eine Regel der Großansicht legte sie übereinander), Objektfilter mit deutschen Namen.
 
 - Build 21 (Live-Fund): Die Server-Kachel überspringt Kamera-Instanzen, die während einer Modulaktualisierung kurz nicht ansprechbar sind (Symcon meldete „InstanceInterface is not available").
 

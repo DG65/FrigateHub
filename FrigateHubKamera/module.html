@@ -111,7 +111,7 @@
         .gross select option { color: #000; }
         .gross .archiv { position: absolute; inset: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 0 12px 12px; align-content: start; }
         .gross .archiv .karte { width: auto; color: #fff; background: rgba(255, 255, 255, .08); }
-        .gross .archiv .karte .vb { height: 90px; }
+        .gross .archiv .karte .vb { position: static; width: 100%; height: 90px; }
         .gross .archiv .leer { color: #d6dde4; font-size: 13px; padding: 12px; }
         .gross .ptz { position: absolute; right: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, 38px); gap: 4px; z-index: 2; }
         .gross .ptz button { padding: 4px 0; background: rgba(0, 0, 0, .55); touch-action: none; }
@@ -684,7 +684,7 @@
                 var optionen = [['', 'Alle'], ['alarm', 'Nur Alarme'], ['erkennung', 'Nur Erkennungen'], ['neu', 'Noch nicht gesehen'], ['ki', 'KI: verdächtig']];
                 var labels = {};
                 archivStand.eintraege.forEach(function (e) { (e.labels || []).forEach(function (l) { labels[l] = true; }); });
-                Object.keys(labels).sort().forEach(function (l) { optionen.push(['l:' + l, 'Nur ' + l]); });
+                Object.keys(labels).sort().forEach(function (l) { optionen.push(['l:' + l, 'Nur: ' + ((a.objekte || {})[l] || l)]); });
                 optionen.forEach(function (x) { var o = document.createElement('option'); o.value = x[0]; o.textContent = x[1]; filter.appendChild(o); });
                 filter.value = archivStand.filter;
                 zeigen();

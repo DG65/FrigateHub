@@ -264,10 +264,17 @@ trait FrigateHubKachel
             }
         }
         usort($eintraege, fn ($a, $b) => $b['start'] <=> $a['start']);
+        $objekte = [];
+        foreach ($eintraege as $e) {
+            foreach ($e['labels'] ?? [] as $l) {
+                $objekte[$l] = FrigateHubTopics::objektName($l);
+            }
+        }
         $zusammenfassung = $this->apiHolen('/api/review/summary?cameras=' . rawurlencode($kamera)) ?? [];
         $this->hookAntwort(200, $json, (string)json_encode([
             'tag'       => date('Y-m-d', $start),
             'eintraege' => $eintraege,
+            'objekte'   => $objekte,
             'tage'      => FrigateHubTopics::archivTage($zusammenfassung),
         ], JSON_UNESCAPED_UNICODE));
     }
