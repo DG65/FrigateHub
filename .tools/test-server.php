@@ -107,9 +107,32 @@ class TestServer extends FrigateHubServer
         }
     }
 
+    public static array $bilder = [];
+    public static array $durchgereicht = [];
+    public array $antworten = [];
+
     protected function apiRoh(string $pfad, string $accept): ?string
     {
         return self::$api[$pfad] ?? null;
+    }
+
+    protected function apiDurchreichen(string $pfad, string $range, int $zeitlimit): array
+    {
+        self::$durchgereicht[] = $pfad;
+        return self::$bilder[$pfad] ?? ['code' => 404, 'body' => '', 'kopf' => []];
+    }
+
+    protected function hookAntwort(int $code, string $typ, string $inhalt, string $cache = 'no-store'): void
+    {
+        $this->antworten[] = ['code' => $code, 'typ' => $typ, 'inhalt' => $inhalt];
+    }
+
+    public function hook(array $get): array
+    {
+        $_GET = $get;
+        $this->antworten = [];
+        $this->ProcessHookData();
+        return $this->antworten[0];
     }
 }
 
@@ -204,6 +227,32 @@ IPSTestState::$instances[1]['ConnectionID'] = 95;
 $s->Neustarten();
 $p = IPSTestState::$sentPackets[0] ?? [];
 check('Neustart: frigate/restart, nie gespeichert', [$p['Topic'] ?? '', $p['Retain'] ?? null, $p['QualityOfService'] ?? null], ['frigate/restart', false, 0]);
+
+// Übersichtskachel
+IPSTestState::$instances[40] = ['InstanceID' => 40, 'Name' => 'Haustür', 'ConnectionID' => 95, 'InstanceStatus' => IS_ACTIVE, 'Properties' => ['Camera' => 'Door-Cam'],
+    'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+IPSTestState::$instances[41] = ['InstanceID' => 41, 'Name' => 'Anderer Broker', 'ConnectionID' => 77, 'InstanceStatus' => IS_ACTIVE, 'Properties' => ['Camera' => 'Garten'],
+    'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$s->ApplyChanges();
+$sk = $s->ReadAttributeString('HookSchluessel');
+check('Kachel-Schlüssel erzeugt', strlen($sk), 32);
+check('ohne Schlüssel: 403', $s->hook(['daten' => '1'])['code'], 403);
+$d = json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true);
+check('Kameras aus Statistik, Name aus Instanz, fremder Broker nicht', array_map(fn ($k) => $k['kamera'] . '=' . $k['name'], $d['kameras']), ['Door-Cam=Haustür']);
+TestServer::$bilder['/api/Door-Cam/latest.jpg?height=360&h=360'] = ['code' => 200, 'body' => 'JPEG', 'kopf' => ['content-type' => 'image/jpeg']];
+check('Livebild bekannter Kamera', [$s->hook(['bild' => 'live', 'kamera' => 'Door-Cam', 'k' => $sk])['inhalt']], ['JPEG']);
+TestServer::$durchgereicht = [];
+check('unbekannte Kamera: 404, nichts abgerufen', [$s->hook(['bild' => 'live', 'kamera' => '../config', 'k' => $sk])['code'], TestServer::$durchgereicht], [404, []]);
+check('Birdseye ohne Freigabe durch Abgleich: 404', $s->hook(['bild' => 'birdseye', 'k' => $sk])['code'], 404);
+TestServer::$bilder['/api/birdseye/latest.jpg?height=120&h=120'] = ['code' => 200, 'body' => 'B', 'kopf' => []];
+$s->ZustandAnfordern();
+check('Birdseye nach Abgleich angeboten', json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true)['birdseye'], true);
+$seite = $s->hook(['seite' => '1', 'k' => $sk]);
+check('IPSView-Seite mit Startdaten und Abfrage', [$seite['code'], strpos($seite['inhalt'], 'handleMessage(seiteStand)') !== false, strpos($seite['inhalt'], '&daten=1') !== false], [200, true, true]);
+check('Kachel-HTML mit Startdaten', strpos((string)$s->GetVisualizationTile(), 'handleMessage({') !== false, true);
+$alt = $sk;
+$s->KachelSchluesselErneuern();
+check('neuer Schlüssel: alter gilt nicht', $s->hook(['daten' => '1', 'k' => $alt])['code'], 403);
 
 // Formular und Modulbeschreibung
 $form = (string)$s->GetConfigurationForm();

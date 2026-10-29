@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --box: rgba(127, 135, 145, .16);
+            --text: #ffffff;
+            --textmuted: #9fb0c0;
+            --alarm: #e5484d;
+            --erkennung: #f5a524;
+            --ok: #3fb950;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --box: rgba(20, 30, 45, .06);
+                --text: #1b2430;
+                --textmuted: #5c6b7a;
+            }
+        }
+
+        html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+        body { font-family: var(--font); color: var(--text); }
+        /* oben 46px frei: dort zeichnet Symcon Kacheltitel und Vergrößern-Knopf */
+        .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+        body.eigen { background: #15191e; }
+        body.eigen .wrap, body.eigen .gross .oben { padding-top: 10px; }
+        @media (prefers-color-scheme: light) { body.eigen { background: #f4f6f8; } }
+        .kopf { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--textmuted); min-height: 18px; }
+        .kopf b { color: var(--text); font-size: 14px; }
+        .raster { flex: 1 1 auto; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); grid-auto-rows: minmax(90px, 1fr); overflow: auto; }
+        .zelle { position: relative; border-radius: 10px; overflow: hidden; background: #000; cursor: zoom-in; border: 2px solid transparent; }
+        .zelle.alarm { border-color: var(--alarm); }
+        .zelle.offline img { filter: grayscale(1) brightness(.5); }
+        .zelle img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .zelle .name { position: absolute; left: 6px; bottom: 5px; right: 6px; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-size: 11px; }
+        .zelle .name span { background: rgba(0, 0, 0, .55); color: #fff; border-radius: 6px; padding: 1px 6px; }
+        .zelle .name .rot { background: var(--alarm); font-weight: 700; }
+        .zelle .name .gelb { background: var(--erkennung); color: #1b1300; }
+        .leer { color: var(--textmuted); font-size: 13px; padding: 8px; }
+        .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
+        .gross[hidden] { display: none; }
+        .gross .oben { display: flex; align-items: center; gap: 8px; padding: 46px 12px 10px; color: #fff; font-size: 13px; }
+        .gross .oben span { flex: 1 1 auto; }
+        .gross button { border: 1px solid rgba(255, 255, 255, .35); background: none; color: #fff; border-radius: 999px; padding: 4px 12px; font: inherit; cursor: pointer; }
+        .gross .inhalt { flex: 1 1 auto; position: relative; }
+        .gross img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="kopf" id="kopf"></div>
+        <div class="raster" id="raster"></div>
+    </div>
+    <div class="gross" id="gross" hidden>
+        <div class="oben"><span id="grossTitel"></span><button id="grossZu">✕</button></div>
+        <div class="inhalt"><img id="grossBild" alt=""></div>
+    </div>
+
+    <script>
+        var daten = null;
+        var timer = null;
+        var gross = null;          // Kamera in der Großansicht ('' = Birdseye)
+        var letzte = {};           // zuletzt geladenes Bild je Kamera: beim Neuzeichnen sofort wieder zeigen
+
+        function el(id) { return document.getElementById(id); }
+
+        function bildUrl(kamera, h) {
+            return daten.hook + '?k=' + encodeURIComponent(daten.k) + (kamera === '' ? '&bild=birdseye' : '&bild=live&kamera=' + encodeURIComponent(kamera))
+                + '&h=' + h + '&t=' + Date.now();
+        }
+
+        function zeichnen() {
+            document.body.classList.toggle('eigen', !!daten.eigen);
+            var kopf = el('kopf');
+            kopf.textContent = '';
+            if (daten.eigen && daten.name) {
+                var b = document.createElement('b');
+                b.textContent = daten.name;
+                kopf.appendChild(b);
+                document.title = daten.name;
+            }
+            var s = document.createElement('span');
+            var alarme = daten.kameras.filter(function (k) { return k.alarm; }).length;
+            s.textContent = daten.verfuegbar === false ? '⛔ Frigate nicht erreichbar' : daten.kameras.length + (daten.kameras.length === 1 ? ' Kamera' : ' Kameras') + (alarme ? ' · 🚨 ' + alarme + ' Alarm' : '');
+            kopf.appendChild(s);
+
+            var raster = el('raster');
+            raster.textContent = '';
+            if (!daten.api) {
+                var d = document.createElement('div');
+                d.className = 'leer';
+                d.textContent = 'Für die Livebilder in der Instanz die Frigate-Adresse eintragen.';
+                raster.appendChild(d);
+                return;
+            }
+            var zellen = daten.kameras.slice();
+            if (daten.birdseye) { zellen.unshift({ kamera: '', name: 'Birdseye', online: true }); }
+            zellen.forEach(function (k) {
+                var z = document.createElement('div');
+                z.className = 'zelle' + (k.alarm ? ' alarm' : '') + (k.online === false ? ' offline' : '');
+                z.dataset.kamera = k.kamera;
+                var img = document.createElement('img');
+                img.alt = '';
+                if (letzte[k.kamera]) { img.src = letzte[k.kamera]; }
+                z.appendChild(img);
+                var n = document.createElement('div');
+                n.className = 'name';
+                [[k.name, ''], [k.alarm ? '🚨 Alarm' : '', 'rot'], [k.personen ? k.personen + ' ' + (k.personen === 1 ? 'Person' : 'Personen') : '', ''],
+                    [k.online === false ? 'offline' : '', 'rot'], [k.verbindung ? 'Verbindung ' + k.verbindung : '', 'gelb']].forEach(function (t) {
+                    if (!t[0]) { return; }
+                    var sp = document.createElement('span');
+                    sp.textContent = t[0];
+                    if (t[1]) { sp.className = t[1]; }
+                    n.appendChild(sp);
+                });
+                z.appendChild(n);
+                z.onclick = function () { grossOeffnen(k.kamera, k.name); };
+                raster.appendChild(z);
+            });
+            laden();
+        }
+
+        /** Alle sichtbaren Livebilder neu holen (nacheinander, damit der WebHook nicht überläuft). */
+        function laden() {
+            clearTimeout(timer);
+            if (!daten || !daten.api || document.hidden) { return; }
+            var liste = Array.prototype.slice.call(document.querySelectorAll('.zelle'));
+            var h = Math.max(240, Math.min(720, Math.ceil(((liste[0] && liste[0].clientHeight) || 180) * (window.devicePixelRatio || 1) / 120) * 120));
+            (function naechste(i) {
+                if (i >= liste.length) {
+                    timer = setTimeout(laden, (gross !== null ? Math.max(1, daten.takt / 2) : daten.takt) * 1000);
+                    return;
+                }
+                var z = liste[i];
+                var vor = new Image();
+                vor.onload = function () { z.querySelector('img').src = vor.src; letzte[z.dataset.kamera] = vor.src; naechste(i + 1); };
+                vor.onerror = function () { naechste(i + 1); };
+                vor.src = bildUrl(z.dataset.kamera, h);
+            })(0);
+            if (gross !== null) {
+                var gb = new Image();
+                gb.onload = function () { el('grossBild').src = gb.src; };
+                gb.src = bildUrl(gross, 1080);
+            }
+        }
+
+        function grossOeffnen(kamera, name) {
+            gross = kamera;
+            el('grossTitel').textContent = name;
+            el('grossBild').src = '';
+            el('gross').hidden = false;
+            laden();
+        }
+
+        el('grossZu').onclick = function () { gross = null; el('gross').hidden = true; laden(); };
+        document.addEventListener('visibilitychange', laden);
+
+        function handleMessage(nachricht) {
+            var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;
+            if (!neu || !neu.hook) { return; }
+            daten = neu;
+            zeichnen();
+        }
+    </script>
+</body>
+
+</html>
