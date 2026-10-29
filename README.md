@@ -29,6 +29,9 @@ daraus je Kamera:
 | _Zone_: Personen, … | Anzahl je Zone; Zonen lernt die Instanz aus den Ereignissen |
 | Geräusch … | Geräuscherkennung, wenn in Frigate eingeschaltet |
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
+| Bewegungsschwelle, Bewegung: Mindestfläche | Frigates `motion.threshold`/`contour_area`, per Schieberegler einstellbar |
+| Erkannte Person, Kennzeichen, Klassifizierung | Gesichtserkennung, Kennzeichenerkennung und eigene Klassifizierungsmodelle von Frigate, mit Trefferquote |
+| KI-Beschreibung, KI-Einschätzung | Frigates generative KI (GenAI): Titel und Zusammenfassung eines Ereignisses, Einschätzung unauffällig/verdächtig/kritisch |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
 Dazu kommt eine Instanz **Frigate-Server** für den Server selbst. Als Variablen (für
@@ -64,6 +67,24 @@ ein Tipp aufs Livebild vergrößert es; Erkennung, Aufnahme und Schnappschüsse 
 schalten. Die Bilder holt die Instanz selbst bei Frigate und reicht sie über einen eigenen
 WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf braucht einen
 geheimen Schlüssel der Instanz; der lässt sich im Panel „Kachel" erneuern.
+
+Weiter in der Kachel:
+- **Warnmarken** oben, wenn in Frigate Kamera, Erkennung, Aufnahme oder Schnappschüsse aus sind.
+  Die Schalter darunter sind als „Frigate:" gekennzeichnet — sie ändern die Einstellung in Frigate,
+  sie filtern nichts.
+- **Ereignisse:** ein Punkt markiert noch nicht gesehene; Öffnen markiert sie in Frigate als gesehen.
+  Mit KI-Einschätzung zeigt die Karte deren Titel und bei Verdacht ein Zeichen; die Großansicht die
+  Zusammenfassung. ☆ behält ein Ereignis dauerhaft (Frigate löscht es dann nicht), 💾 legt einen
+  Export in Frigate an.
+- **📅 Archiv:** alle Ereignisse eines Tages (Auswahl mit Anzahl je Tag), filterbar nach Alarm,
+  Erkennung, ungesehen, KI-Verdacht und Objekt. „🎞 Aufnahme" spielt die Aufnahme ab einer Uhrzeit
+  (1–30 min) — vorausgesetzt, Frigate hat in dieser Zeit aufgezeichnet.
+- **PTZ:** Kann Frigate die Kamera schwenken oder zoomen (`/api/<kamera>/ptz/info`), erscheint in
+  der vergrößerten Liveansicht ein Steuerkreuz mit den Voreinstellungen.
+
+**Übersicht aller Kameras:** Die Instanz **Frigate-Server** ist zugleich eine Kachel mit den
+Livebildern aller Kameras dieser Frigate-Instanz (Alarm, Personen, offline, gestörte Verbindung)
+und Birdseye, wenn Frigate es liefert; auch sie gibt es als eigenständige Seite für IPSView.
 
 **IPSView und Browser:** Dieselbe Oberfläche gibt es als eigenständige Seite
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` — in IPSView als
@@ -113,6 +134,9 @@ lässt sich erst nach dem Einschalten des Tons messen.
 (WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
 Titel ist der Name der Instanz, Text Zeit, Objekt und Zone. Was ein Alarm ist, legt man in Frigate
 fest (`review: alerts: labels` bzw. `required_zones`). Ton und Mindestabstand sind einstellbar.
+Mit Frigates GenAI kommt die KI-Zusammenfassung als zweite Meldung hinterher; findet die KI eine
+bloße Erkennung verdächtig, meldet FrigateHub auch diese (abschaltbar). Bedingte Meldungen
+(nur bei Abwesenheit, nachts …) gehören in eine Regel, z. B. mit dem DG65-Toolkit Automat.
 
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.

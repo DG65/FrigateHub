@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 (Build 20) — 29.10.2026
+
+- **Gesichter, Kennzeichen, Klassifizierung, KI:** `frigate/tracked_object_update` (face/lpr/classification/description) ergibt die Variablen „Erkannte Person“, „Kennzeichen“, „Klassifizierung“, „KI-Beschreibung“ (entstehen erst mit den ersten Daten; Beschreibungen ohne Kameraangabe werden über die eigenen Objekt-IDs zugeordnet). Frigates Review-`metadata` (GenAI: title, shortSummary, potential_threat_level) ergibt „KI-Beschreibung“ und „KI-Einschätzung“ (INTERVALS unauffällig/verdächtig/kritisch). Push: KI-Zusammenfassung zum gemeldeten Alarm nachreichen, verdächtige Erkennungen melden (Häkchen, Standard an, einmal je Review).
+- **Archiv in der Kachel:** Tagesauswahl aus `/api/review/summary` (Anzahl, neu), Filter Alarm/Erkennung/ungesehen/KI-Verdacht/Objekt, Aufnahme eines Zeitraums (`/api/<kamera>/start/<s>/end/<e>/clip.mp4`, höchstens 1 h, stückweise wie Clips).
+- **Kachel:** Warnmarken (Kamera/Erkennung/Aufnahme/Schnappschüsse aus), Schalter als „Frigate:“ gekennzeichnet, ungesehene Ereignisse markiert und beim Öffnen in Frigate als gesehen gemeldet (`POST /api/reviews/viewed`), Favorit ☆ (`/api/events/<id>/retain`), Export 💾 (`POST /api/export/…`), KI-Titel auf den Karten. Schreibende Aktionen über `requestAction` (Anmeldung der Visualisierung), auf der IPSView-Seite nur mit Freigabe.
+- **PTZ und Bewegung:** Steuerkreuz und Voreinstellungen in der Liveansicht, wenn `/api/<kamera>/ptz/info` Fähigkeiten meldet (MQTT `…/ptz`); „Bewegungsschwelle“ und „Bewegung: Mindestfläche“ als Schieberegler (`…/motion_threshold`, `…/motion_contour_area`, folgen Frigates Bestätigung).
+- **Frigate-Server als Übersichtskachel** aller Kameras (Livebild, Alarm, Personen, offline, gestörte Verbindung) mit Birdseye, wenn Frigate es liefert; eigene IPSView-Seite.
+- **Aufräumen:** Beim Löschen einer Kamera- oder Server-Instanz entfernt FrigateHub ihren WebHook-Eintrag und zwischengespeicherte Clips (nicht beim Beenden von Symcon).
+
 ## 0.9.1 (Build 19) — 29.10.2026
 
 - **Frigate-Server: Leistungswerte ins Formular** (Dietmars Wunsch): Als Variablen bleiben nur Frigate erreichbar, Neueste Version, Speicher Aufnahmen frei, Gestörte Kameras und Kamerazustand. Version, Laufzeit, CPU, Arbeitsspeicher, GPU, Erkennungszeit und belegter Speicher stehen im neuen Panel „📊 Übersicht“ (beim Öffnen frisch über `/api/stats`, sonst letzte MQTT-Statistik), dazu eine Liste je Kamera: Bilder/s von erwarteten, Erkennungen/s, Verbindung, Neuverbindungen und Aussetzer der letzten Stunde.
