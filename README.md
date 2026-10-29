@@ -247,8 +247,9 @@ Vertragsversion, kein Muss):
   es meldet. Dort lässt sich einstellen, was beim **Scharfschalten eines Bereichs** geschieht
   (Aufnahme und/oder Objekterkennung an) und ob das Unscharfschalten wieder ausschaltet. Geschaltet
   wird nur beim tatsächlichen Wechsel (scharf erst nach der Ausgangsverzögerung), nie beim
-  Übernehmen. Liefert OpenHomeAlarm künftig eine andere Vertrags-Hauptversion, schaltet FrigateHub
-  die Kopplung sichtbar ab, statt falsch zu lesen.
+  Übernehmen. FrigateHub ist gegen OpenHomeAlarms Control-API 3 geprüft (`ApiVersion` in
+  `OHA_GetControlState()`); meldet es eine andere, schaltet FrigateHub die Kopplung sichtbar ab,
+  statt falsch zu lesen.
 - Für andere Module bietet die Instanz Frigate-Server `FRIGS_GetCameras($id)`: je Kamera die
   Variablen für Melder (Alarm, Erkennung, Bewegung, Personen, Zonen-Zähler, online), die Schalter
   und die Meldefunktion, mit `contractVersion` (derzeit 1.0, Hauptversion nur bei Bruch).

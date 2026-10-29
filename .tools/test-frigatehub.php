@@ -658,12 +658,14 @@ TestPush::$zielAblehnen = false;
 
 /* =================================================================== OpenHomeAlarm (optional) */
 
-$oha = fn (string $haupt, string $garage = 'disarmed') => ['DefaultPartition' => 'main', 'Partitions' => [
-    'main' => ['State' => ['Name' => $haupt], 'Mode' => ['Name' => 'away']], 'garage' => ['State' => ['Name' => $garage]]]];
+// Aufbau wie OpenHomeAlarm GetControlState() (Quellcode 29.10.2026): ApiVersion 3, State = {Value, Name}
+$oha = fn (string $haupt, string $garage = 'disarmed') => ['ApiVersion' => 3, 'DefaultPartition' => 'main', 'Partitions' => [
+    'main' => ['ID' => 'main', 'Name' => 'Haus', 'Default' => true, 'State' => ['Value' => 2, 'Name' => $haupt], 'Mode' => ['Value' => 2, 'Name' => 'away']],
+    'garage' => ['ID' => 'garage', 'Name' => 'Garage', 'Default' => false, 'State' => ['Value' => 0, 'Name' => $garage]]]];
 check('OHA deuten', FrigateHubOha::deuten(json_encode($oha('armed')))['bereiche'], ['main' => 'armed', 'garage' => 'disarmed']);
 check('OHA unerwartet', FrigateHubOha::deuten('kaputt')['ok'], false);
-check('OHA neuer Vertrag → aus', FrigateHubOha::deuten(['contractVersion' => '2.0', 'Partitions' => []])['ok'], false);
-check('OHA gleicher Vertrag → ok', FrigateHubOha::deuten(['contractVersion' => '1.3', 'Partitions' => []])['ok'], true);
+check('OHA andere Control-API → aus', FrigateHubOha::deuten(['ApiVersion' => 4, 'Partitions' => []])['ok'], false);
+check('OHA Control-API 3 → ok', FrigateHubOha::deuten(['ApiVersion' => 3, 'Partitions' => []])['ok'], true);
 check('Lage', array_map([FrigateHubOha::class, 'lage'], ['disarmed', 'exit_delay', 'armed', 'entry_delay', 'alarm', null]), ['unscharf', '', 'scharf', 'scharf', 'scharf', '']);
 
 IPSTestState::$instances[50] = ['InstanceID' => 50, 'Name' => 'Alarmanlage', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => FrigateHubOha::GUID]];
@@ -715,7 +717,7 @@ $GLOBALS['ohaAntwort'] = $oha('disarmed');
 IPSTestState::$sentPackets = [];
 $c->MessageSink(0, $ohaVar, VM_UPDATE, []);
 check('unscharf ohne Häkchen: bleibt an', IPSTestState::$sentPackets, []);
-$GLOBALS['ohaAntwort'] = ['contractVersion' => '2.0', 'Partitions' => ['main' => ['State' => ['Name' => 'armed']]]];
+$GLOBALS['ohaAntwort'] = ['ApiVersion' => 4, 'Partitions' => ['main' => ['State' => ['Name' => 'armed']]]];
 $c->MessageSink(0, $ohaVar, VM_UPDATE, []);
 check('fremde Vertragsversion: Kopplung aus, sichtbar im Formular', [IPSTestState::$sentPackets, strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'FrigateHub bitte aktualisieren') !== false], [[], true]);
 unset(IPSTestState::$instances[50]);

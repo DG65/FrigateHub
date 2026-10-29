@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.12.0 (Build 25) — 29.10.2026
+## 0.12.0 (Build 26) — 29.10.2026
+
+- Build 26: Kopplung prüft OpenHomeAlarms eigene `ApiVersion` (Control-API 3, am Quellcode von `GetControlState()` bestätigt) statt eines erbetenen `contractVersion`; andere Version → Kopplung sichtbar aus.
 
 - **OpenHomeAlarm finden (optional, mit Burki24 abgestimmt):** Die Kamera findet OpenHomeAlarm über dessen Modul-GUID und liest nur `OHA_GetControlState()` (`Partitions.<Bereich>.State.Name`). Neues Panel „🛡️ OpenHomeAlarm (optional)“ mit Statuszeile und Bereichsauswahl: beim tatsächlichen Wechsel auf scharf (`armed`, nicht schon in der Ausgangsverzögerung) Aufnahme und/oder Objekterkennung an, auf Wunsch beim Unscharfschalten wieder aus. Übernehmen schaltet nichts. Andere Vertrags-Hauptversion → Kopplung sichtbar aus.
 - **`FRIGS_GetCameras()`** (Vertrag 1.0): neutrale Kameraliste mit Variablen für Melder, Schalter und Meldefunktion — für Alarmanlagen und Regelwerke, damit sie FrigateHub von selbst finden.
