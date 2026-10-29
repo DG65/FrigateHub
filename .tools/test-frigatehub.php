@@ -109,6 +109,25 @@ function OHA_GetControlState(int $id): string
     return (string)json_encode($GLOBALS['ohaAntwort']);
 }
 
+/** Alarmereignis-Schnittstelle von OpenHomeAlarm (dev 29.10.2026), stark vereinfacht nachgebaut. */
+$GLOBALS['ohaEreignisse'] = [];
+$GLOBALS['ohaApi'] = ['ApiVersion' => 1, 'Enabled' => true, 'Hook' => '/hook/x', 'Sources' => [
+    ['Enabled' => true, 'SourceID' => 'frigate-haustuer', 'Name' => 'Haustür', 'PartitionID' => 'main', 'Modes' => ['home' => false, 'away' => true, 'night' => true]]]];
+function OHA_GetExternalAlarmEventApi(int $id): string
+{
+    return (string)json_encode($GLOBALS['ohaApi']);
+}
+function OHA_TriggerExternalAlarmEvent(int $id, string $json): string
+{
+    $e = json_decode($json, true);
+    $GLOBALS['ohaEreignisse'][] = $e;
+    $zustand = $GLOBALS['ohaAntwort']['Partitions']['main']['State']['Name'] ?? 'disarmed';
+    if (in_array($e['EventID'], array_column(array_slice($GLOBALS['ohaEreignisse'], 0, -1), 'EventID'), true)) {
+        return '{"ApiVersion":1,"Status":"duplicate"}';
+    }
+    return '{"ApiVersion":1,"Status":"' . ($zustand === 'armed' ? 'accepted' : 'partition_not_armed') . '"}';
+}
+
 function labels(array $elemente): array
 {
     $out = [];
@@ -720,6 +739,46 @@ check('unscharf ohne Häkchen: bleibt an', IPSTestState::$sentPackets, []);
 $GLOBALS['ohaAntwort'] = ['ApiVersion' => 4, 'Partitions' => ['main' => ['State' => ['Name' => 'armed']]]];
 $c->MessageSink(0, $ohaVar, VM_UPDATE, []);
 check('fremde Vertragsversion: Kopplung aus, sichtbar im Formular', [IPSTestState::$sentPackets, strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'FrigateHub bitte aktualisieren') !== false], [[], true]);
+// Alarme melden über die Alarmereignis-Schnittstelle
+check('Ereignis-JSON', json_decode((string)FrigateHubOha::ereignis('frigate-haustuer', '1793287116.988998-qk9qd8', 1793287117), true),
+    ['ApiVersion' => 1, 'EventID' => 'frigate-1793287116.988998-qk9qd8', 'SourceID' => 'frigate-haustuer', 'EventType' => 'alarm', 'OccurredAt' => 1793287117]);
+check('ungültige Quellen-ID → kein Ereignis', FrigateHubOha::ereignis('Haus tür!', 'x', 1), null);
+check('Ergebnis-Klartexte', [strpos(FrigateHubOha::ergebnisText('{"Status":"accepted"}'), '✅') === 0, strpos(FrigateHubOha::ergebnisText('{"Status":"partition_not_armed"}'), 'nicht scharf') !== false,
+    strpos(FrigateHubOha::ergebnisText('kaputt'), 'unerwartete') !== false], [true, true, true]);
+check('Quelle eingetragen', FrigateHubOha::quelleStatus($GLOBALS['ohaApi'], 'frigate-haustuer'), ['ok' => true, 'text' => '✅ Quelle „frigate-haustuer" ist in OpenHomeAlarm freigegeben: Bereich main, Abwesend/Nacht.']);
+check('Quelle fehlt', FrigateHubOha::quelleStatus($GLOBALS['ohaApi'], 'andere')['ok'], false);
+check('Schnittstelle aus / andere Version', [FrigateHubOha::quelleStatus(['ApiVersion' => 1, 'Enabled' => false], 'x')['ok'], strpos(FrigateHubOha::quelleStatus(['ApiVersion' => 2, 'Enabled' => true], 'x')['text'], 'aktualisieren') !== false], [false, true]);
+
+$c->props(['OhaQuelle' => 'frigate-haustuer', 'OhaMelden' => 1]);
+$c->ApplyChanges();
+$GLOBALS['ohaEreignisse'] = [];
+$rev = function (string $id, string $stufe, string $typ = 'new') use ($c): void {
+    $c->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => $typ, 'before' => [], 'after' => ['id' => $id, 'camera' => 'Door-Cam',
+        'severity' => $stufe, 'start_time' => time() - 2, 'data' => ['objects' => ['person'], 'zones' => [], 'detections' => [], 'audio' => [], 'sub_labels' => []]]])));
+};
+$rev('1793300000.1-aaaa01', 'detection');
+check('Erkennung wird bei „nur Alarme" nicht gemeldet', $GLOBALS['ohaEreignisse'], []);
+$rev('1793300000.1-aaaa01', 'alert', 'update');
+check('Aufstieg zum Alarm wird gemeldet', [count($GLOBALS['ohaEreignisse']), $GLOBALS['ohaEreignisse'][0]['EventID'] ?? null], [1, 'frigate-1793300000.1-aaaa01']);
+$rev('1793300000.1-aaaa01', 'alert', 'update');
+check('dasselbe Review nur einmal', count($GLOBALS['ohaEreignisse']), 1);
+$GLOBALS['ohaAntwort'] = $oha('armed');
+$rev('1793300100.2-bbbb02', 'alert');
+check('scharf: angenommen, Status im Formular', strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'angenommen') !== false, true);
+check('Verbindungsprüfung verweigert, solange scharf', strpos($c->OhaVerbindungPruefen(), 'nicht unscharf') !== false, true);
+$GLOBALS['ohaAntwort'] = $oha('disarmed');
+$n = count($GLOBALS['ohaEreignisse']);
+check('Verbindungsprüfung unscharf: Weg bewiesen', [strpos($c->OhaVerbindungPruefen(), 'der Weg funktioniert') !== false, count($GLOBALS['ohaEreignisse']) - $n], [true, 1]);
+$c->props(['OhaMelden' => 2]);
+$c->ApplyChanges();
+$rev('1793300200.3-cccc03', 'detection');
+check('„auch Erkennungen": gemeldet', end($GLOBALS['ohaEreignisse'])['EventID'], 'frigate-1793300200.3-cccc03');
+$c->props(['OhaQuelle' => '']);
+$c->ApplyChanges();
+$n = count($GLOBALS['ohaEreignisse']);
+$rev('1793300300.4-dddd04', 'alert');
+check('ohne Quellen-ID: nichts gemeldet', count($GLOBALS['ohaEreignisse']), $n);
+
 unset(IPSTestState::$instances[50]);
 check('ohne OpenHomeAlarm: Hinweis, nichts kaputt', strpos(json_encode($c->form(), JSON_UNESCAPED_UNICODE), 'OpenHomeAlarm ist nicht installiert') !== false, true);
 

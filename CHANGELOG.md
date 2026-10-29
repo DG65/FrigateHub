@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0 (Build 27) — 29.10.2026
+
+- **Alarme an OpenHomeAlarm melden** über dessen neue Externe Alarmereignis-Schnittstelle (OpenHomeAlarm 1.423, `OHA_TriggerExternalAlarmEvent`, Ereignis-API 1, am Quellcode von Burki24 geprüft): je Kamera Quellen-ID und „Melden bei“ (Frigate-Alarm / auch Erkennung), einmal je Review, EventID = `frigate-<Review-ID>`. Statuszeile aus `OHA_GetExternalAlarmEventApi()` (Quelle eingetragen? Bereich, Modi), Ergebnis der letzten Meldung im Klartext. „Verbindung prüfen“ sendet ein Probeereignis nur bei unscharfem Bereich. Andere Ereignis-API-Version → Melden aus.
+
 ## 0.12.0 (Build 26) — 29.10.2026
 
 - Build 26: Kopplung prüft OpenHomeAlarms eigene `ApiVersion` (Control-API 3, am Quellcode von `GetControlState()` bestätigt) statt eines erbetenen `contractVersion`; andere Version → Kopplung sichtbar aus.

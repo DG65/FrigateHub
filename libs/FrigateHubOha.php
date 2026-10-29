@@ -58,6 +58,71 @@ class FrigateHubOha
         return in_array($zustand, self::SCHARF, true) ? 'scharf' : '';
     }
 
+    /** Version der Alarmereignis-Schnittstelle, gegen die FrigateHub gebaut ist (AlarmExternalEvent::API_VERSION, dev 29.10.2026). */
+    public const EREIGNIS_API = 1;
+
+    /** Erlaubte Zeichen für SourceID/EventID laut OpenHomeAlarm (AlarmExternalEvent::ID_PATTERN). */
+    public const ID_MUSTER = '/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\z/';
+
+    /**
+     * Ereignis für OHA_TriggerExternalAlarmEvent(): bestätigter Alarm einer Quelle. Die EventID ist
+     * die Review-ID von Frigate (OpenHomeAlarm verwirft Wiederholungen derselben ID).
+     */
+    public static function ereignis(string $quelle, string $reviewId, int $zeit): ?string
+    {
+        $eventId = 'frigate-' . $reviewId;
+        if (!preg_match(self::ID_MUSTER, $quelle) || !preg_match(self::ID_MUSTER, $eventId)) {
+            return null;
+        }
+        return (string)json_encode(['ApiVersion' => self::EREIGNIS_API, 'EventID' => $eventId, 'SourceID' => $quelle,
+            'EventType' => 'alarm', 'OccurredAt' => $zeit], JSON_UNESCAPED_SLASHES);
+    }
+
+    /** Antwort von OHA_TriggerExternalAlarmEvent() als Klartext. */
+    public static function ergebnisText(string $antwort): string
+    {
+        $a = json_decode($antwort, true);
+        $status = is_array($a) ? (string)($a['Status'] ?? '') : '';
+        return [
+            'accepted'            => '✅ angenommen — OpenHomeAlarm löst Alarm aus',
+            'partition_not_armed' => 'ℹ️ verworfen: Bereich ist nicht scharf',
+            'mode_not_allowed'    => 'ℹ️ verworfen: Scharfmodus ist für diese Quelle nicht freigegeben',
+            'duplicate'           => 'ℹ️ verworfen: dieses Ereignis kam schon an',
+            'already_in_alarm'    => 'ℹ️ Bereich ist bereits im Alarm',
+            'source_disabled'     => '⚠️ Quelle ist in OpenHomeAlarm abgeschaltet',
+            'api_disabled'        => '⚠️ Externe Alarmereignis-Schnittstelle ist in OpenHomeAlarm ausgeschaltet',
+        ][$status] ?? ('⚠️ unerwartete Antwort: ' . substr($antwort, 0, 120));
+    }
+
+    /**
+     * Stand der Schnittstelle für die eigene Quelle aus OHA_GetExternalAlarmEventApi().
+     *
+     * @return array{ok:bool,text:string}
+     */
+    public static function quelleStatus($antwort, string $quelle): array
+    {
+        $a = is_string($antwort) ? json_decode($antwort, true) : $antwort;
+        if (!is_array($a)) {
+            return ['ok' => false, 'text' => '⚠️ Keine Antwort von OHA_GetExternalAlarmEventApi().'];
+        }
+        if ((int)($a['ApiVersion'] ?? 0) !== self::EREIGNIS_API) {
+            return ['ok' => false, 'text' => '⚠️ OpenHomeAlarm meldet Alarmereignis-Schnittstelle ' . (int)($a['ApiVersion'] ?? 0) . ', FrigateHub ist mit ' . self::EREIGNIS_API . ' gebaut — FrigateHub bitte aktualisieren. Melden ist aus.'];
+        }
+        if (empty($a['Enabled'])) {
+            return ['ok' => false, 'text' => '⚠️ In OpenHomeAlarm ist die „Externe Alarmereignis-Schnittstelle" ausgeschaltet.'];
+        }
+        foreach ((array)($a['Sources'] ?? []) as $q) {
+            if (is_array($q) && ($q['SourceID'] ?? '') === $quelle) {
+                $modi = array_keys(array_filter((array)($q['Modes'] ?? [])));
+                $namen = ['home' => 'Zuhause', 'away' => 'Abwesend', 'night' => 'Nacht'];
+                return ['ok' => !empty($q['Enabled']), 'text' => (!empty($q['Enabled']) ? '✅' : '⚠️') . ' Quelle „' . $quelle . '" ist in OpenHomeAlarm '
+                    . (!empty($q['Enabled']) ? 'freigegeben' : 'eingetragen, aber abgeschaltet') . ': Bereich ' . ($q['PartitionID'] ?? '?') . ', '
+                    . (implode('/', array_map(fn ($m) => $namen[$m] ?? $m, $modi)) ?: 'kein Modus') . '.'];
+            }
+        }
+        return ['ok' => false, 'text' => '⚠️ Quelle „' . $quelle . '" ist in OpenHomeAlarm noch nicht eingetragen — dort unter „Externe Alarmereignis-Schnittstelle" mit genau dieser Quellen-ID hinzufügen.'];
+    }
+
     /** Klartext eines Zustands für die Statuszeile. */
     public static function zustandText(string $zustand): string
     {

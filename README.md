@@ -221,6 +221,22 @@ das andere voraus, und keines muss vom anderen wissen. Die Aufteilung ist mit Bu
 FrigateHub kümmert sich um Kameras, Zonen, Objekterkennung und Bilder, OpenHomeAlarm bekommt nur
 ein bereits bewertetes Ereignis und entscheidet nach Bereich und Scharfmodus, ob daraus ein Alarm wird.
 
+**FrigateHub → OpenHomeAlarm (Alarmereignis-Schnittstelle, ab OpenHomeAlarm 1.423):**
+OpenHomeAlarm hat eine herstellerneutrale Schnittstelle für bestätigte Alarmereignisse aus
+Videoüberwachungssoftware. FrigateHub meldet darüber jeden neuen Frigate-Alarm einer Kamera:
+- In der Kamera, Panel „🛡️ OpenHomeAlarm (optional)", eine **Quellen-ID** eintragen (z. B.
+  `frigate-haustuer`) und wählen, ob nur Frigate-Alarme oder auch Erkennungen gemeldet werden.
+- In OpenHomeAlarm unter „Externe Alarmereignis-Schnittstelle" die Schnittstelle einschalten und
+  dieselbe Quellen-ID mit Bereich und erlaubten Scharfmodi eintragen.
+- OpenHomeAlarm entscheidet selbst: Nur wenn der Bereich in einem freigegebenen Modus scharf ist,
+  wird daraus ein Alarm. Unscharf werden Ereignisse verworfen und lösen auch später nicht aus; jede
+  Frigate-Meldung trägt ihre Review-ID, Wiederholungen verwirft OpenHomeAlarm.
+- Die Statuszeile zeigt, ob die Quelle in OpenHomeAlarm eingetragen ist, und das Ergebnis der
+  letzten Meldung. „Verbindung prüfen" schickt ein Probeereignis — nur solange der Bereich unscharf
+  ist, so dass dabei nie ein Alarm entstehen kann.
+
+Alternativ, ohne die Schnittstelle, über Variablen:
+
 **FrigateHub → OpenHomeAlarm (Melder):**
 - „Alarm" einer Kamera (Bool) als Sensor mit Auslösewert „wahr" — Frigates eigene Einstufung, also
   nur Objekte und Zonen, die in Frigate als Alarm gelten.

@@ -85,6 +85,11 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterPropertyInteger('OhaBeiScharf', 1);
         $this->RegisterPropertyBoolean('OhaBeiUnscharf', false);
         $this->RegisterAttributeString('OhaLage', '');
+        // Alarme an OpenHomeAlarms Alarmereignis-Schnittstelle melden: Quellen-ID ('' = aus), 1 = Alarme, 2 = auch Erkennungen
+        $this->RegisterPropertyString('OhaQuelle', '');
+        $this->RegisterPropertyInteger('OhaMelden', 1);
+        $this->RegisterAttributeString('OhaGemeldet', '');
+        $this->RegisterAttributeString('OhaMeldestatus', '');
 
         $this->RegisterAttributeString('Zonen', '[]');
         $this->RegisterAttributeInteger('LetzteNachricht', 0);
@@ -446,6 +451,94 @@ class FrigateHubKamera extends IPSModule
         }
     }
 
+    /**
+     * Bestätigten Alarm an OpenHomeAlarm melden (OHA_TriggerExternalAlarmEvent, Alarmereignis-API 1).
+     * OpenHomeAlarm entscheidet selbst, ob daraus ein Alarm wird (nur wenn der Bereich der Quelle in
+     * einem freigegebenen Modus scharf ist). Einmal je Review.
+     */
+    private function ohaMelden(string $reviewId, string $severity): void
+    {
+        $quelle = trim($this->ReadPropertyString('OhaQuelle'));
+        $art = $this->ReadPropertyInteger('OhaMelden');
+        if ($quelle === '' || $art === 0 || $reviewId === '' || $this->ReadAttributeString('OhaGemeldet') === $reviewId) {
+            return;
+        }
+        if ($severity !== 'alert' && !($art === 2 && $severity === 'detection')) {
+            return;
+        }
+        $id = $this->ohaInstanz();
+        if ($id === 0 || !function_exists('OHA_TriggerExternalAlarmEvent')) {
+            return;
+        }
+        $ereignis = FrigateHubOha::ereignis($quelle, $reviewId, time());
+        if ($ereignis === null) {
+            $this->WriteAttributeString('OhaMeldestatus', '⛔ ' . date('d.m.Y H:i:s') . ': Quellen-ID ungültig.');
+            return;
+        }
+        $this->WriteAttributeString('OhaGemeldet', $reviewId);
+        try {
+            $text = FrigateHubOha::ergebnisText((string)OHA_TriggerExternalAlarmEvent($id, $ereignis));
+        } catch (Throwable $e) {
+            $text = '⛔ abgelehnt: ' . $e->getMessage();
+        }
+        $this->WriteAttributeString('OhaMeldestatus', date('d.m.Y H:i:s') . ' ' . $text);
+        $this->SendDebug('OpenHomeAlarm', $ereignis . ' → ' . $text, 0);
+    }
+
+    /**
+     * FRIG_OhaVerbindungPruefen($id): schickt ein Probeereignis, aber nur wenn der Bereich der Quelle
+     * unscharf ist — dann verwirft OpenHomeAlarm es („nicht scharf") und der Weg ist bewiesen, ohne
+     * dass ein Alarm entstehen kann.
+     */
+    public function OhaVerbindungPruefen(): string
+    {
+        $quelle = trim($this->ReadPropertyString('OhaQuelle'));
+        $id = $this->ohaInstanz();
+        if ($quelle === '' || $id === 0 || !function_exists('OHA_TriggerExternalAlarmEvent') || !function_exists('OHA_GetExternalAlarmEventApi')) {
+            return 'ℹ️ Dafür braucht es OpenHomeAlarm mit Alarmereignis-Schnittstelle und eine Quellen-ID.';
+        }
+        $api = json_decode((string)@OHA_GetExternalAlarmEventApi($id), true);
+        $bereich = '';
+        foreach ((array)($api['Sources'] ?? []) as $q) {
+            if (is_array($q) && ($q['SourceID'] ?? '') === $quelle) {
+                $bereich = (string)($q['PartitionID'] ?? '');
+            }
+        }
+        $stand = $this->ohaStand();
+        if ($bereich === '' || $stand === null || !$stand['ok']) {
+            return '⚠️ ' . FrigateHubOha::quelleStatus($api, $quelle)['text'];
+        }
+        if (FrigateHubOha::lage($stand['bereiche'][$bereich] ?? null) !== 'unscharf') {
+            return '⛔ Bereich „' . $bereich . '" ist nicht unscharf — ein Probeereignis würde einen echten Alarm auslösen. Bitte erst unscharf schalten.';
+        }
+        $ereignis = FrigateHubOha::ereignis($quelle, 'probe-' . time(), time());
+        try {
+            $text = FrigateHubOha::ergebnisText((string)OHA_TriggerExternalAlarmEvent($id, (string)$ereignis));
+        } catch (Throwable $e) {
+            $text = '⛔ abgelehnt: ' . $e->getMessage();
+        }
+        return 'Probeereignis an OpenHomeAlarm: ' . $text . (strpos($text, 'nicht scharf') !== false ? ' — der Weg funktioniert.' : '');
+    }
+
+    private function ohaQuellenStatus(): string
+    {
+        $quelle = trim($this->ReadPropertyString('OhaQuelle'));
+        $id = $this->ohaInstanz();
+        if ($quelle === '') {
+            return 'ℹ️ Melden ist aus (keine Quellen-ID).';
+        }
+        if ($id === 0 || !function_exists('OHA_GetExternalAlarmEventApi')) {
+            return 'ℹ️ Dieses OpenHomeAlarm hat noch keine Externe Alarmereignis-Schnittstelle (ab 1.423).';
+        }
+        try {
+            $text = FrigateHubOha::quelleStatus(@OHA_GetExternalAlarmEventApi($id), $quelle)['text'];
+        } catch (Throwable $e) {
+            $text = '⚠️ ' . $e->getMessage();
+        }
+        $letzte = $this->ReadAttributeString('OhaMeldestatus');
+        return $text . ($letzte !== '' ? ' Letzte Meldung: ' . $letzte : '');
+    }
+
     /** Statuszeile und Bereiche fürs Formular. */
     private function ohaFormular(): array
     {
@@ -482,6 +575,15 @@ class FrigateHubKamera extends IPSModule
                 ]],
                 ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => 'Beim Unscharfschalten wieder ausschalten'],
                 ['type' => 'Label', 'caption' => 'Geschaltet wird nur beim tatsächlichen Wechsel (scharf erst nach der Ausgangsverzögerung), nicht beim Übernehmen. Frigate bestätigt den neuen Zustand, die Variablen folgen.'],
+                ['type' => 'Label', 'caption' => 'Alarme melden (Externe Alarmereignis-Schnittstelle von OpenHomeAlarm): FrigateHub meldet jeden neuen Frigate-Alarm dieser Kamera als bestätigtes Ereignis. Ob daraus ein Alarm wird, entscheidet OpenHomeAlarm — nur wenn der Bereich der Quelle in einem freigegebenen Modus scharf ist. In OpenHomeAlarm dieselbe Quellen-ID eintragen.'],
+                ['type' => 'ValidationTextBox', 'name' => 'OhaQuelle', 'caption' => 'Quellen-ID (leer = nicht melden), z. B. frigate-haustuer', 'validate' => '^$|^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$'],
+                ['type' => 'Select', 'name' => 'OhaMelden', 'caption' => 'Melden bei', 'options' => [
+                    ['caption' => 'nichts', 'value' => 0],
+                    ['caption' => 'Frigate-Alarm (Einstufung „Alarm")', 'value' => 1],
+                    ['caption' => 'Frigate-Alarm und Erkennung', 'value' => 2],
+                ]],
+                ['type' => 'Label', 'name' => 'OhaQuellenStatus', 'caption' => $this->ohaQuellenStatus()],
+                ['type' => 'Button', 'caption' => 'Verbindung prüfen (nur wenn unscharf)', 'onClick' => 'echo FRIG_OhaVerbindungPruefen($id);'],
             ],
         ];
     }
@@ -919,6 +1021,9 @@ class FrigateHubKamera extends IPSModule
             } else {
                 $this->SetValue('LetzteErkennung', $text);
             }
+        }
+        if ($typ === 'new' || $typ === 'update') {
+            $this->ohaMelden((string)($after['id'] ?? ''), (string)($after['severity'] ?? ''));
         }
         // Nach dem Alarm-Push: die KI-Einschätzung kommt meist mit einem späteren update/end
         $ki = FrigateHubTopics::reviewKi($after);
