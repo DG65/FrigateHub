@@ -27,7 +27,6 @@ trait FrigateHubKachel
     private static int $FRIGATEHUB_CLIP_STUECK = 524288;
 
     /** WebHook-Control (Symcon-Kernmodul). */
-    private static string $FRIGATEHUB_WEBHOOK_GUID = '{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}';
 
     /** In Create() aufrufen. */
     protected function kachelRegistrieren(): void
@@ -529,29 +528,9 @@ trait FrigateHubKachel
         return '/hook/frigatehub' . $this->InstanceID;
     }
 
-    /** WebHook beim WebHook-Control eintragen (Standard-Muster, wie NRGDashboardTile). */
     private function hookAnmelden(): void
     {
-        $ids = IPS_GetInstanceListByModuleID(self::$FRIGATEHUB_WEBHOOK_GUID);
-        if (count($ids) === 0) {
-            return;
-        }
-        $hooks = json_decode((string)IPS_GetProperty($ids[0], 'Hooks'), true);
-        $hooks = is_array($hooks) ? $hooks : [];
-        foreach ($hooks as $i => $hook) {
-            if (($hook['Hook'] ?? '') === $this->hookPfad()) {
-                if ((int)$hook['TargetID'] === $this->InstanceID) {
-                    return;
-                }
-                $hooks[$i]['TargetID'] = $this->InstanceID;
-                IPS_SetProperty($ids[0], 'Hooks', json_encode($hooks));
-                IPS_ApplyChanges($ids[0]);
-                return;
-            }
-        }
-        $hooks[] = ['Hook' => $this->hookPfad(), 'TargetID' => $this->InstanceID];
-        IPS_SetProperty($ids[0], 'Hooks', json_encode($hooks));
-        IPS_ApplyChanges($ids[0]);
+        $this->webhookEintragen($this->hookPfad());
     }
 
     /** Neue Daten an offene Kacheln, nur wenn sich etwas geändert hat. */

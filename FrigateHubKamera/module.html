@@ -38,6 +38,7 @@
         .chip.bewegung .punkt { background: var(--erkennung); animation: puls 1.2s ease-in-out infinite; }
         .chip.alarm { background: var(--alarm); color: #fff; font-weight: 700; animation: puls 1s ease-in-out infinite; }
         .chip.zahl { font-weight: 600; }
+        .chip.warn { background: var(--erkennung); color: #1b1300; font-weight: 600; }
         @keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
         /* Livebild */
@@ -71,6 +72,8 @@
         .sw.wartet { opacity: .5; pointer-events: none; }
         .sw[hidden] { display: none; }
         .sw.gesperrt { cursor: default; }
+        .sw-titel { font-size: 11px; color: var(--textmuted); align-self: center; }
+        #archiv { margin-left: auto; }
 
         /* Eigenständige Seite (IPSView/Browser): kein Symcon-Titel darüber, eigener Hintergrund */
         body.eigen { background: #15191e; }
@@ -88,6 +91,9 @@
         .karte .t { padding: 4px 7px 6px; font-size: 11px; line-height: 1.3; }
         .karte .t b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .karte .t span { color: var(--textmuted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .karte { position: relative; }
+        .karte.neu::after { content: ''; position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(0, 0, 0, .4); }
+        .karte .ki { position: absolute; left: 5px; top: 5px; font-size: 11px; background: rgba(0, 0, 0, .55); color: #fff; border-radius: 6px; padding: 0 5px; }
 
         /* Großansicht */
         .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
@@ -99,6 +105,17 @@
         .gross button.aktiv { background: rgba(255, 255, 255, .18); }
         .gross .inhalt { flex: 1 1 auto; position: relative; }
         .gross img, .gross video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        .gross .werkzeug, .gross .info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 12px 8px; color: #d6dde4; font-size: 12px; }
+        .gross .werkzeug[hidden], .gross .info[hidden] { display: none; }
+        .gross select, .gross input { background: rgba(255, 255, 255, .1); color: #fff; border: 1px solid rgba(255, 255, 255, .35); border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 12px; }
+        .gross select option { color: #000; }
+        .gross .archiv { position: absolute; inset: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 0 12px 12px; align-content: start; }
+        .gross .archiv .karte { width: auto; color: #fff; background: rgba(255, 255, 255, .08); }
+        .gross .archiv .karte .vb { height: 90px; }
+        .gross .archiv .leer { color: #d6dde4; font-size: 13px; padding: 12px; }
+        .gross .ptz { position: absolute; right: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, 38px); gap: 4px; z-index: 2; }
+        .gross .ptz button { padding: 4px 0; background: rgba(0, 0, 0, .55); touch-action: none; }
+        .gross .ptz select { grid-column: 1 / 4; }
 
         @media (max-height: 260px) { .leiste { display: none; } }
         @media (max-height: 200px) { .schalter { display: none; } }
@@ -119,21 +136,28 @@
             <div class="zeit" id="zeit" hidden></div>
         </div>
         <div class="schalter" id="schalter">
+            <span class="sw-titel" title="Diese Schalter ändern die Einstellung in Frigate selbst">Frigate:</span>
             <button class="sw" data-ident="Schalter_detect" data-key="detect"><span class="dot"></span>Erkennung</button>
             <button class="sw" data-ident="Schalter_recordings" data-key="recordings"><span class="dot"></span>Aufnahme</button>
             <button class="sw" data-ident="Schalter_snapshots" data-key="snapshots"><span class="dot"></span>Schnappschüsse</button>
-            <button class="sw" id="rahmen"><span class="dot"></span>Rahmen</button>
+            <button class="sw" id="rahmen" title="Erkannte Objekte im Livebild einrahmen (nur in dieser Ansicht)"><span class="dot"></span>Rahmen</button>
+            <button class="sw" id="archiv" hidden>📅 Archiv</button>
         </div>
         <div class="leiste" id="leiste"></div>
     </div>
 
     <div class="gross" id="gross" hidden>
         <div class="leiste-oben">
+            <button id="grossZurueck" hidden>◀ Archiv</button>
             <span class="titel" id="grossTitel"></span>
             <button id="grossBild" hidden>Bild</button>
             <button id="grossClip" hidden>▶ Clip</button>
+            <button id="grossFav" hidden title="Dauerhaft behalten (Frigate löscht es dann nicht)">☆</button>
+            <button id="grossExport" hidden title="Als Export in Frigate speichern">💾</button>
             <button id="grossZu">✕</button>
         </div>
+        <div class="info" id="grossInfo" hidden></div>
+        <div class="werkzeug" id="grossWerkzeug" hidden></div>
         <div class="inhalt" id="grossInhalt"></div>
     </div>
 
@@ -153,6 +177,8 @@
         var tonTimer = null;
         var meldungTimer = null;
         var videoTimer = null;
+        var letzteMeldung = null;  // Zeitstempel der zuletzt gezeigten Rückmeldung aus PHP
+        var archivStand = null;    // letzter Archiv-Abruf (Tag, Einträge, Filter)
 
         function el(id) { return document.getElementById(id); }
 
@@ -431,6 +457,7 @@
             } else if (daten.online === true) {
                 kopf.appendChild(chip('online', 'ok', true));
             }
+            (daten.warnungen || []).forEach(function (w) { kopf.appendChild(chip('⚠️ ' + w, 'warn')); });
             if (daten.alarm) { kopf.appendChild(chip('🚨 Alarm', 'alarm')); }
             else if (daten.erkennung) { kopf.appendChild(chip('Erkennung', 'bewegung', true)); }
             if (daten.bewegung) { kopf.appendChild(chip('Bewegung', 'bewegung', true)); }
@@ -453,11 +480,29 @@
             el('rahmen').hidden = !daten.api;
             el('rahmen').classList.toggle('an', rahmenAn());
 
+            el('archiv').hidden = !daten.api;
+            if (daten.meldung && daten.meldung.t !== letzteMeldung) {
+                if (letzteMeldung !== null) { meldung(daten.meldung.text); }
+                letzteMeldung = daten.meldung.t;
+            } else if (!daten.meldung) {
+                letzteMeldung = 0;
+            }
+
             var leiste = el('leiste');
             leiste.textContent = '';
-            (daten.ereignisse || []).forEach(function (e) {
+            (daten.ereignisse || []).forEach(function (e) { leiste.appendChild(karteBauen(e, false)); });
+        }
+
+        /** Karte eines Ereignisses (Leiste und Archiv). */
+        function karteBauen(e, ausArchiv) {
                 var k = document.createElement('div');
-                k.className = 'karte' + (e.stufe === 'alarm' ? ' alarm' : '');
+                k.className = 'karte' + (e.stufe === 'alarm' ? ' alarm' : '') + (e.gesehen === false ? ' neu' : '');
+                if (e.ki && e.ki.stufe >= 1) {
+                    var m = document.createElement('span');
+                    m.className = 'ki';
+                    m.textContent = e.ki.stufe >= 2 ? '🛑 kritisch' : '⚠️ verdächtig';
+                    k.appendChild(m);
+                }
                 if (daten.api) {
                     var vb = document.createElement('img');
                     vb.className = 'vb';
@@ -474,25 +519,40 @@
                 var t = document.createElement('div');
                 t.className = 't';
                 var b = document.createElement('b');
-                b.textContent = e.text;
+                b.textContent = e.ki && e.ki.titel ? e.ki.titel : e.text;
+                b.title = e.ki ? e.ki.zusammenfassung : e.text;
                 var s = document.createElement('span');
                 s.textContent = e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : '') + (e.dauer === null ? ' · läuft' : '');
                 t.appendChild(b);
                 t.appendChild(s);
                 k.appendChild(t);
-                k.onclick = function () { ereignisOeffnen(e); };
-                leiste.appendChild(k);
-            });
+                k.onclick = function () { ereignisOeffnen(e, ausArchiv); };
+                return k;
         }
+
+        function bedienbar() { return !!daten && daten.bedienung !== false; }
 
         /* ---------------------------------------------------------------- Großansicht */
 
         function grossOeffnen(titel) {
             el('grossTitel').textContent = titel;
             el('grossInhalt').textContent = '';
-            el('grossBild').hidden = true;
-            el('grossClip').hidden = true;
+            ['grossBild', 'grossClip', 'grossFav', 'grossExport', 'grossZurueck', 'grossInfo', 'grossWerkzeug'].forEach(function (id) { el(id).hidden = true; });
+            el('grossInfo').textContent = '';
+            el('grossWerkzeug').textContent = '';
             el('gross').hidden = false;
+        }
+
+        function grossVideo(quelle) {
+            var inhalt = el('grossInhalt');
+            inhalt.textContent = '';
+            var v = document.createElement('video');
+            v.controls = true;
+            v.autoplay = true;
+            v.playsInline = true;
+            v.src = quelle;
+            v.onerror = function () { inhalt.textContent = ''; var d = document.createElement('div'); d.className = 'leer'; d.style.color = '#d6dde4'; d.style.padding = '12px'; d.textContent = 'Frigate hat für diesen Zeitraum keine Aufnahme.'; inhalt.appendChild(d); };
+            inhalt.appendChild(v);
         }
 
         function grossBild(quelle) {
@@ -506,10 +566,51 @@
             el('grossClip').classList.remove('aktiv');
         }
 
-        function ereignisOeffnen(e) {
+        function ereignisOeffnen(e, ausArchiv) {
             grossLive = false;
-            grossOeffnen(e.text + ' · ' + e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : ''));
+            grossOeffnen((e.ki && e.ki.titel ? e.ki.titel : e.text) + ' · ' + e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : ''));
+            if (ausArchiv) {
+                el('grossZurueck').hidden = false;
+                el('grossZurueck').onclick = function () { archivOeffnen(archivStand ? archivStand.tag : ''); };
+            }
+            if (e.ki) {
+                el('grossInfo').textContent = '🤖 ' + e.ki.zusammenfassung + (e.ki.stufe >= 1 ? ' (' + (e.ki.stufe >= 2 ? 'kritisch' : 'verdächtig') + ')' : '');
+                el('grossInfo').hidden = false;
+            }
             if (!daten.api) { return; }
+            // Wie in Frigates Oberfläche: Öffnen markiert das Ereignis als gesehen
+            if (e.gesehen === false && bedienbar()) {
+                e.gesehen = true;
+                requestAction('Kachel_Gesehen', e.id);
+            }
+            if (bedienbar()) {
+                var start = Math.max(0, e.start - 5), ende = (e.ende || Math.floor(Date.now() / 1000)) + 5;
+                el('grossExport').hidden = false;
+                el('grossExport').onclick = function () {
+                    if (confirm('Ereignis (' + Math.round((ende - start) / 60 * 10) / 10 + ' min) als Export in Frigate speichern?')) {
+                        requestAction('Kachel_Export', start + '-' + ende);
+                    }
+                };
+            }
+            if (e.ereignis) {
+                fetch(url({ info: e.ereignis })).then(function (r) { return r.ok ? r.json() : null; }).then(function (info) {
+                    if (!info || el('gross').hidden) { return; }
+                    var fav = !!info.favorit;
+                    var knopf = el('grossFav');
+                    knopf.textContent = fav ? '⭐' : '☆';
+                    knopf.hidden = !bedienbar() && !fav;
+                    knopf.onclick = function () {
+                        if (!bedienbar()) { return; }
+                        fav = !fav;
+                        knopf.textContent = fav ? '⭐' : '☆';
+                        requestAction('Kachel_Favorit', e.ereignis + ':' + (fav ? 1 : 0));
+                    };
+                    if (info.beschreibung && !e.ki) {
+                        el('grossInfo').textContent = '🤖 ' + info.beschreibung;
+                        el('grossInfo').hidden = false;
+                    }
+                }).catch(function () { });
+            }
             var bildQuelle = e.ereignis ? url({ bild: 'ereignis', id: e.ereignis, h: 1080 }) : url({ bild: 'review', id: e.id });
             grossBild(bildQuelle);
             el('grossBild').hidden = false;
@@ -517,18 +618,128 @@
             if (e.ereignis) {
                 el('grossClip').hidden = false;
                 el('grossClip').onclick = function () {
-                    var inhalt = el('grossInhalt');
-                    inhalt.textContent = '';
-                    var v = document.createElement('video');
-                    v.controls = true;
-                    v.autoplay = true;
-                    v.playsInline = true;
-                    v.src = url({ clip: e.ereignis });
-                    inhalt.appendChild(v);
+                    grossVideo(url({ clip: e.ereignis }));
                     el('grossClip').classList.add('aktiv');
                     el('grossBild').classList.remove('aktiv');
                 };
             }
+        }
+
+        /* ---------------------------------------------------------------- Archiv */
+
+        function archivOeffnen(tag) {
+            grossLive = false;
+            grossOeffnen('📅 Archiv');
+            var w = el('grossWerkzeug');
+            w.hidden = false;
+            var tage = document.createElement('select');
+            var filter = document.createElement('select');
+            var von = document.createElement('input');
+            von.type = 'time';
+            von.title = 'Aufnahme ab Uhrzeit abspielen';
+            var dauer = document.createElement('select');
+            [1, 5, 10, 30].forEach(function (m) { var o = document.createElement('option'); o.value = m; o.textContent = m + ' min'; dauer.appendChild(o); });
+            var los = document.createElement('button');
+            los.textContent = '🎞 Aufnahme';
+            los.title = 'Aufnahme des gewählten Tages ab Uhrzeit abspielen';
+            w.appendChild(tage); w.appendChild(filter); w.appendChild(von); w.appendChild(dauer); w.appendChild(los);
+            var raster = document.createElement('div');
+            raster.className = 'archiv';
+            el('grossInhalt').appendChild(raster);
+            raster.textContent = 'Lade …';
+
+            function zeigen() {
+                raster.textContent = '';
+                var f = filter.value;
+                var liste = (archivStand.eintraege || []).filter(function (e) {
+                    if (f === 'alarm' || f === 'erkennung') { return e.stufe === f; }
+                    if (f === 'neu') { return e.gesehen === false; }
+                    if (f === 'ki') { return e.ki && e.ki.stufe >= 1; }
+                    if (f.indexOf('l:') === 0) { return (e.labels || []).indexOf(f.substring(2)) >= 0; }
+                    return true;
+                });
+                if (!liste.length) {
+                    var d = document.createElement('div');
+                    d.className = 'leer';
+                    d.textContent = 'Keine Ereignisse für diese Auswahl.';
+                    raster.appendChild(d);
+                }
+                liste.forEach(function (e) { raster.appendChild(karteBauen(e, true)); });
+                archivStand.filter = f;
+            }
+
+            fetch(url({ archiv: 1, tag: tag || '' })).then(function (r) { return r.json(); }).then(function (a) {
+                if (a.fehler) { raster.textContent = '⛔ ' + a.fehler; return; }
+                archivStand = { tag: a.tag, eintraege: a.eintraege || [], filter: archivStand && archivStand.tag === a.tag ? archivStand.filter : '' };
+                var tageListe = (a.tage || []).slice();
+                if (!tageListe.some(function (t) { return t.tag === a.tag; })) { tageListe.unshift({ tag: a.tag, alarme: 0, erkennungen: 0, offen: 0 }); }
+                tageListe.forEach(function (t) {
+                    var o = document.createElement('option');
+                    var teile = t.tag.split('-');
+                    o.value = t.tag;
+                    o.textContent = teile[2] + '.' + teile[1] + '. · ' + t.alarme + ' Alarm' + (t.alarme === 1 ? '' : 'e') + (t.erkennungen ? ', ' + t.erkennungen + ' Erk.' : '') + (t.offen ? ' · ' + t.offen + ' neu' : '');
+                    tage.appendChild(o);
+                });
+                tage.value = a.tag;
+                var optionen = [['', 'Alle'], ['alarm', 'Nur Alarme'], ['erkennung', 'Nur Erkennungen'], ['neu', 'Noch nicht gesehen'], ['ki', 'KI: verdächtig']];
+                var labels = {};
+                archivStand.eintraege.forEach(function (e) { (e.labels || []).forEach(function (l) { labels[l] = true; }); });
+                Object.keys(labels).sort().forEach(function (l) { optionen.push(['l:' + l, 'Nur ' + l]); });
+                optionen.forEach(function (x) { var o = document.createElement('option'); o.value = x[0]; o.textContent = x[1]; filter.appendChild(o); });
+                filter.value = archivStand.filter;
+                zeigen();
+            }).catch(function () { raster.textContent = '⛔ Archiv nicht erreichbar.'; });
+
+            tage.onchange = function () { archivOeffnen(tage.value); };
+            filter.onchange = zeigen;
+            los.onclick = function () {
+                if (!von.value || !archivStand) { von.focus(); return; }
+                var t = archivStand.tag.split('-'), z = von.value.split(':');
+                var start = Math.floor(new Date(+t[0], +t[1] - 1, +t[2], +z[0], +z[1]).getTime() / 1000);
+                var ende = start + parseInt(dauer.value, 10) * 60;
+                grossVideo(url({ zeitraum: start + '-' + Math.min(ende, Math.floor(Date.now() / 1000)) }));
+                el('grossZurueck').hidden = false;
+                el('grossZurueck').onclick = function () { archivOeffnen(archivStand.tag); };
+                w.hidden = true;
+            };
+        }
+
+        el('archiv').onclick = function () { if (daten && daten.api) { archivOeffnen(''); } };
+
+        /* ---------------------------------------------------------------- PTZ */
+
+        /** Steuerkreuz in der Livegroßansicht, nur wenn Frigate PTZ-Fähigkeiten meldet und Bedienen erlaubt ist. */
+        function ptzZeigen() {
+            if (!daten.ptz || !bedienbar()) { return; }
+            var f = daten.ptz.features || [];
+            var pad = document.createElement('div');
+            pad.className = 'ptz';
+            var knoepfe = [];
+            if (f.indexOf('pt') >= 0) { knoepfe = knoepfe.concat([['', ''], ['▲', 'MOVE_UP'], ['', ''], ['◀', 'MOVE_LEFT'], ['■', 'STOP'], ['▶', 'MOVE_RIGHT'], ['', ''], ['▼', 'MOVE_DOWN'], ['', '']]); }
+            if (f.indexOf('zoom') >= 0) { knoepfe = knoepfe.concat([['−', 'ZOOM_OUT'], ['', ''], ['+', 'ZOOM_IN']]); }
+            knoepfe.forEach(function (k) {
+                if (!k[1]) { pad.appendChild(document.createElement('span')); return; }
+                var b = document.createElement('button');
+                b.textContent = k[0];
+                if (k[1] === 'STOP') { b.onclick = function () { requestAction('Kachel_PTZ', 'STOP'); }; }
+                else {
+                    // Bewegen, solange gedrückt; Loslassen hält an
+                    b.onpointerdown = function (ev) { ev.preventDefault(); requestAction('Kachel_PTZ', k[1]); };
+                    b.onpointerup = b.onpointerleave = function () { requestAction('Kachel_PTZ', 'STOP'); };
+                }
+                pad.appendChild(b);
+            });
+            if ((daten.ptz.presets || []).length) {
+                var sel = document.createElement('select');
+                var o0 = document.createElement('option');
+                o0.textContent = 'Position …';
+                o0.value = '';
+                sel.appendChild(o0);
+                daten.ptz.presets.forEach(function (p) { var o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
+                sel.onchange = function () { if (sel.value) { requestAction('Kachel_PTZ', 'preset_' + sel.value); sel.value = ''; } };
+                pad.appendChild(sel);
+            }
+            el('grossInhalt').appendChild(pad);
         }
 
         el('bild').onclick = function () {
@@ -546,10 +757,12 @@
                 v.muted = el('video').muted;
                 v.srcObject = el('video').srcObject;
                 el('grossInhalt').appendChild(v);
+                ptzZeigen();
                 return;
             }
             grossOeffnen('Livebild');
             grossBild('');
+            ptzZeigen();
             grossLive = true;
             clearTimeout(liveTimer);
             liveLaeuft = false;

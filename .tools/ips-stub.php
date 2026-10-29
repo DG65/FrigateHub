@@ -363,6 +363,10 @@ abstract class IPSModule
     {
     }
 
+    public function Destroy()
+    {
+    }
+
     /* -------------------------------------------------------------- Properties */
 
     protected function RegisterPropertyString(string $name, string $value): void

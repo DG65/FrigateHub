@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../libs/FrigateHubTopics.php';
 require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
+require_once __DIR__ . '/../libs/FrigateHubWebhook.php';
 require_once __DIR__ . '/../libs/FrigateHubKachel.php';
 
 /**
@@ -23,6 +24,7 @@ class FrigateHubKamera extends IPSModule
 {
     use FrigateHubFormular;
     use FrigateHubApi;
+    use FrigateHubWebhook;
     use FrigateHubKachel;
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
@@ -87,6 +89,18 @@ class FrigateHubKamera extends IPSModule
         $this->registerFormAttributes();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
+    }
+
+    public function Destroy()
+    {
+        // Beim Löschen der Instanz: WebHook-Eintrag und zwischengespeicherte Clips entfernen
+        $this->webhookAufraeumen($this->hookPfad());
+        if (IPS_GetKernelRunlevel() === KR_READY && !IPS_InstanceExists($this->InstanceID)) {
+            foreach (glob(sys_get_temp_dir() . '/frigatehub_' . $this->InstanceID . '_*.mp4') ?: [] as $datei) {
+                @unlink($datei);
+            }
+        }
+        parent::Destroy();
     }
 
     public function ApplyChanges()

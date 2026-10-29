@@ -457,6 +457,37 @@ check('Warnmarke Aufnahme aus', in_array('Aufnahme aus', $k->daten()['warnungen'
 $k->ReceiveData(paket('frigate/Door-Cam/recordings/state', 'ON'));
 check('Warnmarke weg', in_array('Aufnahme aus', $k->daten()['warnungen'], true), false);
 
+/* ------------------------------------------------------------- Aufräumen beim Löschen */
+
+// Der Stand protokolliert IPS_SetProperty nur: zuletzt gesetzte Hook-Liste übernehmen
+$hookListe = function (): array {
+    foreach (array_reverse(IPSTestState::$setProperties) as $p) {
+        if ($p[0] === 90 && $p[1] === 'Hooks') {
+            IPSTestState::$instances[90]['Properties']['Hooks'] = $p[2];
+            break;
+        }
+    }
+    IPSTestState::$setProperties = [];
+    return array_column(json_decode((string)IPSTestState::$instances[90]['Properties']['Hooks'], true), 'Hook');
+};
+$k->ApplyChanges();
+$hookListe();
+$clip = sys_get_temp_dir() . '/frigatehub_1_test.mp4';
+file_put_contents($clip, 'x');
+$k->Destroy();
+check('Destroy beim Beenden (Instanz existiert): Hook bleibt', in_array('/hook/frigatehub1', $hookListe(), true), true);
+IPSTestState::$runlevel = 10101;
+$gesichert = IPSTestState::$instances[1];
+unset(IPSTestState::$instances[1]);
+$k->Destroy();
+check('Destroy während Start/Stopp: Hook bleibt', in_array('/hook/frigatehub1', $hookListe(), true), true);
+IPSTestState::$runlevel = KR_READY;
+$k->Destroy();
+check('Destroy nach Löschen: eigener Hook weg, fremder bleibt, Clip weg', [in_array('/hook/frigatehub1', $hookListe(), true), in_array('/hook/anderes', $hookListe(), true), is_file($clip)], [false, true, false]);
+IPSTestState::$instances[1] = $gesichert;
+$k->ApplyChanges();
+check('wieder angelegt: Hook wieder da', in_array('/hook/frigatehub1', $hookListe(), true), true);
+
 /* ------------------------------------------------------------- Schlüssel, Kachel, Formular */
 
 $text = $k->KachelSchluesselErneuern();
