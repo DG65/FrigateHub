@@ -82,7 +82,8 @@
         /* Großansicht */
         .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
         .gross[hidden] { display: none; }
-        .gross .leiste-oben { display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #fff; font-size: 13px; }
+        /* oben 46px frei wie .wrap: dort zeichnet Symcon Kacheltitel und Vergrößern-Knopf */
+        .gross .leiste-oben { display: flex; align-items: center; gap: 8px; padding: 46px 12px 10px; color: #fff; font-size: 13px; }
         .gross .leiste-oben .titel { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .gross button { border: 1px solid rgba(255, 255, 255, .35); background: none; color: #fff; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
         .gross button.aktiv { background: rgba(255, 255, 255, .18); }

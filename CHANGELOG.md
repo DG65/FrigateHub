@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 (Build 14) — 29.10.2026
+
+- Kachel-Großansicht: Die obere Leiste (Ereignistitel, Bild/Clip, ✕) lag über Symcons Kacheltitel und Vergrößern-Knopf. Sie beginnt jetzt wie die normale Ansicht 46 px tiefer (Fund Dietmar, 29.10.2026).
+
 ## 0.7.0 (Build 13) — 29.10.2026
 
 - **Livevideo per WebRTC in der Kachel:** Der Verbindungsaufbau (SDP-Angebot/-Antwort) läuft über den WebHook (`?webrtc=1`, POST) an Frigates `POST /api/go2rtc/webrtc?src=<stream>` (nginx-Pfad der Home-Assistant-Integration, auf 8971 mit Anmeldung), das Video selbst direkt zwischen Browser und go2rtc (Port 8555). Stream-Name aus `cameras.<kamera>.live.streams`, sonst die Kamera-ID; angeboten nur, wenn `/api/go2rtc/streams` ihn kennt (geprüft beim Abgleich).
