@@ -339,7 +339,7 @@ class FrigateHubKamera extends IPSModule
                 ],
             ],
             [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel und IPSView',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Kachel für die Kachel-Visualisierung: Livebild, Alarm, Zähler, die letzten Ereignisse mit Vorschaubild, Schnappschuss und Clip per Tipp sowie Schalter für Erkennung, Aufnahme und Schnappschüsse. Livebild, Vorschaubilder und Clips brauchen die Frigate-Adresse.'],
                     ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => 'Livebild neu laden alle (0 = nur auf Tipp)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
@@ -347,6 +347,10 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => 'Livevideo, wenn Frigates go2rtc einen Stream für die Kamera hat'],
                     ['type' => 'Label', 'name' => 'Videostatus', 'caption' => $this->videostatus()],
                     ['type' => 'Label', 'caption' => 'Die Bilder laufen über den WebHook ' . $this->hookPfad() . ' mit einem geheimen Schlüssel dieser Instanz. Wurde eine Bildadresse weitergegeben, macht ein neuer Schlüssel sie ungültig.'],
+                    ['type' => 'Label', 'caption' => 'IPSView oder Browser: Dieselbe Oberfläche gibt es als eigenständige Seite. In IPSView ein Webseiten-Element (WebView) anlegen und die Adresse von „Adresse für IPSView anzeigen" eintragen (<Symcon-IP> durch die Adresse des Symcon-Servers ersetzen, 3777 ist Symcons Standard-Port).'],
+                    ['type' => 'Button', 'caption' => 'Adresse für IPSView anzeigen', 'onClick' => 'echo FRIG_SeiteAdresse($id);'],
+                    ['type' => 'CheckBox', 'name' => 'SeiteBedienung', 'caption' => 'Schalter (Erkennung, Aufnahme, Schnappschüsse) auf der eigenständigen Seite bedienbar'],
+                    ['type' => 'Label', 'caption' => '⚠️ Die Seite ist ohne Symcon-Anmeldung erreichbar: Wer die Adresse mit Schlüssel kennt, sieht die Kamera. Adresse nicht weitergeben; im Zweifel den Schlüssel erneuern (danach in IPSView die neue Adresse eintragen). Alternativ die Variablen der Instanz direkt in IPSView verwenden, dann gilt die IPSView-Anmeldung.'],
                     ['type' => 'Button', 'caption' => 'Kachel-Schlüssel erneuern', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
                 ],
             ],

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0 (Build 16) — 29.10.2026
+
+- **Eigenständige Seite für IPSView/Browser** (RoboHub-Muster): `/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` liefert die Kachel-Oberfläche mit Kameranamen und eigenem Hintergrund, Daten alle 5 s über `?daten=1`. Anders als bei RoboHub braucht schon die Anzeige den Schlüssel (Kamerabilder sind privat). Schalten über `POST ?schalten=<Ident>&wert=0|1` nur mit Freigabe „Schalter … auf der eigenständigen Seite bedienbar“ (Standard aus), nur die drei Kachel-Schalter, und nur bei aktiver MQTT-Instanz (sonst 502 statt scheinbarem Erfolg). Ohne Freigabe sind die Schalter gesperrt und erklären warum.
+- Adresse auf Knopfdruck („Adresse für IPSView anzeigen“, `FRIG_SeiteAdresse`), damit der Schlüssel nicht im Formular steht.
+
 ## 0.7.2 (Build 15) — 29.10.2026
 
 - **Kachel erkennt fehlenden Ton:** Kommen 5 s nach Videostart keine Tonpakete, hat der Stream keine abspielbare Tonspur (Kamera ohne Ton oder z. B. AAC). Nach dem Einschalten des Tons misst die Kachel 4 s lang den Pegel; bleibt er unverändert unter −60 dB, schickt die Kamera nur digitale Stille (typisch: Line-Eingang ohne Mikrofon). In beiden Fällen zeigt der Tonknopf „🔇 kein Ton" mit Erklärung. Fund an Dietmars Geutebrück EFD-2251 (nur Line-in, kein Mikrofon): Pegel konstant 0,00024 auch bei Eingangslautstärke 255.

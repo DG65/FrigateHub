@@ -70,6 +70,14 @@
         .sw.an .dot { background: var(--accent); }
         .sw.wartet { opacity: .5; pointer-events: none; }
         .sw[hidden] { display: none; }
+        .sw.gesperrt { cursor: default; }
+
+        /* Eigenständige Seite (IPSView/Browser): kein Symcon-Titel darüber, eigener Hintergrund */
+        body.eigen { background: #15191e; }
+        body.eigen .wrap { padding-top: 10px; }
+        body.eigen .gross .leiste-oben { padding-top: 10px; }
+        .name { font-weight: 600; font-size: 14px; margin-right: 4px; }
+        @media (prefers-color-scheme: light) { body.eigen { background: #f4f6f8; } }
 
         /* Ereignisleiste */
         .leiste { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; flex: 0 0 auto; scrollbar-width: thin; }
@@ -407,6 +415,15 @@
         function zeichnen() {
             var kopf = el('kopf');
             kopf.textContent = '';
+            document.body.classList.toggle('eigen', !!daten.eigen);
+            if (daten.eigen && daten.name) {
+                // Auf der eigenständigen Seite fehlt Symcons Kacheltitel: Namen selbst zeigen
+                var n = document.createElement('span');
+                n.className = 'name';
+                n.textContent = daten.name;
+                kopf.appendChild(n);
+                document.title = daten.name;
+            }
             if (daten.verfuegbar === false) {
                 kopf.appendChild(chip('Frigate nicht erreichbar', 'aus', true));
             } else if (daten.online === false) {
@@ -430,6 +447,8 @@
                 b.classList.toggle('an', wert === true);
                 if (wartet[b.dataset.ident] !== undefined && wartet[b.dataset.ident] === wert) { delete wartet[b.dataset.ident]; }
                 b.classList.toggle('wartet', wartet[b.dataset.ident] !== undefined);
+                b.classList.toggle('gesperrt', daten.bedienung === false);
+                b.title = daten.bedienung === false ? 'Bedienen über diese Seite ist im Formular der Instanz nicht freigegeben.' : '';
             });
             el('rahmen').hidden = !daten.api;
             el('rahmen').classList.toggle('an', rahmenAn());
@@ -552,6 +571,7 @@
 
         document.querySelectorAll('.sw[data-ident]').forEach(function (b) {
             b.onclick = function () {
+                if (daten && daten.bedienung === false) { meldung(b.title); return; }
                 var neu = !b.classList.contains('an');
                 // Kein sofortiges Umfärben: Der Schalter folgt der Bestätigung von Frigate.
                 wartet[b.dataset.ident] = neu;

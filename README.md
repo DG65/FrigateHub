@@ -44,6 +44,15 @@ schalten. Die Bilder holt die Instanz selbst bei Frigate und reicht sie über ei
 WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf braucht einen
 geheimen Schlüssel der Instanz; der lässt sich im Panel „Kachel" erneuern.
 
+**IPSView und Browser:** Dieselbe Oberfläche gibt es als eigenständige Seite
+`http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` — in IPSView als
+Webseiten-Element (WebView) einbinden. Die vollständige Adresse zeigt der Knopf „Adresse für
+IPSView anzeigen" im Panel „🖥️ Kachel und IPSView". Die Seite zeigt den Kameranamen, holt alle
+5 s neue Daten und hat Livebild, Livevideo, Ereignisse und Clips wie die Kachel. Weil sie ohne
+Symcon-Anmeldung erreichbar ist, braucht schon die Anzeige den Schlüssel; die Schalter lassen sich
+nur bedienen, wenn das im Formular freigegeben ist (sonst nur Anzeige). Ein neuer Schlüssel macht
+alte Adressen ungültig.
+
 **Livevideo in der Kachel:** Hat Frigates eingebauter Restream (go2rtc) einen Stream für die
 Kamera, spielt die Kachel echtes Video (mit Ton, wenn die Kamera welchen liefert) statt des Standbilds — im Heimnetz, per WebRTC.
 Dafür in der Frigate-Konfiguration (Beispiel, Namen und Zugang wie in der eigenen Kamera):

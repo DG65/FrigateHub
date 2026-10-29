@@ -35,6 +35,8 @@ trait FrigateHubKachel
         $this->RegisterPropertyInteger('KachelLiveTakt', 2);
         $this->RegisterPropertyBoolean('KachelRahmen', true);
         $this->RegisterPropertyBoolean('KachelVideo', true);
+        // Eigenständige Seite (IPSView/Browser): Anzeige mit Schlüssel, Schalten nur mit Freigabe
+        $this->RegisterPropertyBoolean('SeiteBedienung', false);
         $this->RegisterAttributeString('Livestream', '');
         $this->RegisterAttributeString('HookSchluessel', '');
         $this->RegisterAttributeString('Ereignisse', '[]');
@@ -74,7 +76,16 @@ trait FrigateHubKachel
     {
         $this->WriteAttributeString('HookSchluessel', bin2hex(random_bytes(16)));
         $this->kachelSenden(true);
-        return '✅ Neuer Schlüssel erzeugt. Offene Kacheln laden ihn beim nächsten Öffnen.';
+        return '✅ Neuer Schlüssel erzeugt. Offene Kacheln laden ihn beim nächsten Öffnen; in IPSView die neue Adresse eintragen.';
+    }
+
+    /**
+     * Adresse der eigenständigen Seite für IPSView/Browser (mit Schlüssel). Nur auf Knopfdruck,
+     * damit der Schlüssel nicht im Formular steht.
+     */
+    public function SeiteAdresse(): string
+    {
+        return 'http://<Symcon-IP>:3777' . $this->hookPfad() . '?seite=1&k=' . $this->ReadAttributeString('HookSchluessel');
     }
 
     /** WebHook: Bilder und Clips aus Frigate durchreichen. */
@@ -85,6 +96,19 @@ trait FrigateHubKachel
         $schluessel = $this->ReadAttributeString('HookSchluessel');
         if ($schluessel === '' || !hash_equals($schluessel, $get['k'] ?? '')) {
             $this->hookAntwort(403, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein Zugriff.');
+            return;
+        }
+        if (isset($get['seite'])) {
+            $this->hookSeite();
+            return;
+        }
+        if (isset($get['daten'])) {
+            $this->hookAntwort(200, ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'],
+                (string)json_encode($this->kachelDaten(true)));
+            return;
+        }
+        if (isset($get['schalten'])) {
+            $this->hookSchalten($get['schalten'], $get['wert'] ?? '');
             return;
         }
         if (($get['bild'] ?? '') === 'schnappschuss') {
@@ -115,6 +139,66 @@ trait FrigateHubKachel
     }
 
     /* ---------------------------------------------------------------- intern */
+
+    /** Schalter, die die eigenständige Seite bedienen darf (dieselben wie in der Kachel). */
+    private const SEITE_SCHALTER = ['Schalter_detect', 'Schalter_recordings', 'Schalter_snapshots'];
+
+    /**
+     * Eigenständige Seite für IPSView (Webseiten-Element) oder jeden Browser:
+     *   /hook/frigatehub<ID>?seite=1&k=<Schlüssel>
+     * Dieselbe Oberfläche wie die Kachel; statt Symcons Push fragt sie alle 5 s ?daten=1 ab.
+     * Kamerabilder sind privat, darum braucht schon die Anzeige den Schlüssel (anders als bei
+     * RoboHub). Schalten geht nur zusätzlich mit der Freigabe „SeiteBedienung" und nur per POST.
+     */
+    private function hookSeite(): void
+    {
+        $abruf = json_encode($this->hookPfad() . '?k=' . $this->ReadAttributeString('HookSchluessel'));
+        $html = file_get_contents(__DIR__ . '/../FrigateHubKamera/module.html')
+            . '<script>'
+            . 'var seiteAbruf=' . $abruf . ';'
+            . 'function seiteLaden(){fetch(seiteAbruf+"&daten=1",{cache:"no-store"}).then(function(r){return r.ok?r.text():null;})'
+            . '.then(function(t){if(t){handleMessage(t);}}).catch(function(){});}'
+            . 'function requestAction(ident,wert){fetch(seiteAbruf+"&schalten="+encodeURIComponent(ident)+"&wert="+(wert?1:0),{method:"POST"})'
+            . '.then(function(r){return r.json();}).then(function(a){if(!a.ok){meldung(a.text);}}).catch(function(){});'
+            . 'setTimeout(seiteLaden,1500);setTimeout(seiteLaden,4000);}'
+            . 'handleMessage(' . json_encode($this->kachelDaten(true)) . ');'
+            . 'setInterval(function(){if(!document.hidden){seiteLaden();}},5000);'
+            . '</script>';
+        $this->hookAntwort(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-store',
+            'X-Frame-Options' => 'SAMEORIGIN'], $html);
+    }
+
+    /** Schalter von der eigenständigen Seite: nur mit Freigabe, nur POST, nur die Kachel-Schalter. */
+    private function hookSchalten(string $ident, string $wert): void
+    {
+        $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
+        if (!$this->ReadPropertyBoolean('SeiteBedienung')) {
+            $this->hookAntwort(403, $json, (string)json_encode(['ok' => false,
+                'text' => 'Bedienen über diese Seite ist im Formular der Instanz nicht freigegeben.'], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            $this->hookAntwort(405, $json + ['Allow' => 'POST'], (string)json_encode(['ok' => false, 'text' => 'Nur POST.']));
+            return;
+        }
+        if (!in_array($ident, self::SEITE_SCHALTER, true) || !in_array($wert, ['0', '1'], true)
+            || @$this->GetIDForIdent($ident) === false) {
+            $this->hookAntwort(400, $json, (string)json_encode(['ok' => false, 'text' => 'Unbekannter Schalter.']));
+            return;
+        }
+        if (!$this->HasActiveParent()) {
+            $this->hookAntwort(502, $json, (string)json_encode(['ok' => false,
+                'text' => 'Keine aktive MQTT-Instanz über der Kamera, Frigate ist nicht erreichbar.'], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        try {
+            $this->RequestAction($ident, $wert === '1');
+        } catch (Throwable $e) {
+            $this->hookAntwort(502, $json, (string)json_encode(['ok' => false, 'text' => $e->getMessage()], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        $this->hookAntwort(200, $json, (string)json_encode(['ok' => true]));
+    }
 
     /**
      * Frigate-Pfad zu einer WebHook-Anfrage, null wenn nicht erlaubt. Nur feste Muster, IDs geprüft.
@@ -313,7 +397,8 @@ trait FrigateHubKachel
         $this->UpdateVisualizationValue($json);
     }
 
-    private function kachelDaten(): array
+    /** $eigen: für die eigenständige Seite (Name statt Symcon-Titel, Bedienung nur mit Freigabe). */
+    private function kachelDaten(bool $eigen = false): array
     {
         $api = $this->apiUrl() !== '' && $this->kamera() !== '';
         $zaehler = [];
@@ -355,6 +440,9 @@ trait FrigateHubKachel
             ],
             'ereignisse'    => $ereignisse,
             'schnappschuss' => $medium !== false ? $this->ReadAttributeString('Bildstatus') : '',
+            'eigen'         => $eigen,
+            'name'          => $eigen ? IPS_GetName($this->InstanceID) : '',
+            'bedienung'     => !$eigen || $this->ReadPropertyBoolean('SeiteBedienung'),
         ];
     }
 

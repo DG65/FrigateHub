@@ -323,6 +323,44 @@ $k2->props(['KachelVideo' => true]);
 $k2->ZustandAnfordern();
 check('Stream verschwunden → kein Video', $k2->daten()['video'], false);
 
+/* ------------------------------------------------------------- Eigenständige Seite (IPSView) */
+
+$ks = $k->ReadAttributeString('HookSchluessel');
+check('Seite ohne Schlüssel: 403', $k->hook(['seite' => '1'])['code'], 403);
+check('Daten ohne Schlüssel: 403', $k->hook(['daten' => '1'])['code'], 403);
+check('Schalten ohne Schlüssel: 403', $k->hook(['schalten' => 'Schalter_detect', 'wert' => '0'], ['REQUEST_METHOD' => 'POST'])['code'], 403);
+$seite = $k->hook(['seite' => '1', 'k' => $ks]);
+check('Seite: 200 HTML ohne Zwischenspeicher', [$seite['code'], $seite['kopf']['Content-Type'], $seite['kopf']['Cache-Control']],
+    [200, 'text/html; charset=utf-8', 'no-store']);
+check('Seite: Kachel-HTML mit Startdaten und Abfrage', [strpos($seite['inhalt'], '<div class="bild" id="bild">') !== false,
+    strpos($seite['inhalt'], 'handleMessage({') !== false, strpos($seite['inhalt'], 'function requestAction(') !== false,
+    strpos($seite['inhalt'], 'setInterval(') !== false], [true, true, true, true]);
+$d = json_decode($k->hook(['daten' => '1', 'k' => $ks])['inhalt'], true);
+check('Seiten-Daten: eigen, Name, ohne Freigabe nicht bedienbar', [$d['eigen'], $d['name'] !== '', $d['bedienung'], $d['k']], [true, true, false, $ks]);
+check('Kachel-Daten: nicht eigen, bedienbar', [$k->daten()['eigen'], $k->daten()['name'], $k->daten()['bedienung']], [false, '', true]);
+IPSTestState::$sentPackets = [];
+$a = $k->hook(['schalten' => 'Schalter_detect', 'wert' => '0', 'k' => $ks], ['REQUEST_METHOD' => 'POST']);
+check('Schalten ohne Freigabe: 403, nichts gesendet', [$a['code'], json_decode($a['inhalt'], true)['ok'], count(IPSTestState::$sentPackets)], [403, false, 0]);
+$k->props(['SeiteBedienung' => true]);
+check('mit Freigabe: Daten bedienbar', json_decode($k->hook(['daten' => '1', 'k' => $ks])['inhalt'], true)['bedienung'], true);
+check('Schalten per GET: 405', $k->hook(['schalten' => 'Schalter_detect', 'wert' => '0', 'k' => $ks], ['REQUEST_METHOD' => 'GET'])['code'], 405);
+check('fremder Schalter: 400', $k->hook(['schalten' => 'Schalter_motion', 'wert' => '0', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], 400);
+check('Schalter ohne Variable: 400', $k->hook(['schalten' => 'Schalter_snapshots', 'wert' => '1', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], 400);
+check('ungültiger Wert: 400', $k->hook(['schalten' => 'Schalter_detect', 'wert' => 'true', 'k' => $ks], ['REQUEST_METHOD' => 'POST'])['code'], 400);
+check('nichts gesendet', count(IPSTestState::$sentPackets), 0);
+$a = $k->hook(['schalten' => 'Schalter_detect', 'wert' => '0', 'k' => $ks], ['REQUEST_METHOD' => 'POST']);
+check('ohne MQTT-Instanz: 502 statt scheinbarem Erfolg', [$a['code'], count(IPSTestState::$sentPackets)], [502, 0]);
+IPSTestState::$instances[95] = ['InstanceID' => 95, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}']];
+IPSTestState::$instances[1]['ConnectionID'] = 95;
+$a = $k->hook(['schalten' => 'Schalter_detect', 'wert' => '0', 'k' => $ks], ['REQUEST_METHOD' => 'POST']);
+IPSTestState::$instances[1]['ConnectionID'] = 0;
+$p = IPSTestState::$sentPackets[0] ?? [];
+check('Schalten: 200 und MQTT detect/set OFF', [$a['code'], $p['Topic'] ?? '', $p['Payload'] ?? ''], [200, 'frigate/Door-Cam/detect/set', 'OFF']);
+check('Variable folgt erst Frigates Bestätigung', $k->GetValue('Schalter_detect'), true);
+$k->props(['SeiteBedienung' => false]);
+check('Formular: IPSView-Knopf statt Schlüssel', [strpos((string)$k->GetConfigurationForm(), 'FRIG_SeiteAdresse') !== false,
+    strpos($k->SeiteAdresse(), '/hook/frigatehub1?seite=1&k=' . $ks) !== false], [true, true]);
+
 /* ------------------------------------------------------------- Schlüssel, Kachel, Formular */
 
 $text = $k->KachelSchluesselErneuern();
