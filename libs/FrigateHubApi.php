@@ -230,6 +230,41 @@ trait FrigateHubApi
     }
 
     /**
+     * WebRTC-Verbindungsaufbau mit Frigates go2rtc: SDP-Angebot des Browsers hin, SDP-Antwort
+     * zurück (POST /api/go2rtc/webrtc?src=…, in Frigates nginx für die Home-Assistant-Integration,
+     * auf Port 8971 mit Anmeldung). Das Video selbst läuft danach direkt zwischen Browser und
+     * go2rtc (Port 8555). Prüfstand-Haken.
+     *
+     * @return array{code:int,body:string}
+     */
+    protected function apiWebrtc(string $stream, string $angebot): array
+    {
+        $zugang = $this->apiZugang() ?? $this->zugangUebernehmen();
+        $kopf = ['Content-Type: application/sdp', 'Accept: application/sdp'];
+        if ($zugang !== null) {
+            $kopf[] = 'Cookie: ' . $zugang['cookie'] . '=' . $zugang['token'];
+        }
+        $url = $this->apiUrl() . '/api/go2rtc/webrtc?src=' . rawurlencode($stream);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $angebot,
+            CURLOPT_HTTPHEADER     => $kopf,
+        ]);
+        if (strpos($url, 'https://') === 0 && !$this->ReadPropertyBoolean('ZertifikatPruefen')) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        $antwort = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ['code' => $antwort === false ? 0 : $code, 'body' => $antwort === false ? '' : (string)$antwort];
+    }
+
+    /**
      * Bild oder Clip von Frigate holen, um es über den WebHook an den Browser weiterzureichen.
      * Reicht einen Range-Kopf durch (Safari/iOS spielt Videos nur mit Teilabrufen ab).
      * Prüfstand-Haken.

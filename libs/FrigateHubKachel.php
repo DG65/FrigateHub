@@ -34,6 +34,8 @@ trait FrigateHubKachel
     {
         $this->RegisterPropertyInteger('KachelLiveTakt', 2);
         $this->RegisterPropertyBoolean('KachelRahmen', true);
+        $this->RegisterPropertyBoolean('KachelVideo', true);
+        $this->RegisterAttributeString('Livestream', '');
         $this->RegisterAttributeString('HookSchluessel', '');
         $this->RegisterAttributeString('Ereignisse', '[]');
         $this->SetVisualizationType(1);
@@ -93,6 +95,10 @@ trait FrigateHubKachel
             $this->hookClip($get['clip'], (string)($_SERVER['HTTP_RANGE'] ?? ''));
             return;
         }
+        if (isset($get['webrtc'])) {
+            $this->hookWebrtc();
+            return;
+        }
         $pfad = $this->hookFrigatePfad($get);
         if ($pfad === null) {
             $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
@@ -133,6 +139,65 @@ trait FrigateHubKachel
                 return FrigateHubTopics::idGueltig($id) ? '/api/events/' . $id . '/snapshot.jpg?' . FrigateHubTopics::hoehe($h) : null;
         }
         return null;
+    }
+
+    /** WebRTC: SDP-Angebot des Browsers an go2rtc weiterreichen, Antwort zurückgeben. */
+    private function hookWebrtc(): void
+    {
+        $stream = $this->ReadAttributeString('Livestream');
+        if ($this->apiUrl() === '' || $stream === '' || !$this->ReadPropertyBoolean('KachelVideo')) {
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein Livevideo eingerichtet.');
+            return;
+        }
+        $angebot = $this->hookEingang();
+        if (strpos($angebot, 'v=0') !== 0 || strlen($angebot) > 32768) {
+            $this->hookAntwort(400, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein gültiges SDP-Angebot.');
+            return;
+        }
+        $a = $this->apiWebrtc($stream, $angebot);
+        if (($a['code'] !== 200 && $a['code'] !== 201) || strpos($a['body'], 'v=0') !== 0) {
+            $this->hookAntwort(502, ['Content-Type' => 'text/plain; charset=utf-8'],
+                'go2rtc antwortet nicht (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+            return;
+        }
+        $this->hookAntwort(200, ['Content-Type' => 'application/sdp', 'Cache-Control' => 'no-store'], $a['body']);
+    }
+
+    /** Inhalt der Anfrage (POST). Eigene Methode für den Prüfstand. */
+    protected function hookEingang(): string
+    {
+        return (string)file_get_contents('php://input');
+    }
+
+    /**
+     * Prüft, ob Frigates go2rtc einen Stream für diese Kamera hat (Name aus live.streams der
+     * Frigate-Konfiguration, sonst die Kamera-ID). Nur dann bietet die Kachel Livevideo an.
+     */
+    private function livestreamPruefen(array $kameraConfig): void
+    {
+        $name = $this->kamera();
+        foreach ((array)($kameraConfig['live']['streams'] ?? []) as $s) {
+            if (is_string($s) && $s !== '') {
+                $name = $s;
+                break;
+            }
+        }
+        $streams = $this->apiHolen('/api/go2rtc/streams');
+        $this->WriteAttributeString('Livestream', is_array($streams) && array_key_exists($name, $streams) ? $name : '');
+    }
+
+    private function videostatus(): string
+    {
+        if ($this->apiUrl() === '') {
+            return 'Livevideo braucht die Frigate-Adresse.';
+        }
+        $stream = $this->ReadAttributeString('Livestream');
+        if ($stream === '') {
+            return 'ℹ️ Kein Livevideo: Frigates go2rtc hat (beim letzten Abgleich) keinen Stream für diese Kamera. Ohne Stream zeigt die Kachel ein Standbild im eingestellten Takt.';
+        }
+        return $this->ReadPropertyBoolean('KachelVideo')
+            ? '✅ Livevideo über go2rtc-Stream „' . $stream . '" (WebRTC, im Heimnetz). Geht das nicht, zeigt die Kachel das Standbild.'
+            : 'Livevideo ist ausgeschaltet, die Kachel zeigt das Standbild.';
     }
 
     /** Clip eines Ereignisses stückweise ausliefern (Range, 206). */
@@ -275,6 +340,7 @@ trait FrigateHubKachel
             'kamera'        => $this->kamera(),
             'api'           => $api,
             'live'          => $api ? max(0, min(60, $this->ReadPropertyInteger('KachelLiveTakt'))) : 0,
+            'video'         => $api && $this->ReadPropertyBoolean('KachelVideo') && $this->ReadAttributeString('Livestream') !== '',
             'rahmen'        => $this->ReadPropertyBoolean('KachelRahmen'),
             'verfuegbar'    => $this->kachelWert('Verfuegbar'),
             'online'        => $this->kachelWert('Online'),

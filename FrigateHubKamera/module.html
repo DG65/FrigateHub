@@ -45,7 +45,16 @@
         .bild.alarm { border-color: var(--alarm); box-shadow: 0 0 0 2px rgba(229, 72, 77, .35); animation: rahmen 1s ease-in-out infinite; }
         .bild.erkennung { border-color: var(--erkennung); }
         @keyframes rahmen { 0%, 100% { box-shadow: 0 0 0 2px rgba(229, 72, 77, .35); } 50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, .15); } }
-        .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        .bild img, .bild video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+        .bild video { display: none; background: #000; }
+        .bild.video video { display: block; }
+        .bild.video img { visibility: hidden; }
+        .marke { position: absolute; left: 8px; top: 6px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 6px; padding: 1px 6px; display: none; align-items: center; gap: 5px; }
+        .marke::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--alarm); }
+        .bild.video .marke { display: inline-flex; }
+        .ton { position: absolute; right: 8px; top: 6px; border: none; background: rgba(0, 0, 0, .45); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: 13px; cursor: pointer; display: none; }
+        .bild.video .ton { display: block; }
+        .bild.video .zeit { display: none; }
         .bild.offline img { filter: grayscale(1) brightness(.5); }
         .hinweis { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-size: 13px; color: #d6dde4; pointer-events: none; }
         .zeit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 6px; padding: 1px 6px; }
@@ -90,6 +99,9 @@
         <div class="kopf" id="kopf"></div>
         <div class="bild" id="bild">
             <img id="live" alt="">
+            <video id="video" autoplay muted playsinline></video>
+            <span class="marke">LIVE</span>
+            <button class="ton" id="ton" title="Ton">🔇</button>
             <div class="hinweis" id="hinweis">Lade …</div>
             <button class="knopf-neu" id="neu" title="Neu laden" hidden>↻</button>
             <div class="zeit" id="zeit" hidden></div>
@@ -122,6 +134,10 @@
         var wartet = {};           // Schalter, deren Bestätigung durch Frigate noch aussteht
         var grossLive = false;
         var letzterSchnappschuss = null;
+        var pc = null;             // WebRTC-Verbindung zu go2rtc (über den WebHook aufgebaut)
+        var videoLaeuft = false;
+        var videoVersuche = 0;
+        var videoTimer = null;
 
         function el(id) { return document.getElementById(id); }
 
@@ -153,6 +169,7 @@
                 return;
             }
             if (document.hidden || !el('gross').hidden && !grossLive) { return; }
+            if (videoLaeuft && !grossLive) { return; }
             if (liveLaeuft) { return; }
             liveLaeuft = true;
             var ziel = grossLive ? el('grossInhalt') : el('bild');
@@ -202,8 +219,87 @@
         }
 
         document.addEventListener('visibilitychange', function () {
-            if (!document.hidden) { liveLaden(); } else { clearTimeout(liveTimer); }
+            if (!document.hidden) { videoStarten(); liveLaden(); } else { clearTimeout(liveTimer); videoStoppen(); }
         });
+
+        /* ---------------------------------------------------------------- Livevideo (WebRTC) */
+
+        function videoStarten() {
+            if (!daten || !daten.video || pc || document.hidden || !window.RTCPeerConnection) { return; }
+            if (videoVersuche >= 3) { return; }   // dreimal gescheitert: beim Standbild bleiben
+            videoVersuche++;
+            var verbindung = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
+            pc = verbindung;
+            verbindung.addTransceiver('video', { direction: 'recvonly' });
+            verbindung.addTransceiver('audio', { direction: 'recvonly' });
+            verbindung.ontrack = function (ev) {
+                var v = el('video');
+                if (v.srcObject !== ev.streams[0]) { v.srcObject = ev.streams[0]; }
+            };
+            verbindung.onconnectionstatechange = function () {
+                if (verbindung.connectionState === 'failed' || verbindung.connectionState === 'closed') { videoAufgeben(verbindung); }
+            };
+            // Kommt binnen 10 s kein Bild, gilt der Versuch als gescheitert (z. B. außerhalb des Heimnetzes)
+            clearTimeout(videoTimer);
+            videoTimer = setTimeout(function () { if (!videoLaeuft) { videoAufgeben(verbindung); } }, 10000);
+            verbindung.createOffer().then(function (angebot) {
+                return verbindung.setLocalDescription(angebot);
+            }).then(function () {
+                return iceFertig(verbindung);
+            }).then(function () {
+                return fetch(url({ webrtc: 1 }), { method: 'POST', headers: { 'Content-Type': 'application/sdp' }, body: verbindung.localDescription.sdp });
+            }).then(function (antwort) {
+                if (!antwort.ok) { throw new Error('HTTP ' + antwort.status); }
+                return antwort.text();
+            }).then(function (sdp) {
+                if (pc !== verbindung) { return; }
+                return verbindung.setRemoteDescription({ type: 'answer', sdp: sdp });
+            }).catch(function () { videoAufgeben(verbindung); });
+        }
+
+        /** Warten, bis der Browser seine Adressen gesammelt hat (höchstens 2 s): go2rtc bekommt sie im Angebot. */
+        function iceFertig(verbindung) {
+            return new Promise(function (fertig) {
+                if (verbindung.iceGatheringState === 'complete') { fertig(); return; }
+                var t = setTimeout(fertig, 2000);
+                verbindung.addEventListener('icegatheringstatechange', function () {
+                    if (verbindung.iceGatheringState === 'complete') { clearTimeout(t); fertig(); }
+                });
+            });
+        }
+
+        function videoAufgeben(verbindung) {
+            if (pc !== verbindung) { return; }
+            videoStoppen();
+            liveLaeuft = false;
+            liveLaden();
+        }
+
+        function videoStoppen() {
+            clearTimeout(videoTimer);
+            if (pc) { try { pc.close(); } catch (e) { } }
+            pc = null;
+            videoLaeuft = false;
+            el('video').srcObject = null;
+            el('bild').classList.remove('video');
+            el('rahmen').hidden = !daten || !daten.api;
+        }
+
+        el('video').addEventListener('playing', function () {
+            videoLaeuft = true;
+            videoVersuche = 0;
+            clearTimeout(liveTimer);
+            hinweis('');
+            el('bild').classList.add('video');
+            el('rahmen').hidden = true;   // Rahmen gibt es nur im Standbild
+        });
+
+        el('ton').onclick = function (ev) {
+            ev.stopPropagation();
+            var v = el('video');
+            v.muted = !v.muted;
+            el('ton').textContent = v.muted ? '🔇' : '🔊';
+        };
 
         /* ---------------------------------------------------------------- Darstellung */
 
@@ -329,6 +425,17 @@
                 if (daten.schnappschuss) { grossOeffnen('Letzter Schnappschuss · ' + daten.schnappschuss); grossBild(url({ bild: 'schnappschuss', t: Date.now() })); }
                 return;
             }
+            if (videoLaeuft) {
+                grossOeffnen('Livevideo');
+                var v = document.createElement('video');
+                v.autoplay = true;
+                v.playsInline = true;
+                v.controls = true;
+                v.muted = el('video').muted;
+                v.srcObject = el('video').srcObject;
+                el('grossInhalt').appendChild(v);
+                return;
+            }
             grossOeffnen('Livebild');
             grossBild('');
             grossLive = true;
@@ -375,9 +482,13 @@
             var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;
             if (!neu || !neu.hook) { return; }
             var ersterStart = daten === null;
-            var taktGeaendert = daten && (daten.live !== neu.live || daten.api !== neu.api || daten.k !== neu.k);
+            var taktGeaendert = daten && (daten.live !== neu.live || daten.api !== neu.api || daten.k !== neu.k || daten.video !== neu.video);
             daten = neu;
             zeichnen();
+            if (!daten.video) { videoStoppen(); }
+            if (taktGeaendert) { videoStoppen(); videoVersuche = 0; }
+            videoStarten();
+            el('rahmen').hidden = !daten.api || videoLaeuft;
             if (ersterStart || taktGeaendert) {
                 liveLaeuft = false;
                 liveLaden();

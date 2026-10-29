@@ -42,6 +42,9 @@ class TestKachel extends FrigateHubKamera
     public static array $frigate = [];
     public static array $durchgereicht = [];
     public array $antworten = [];
+    public static string $eingang = '';
+    public static array $webrtc = [];
+    public static array $webrtcAntwort = ['code' => 201, 'body' => "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n"];
     public int $gesendet = 0;
 
     protected function apiRoh(string $pfad, string $accept): ?string
@@ -54,6 +57,17 @@ class TestKachel extends FrigateHubKamera
     {
         self::$durchgereicht[] = [$pfad, $range, $zeitlimit];
         return self::$frigate[$pfad] ?? ['code' => 404, 'body' => '', 'kopf' => []];
+    }
+
+    protected function hookEingang(): string
+    {
+        return self::$eingang;
+    }
+
+    protected function apiWebrtc(string $stream, string $angebot): array
+    {
+        self::$webrtc[] = [$stream, $angebot];
+        return self::$webrtcAntwort;
     }
 
     protected function hookAntwort(int $code, array $kopf, string $inhalt): void
@@ -275,6 +289,39 @@ check('Abgleich füllt die Leiste (nur eigene Kamera)', array_column($k2->daten(
 TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [];
 $k2->ZustandAnfordern();
 check('volle Leiste bleibt', count($k2->daten()['ereignisse']), 1);
+
+/* ------------------------------------------------------------- Livevideo (WebRTC über go2rtc) */
+
+$k2s = $k2->ReadAttributeString('HookSchluessel');
+check('ohne go2rtc-Stream: kein Video', $k2->daten()['video'], false);
+check('ohne Stream: WebRTC 404', $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code'], 404);
+check('Formular: kein Stream erklärt', strpos((string)json_encode(json_decode($k2->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE), 'Kein Livevideo: Frigates go2rtc hat') !== false, true);
+TestKachel::$api['/api/config'] = ['cameras' => ['Door-Cam' => ['enabled' => true, 'live' => ['streams' => ['Haupt' => 'tuer_haupt']]]]];
+TestKachel::$api['/api/go2rtc/streams'] = ['tuer_haupt' => ['producers' => []], 'andere' => []];
+$k2->ZustandAnfordern();
+check('Stream aus live.streams erkannt', [$k2->ReadAttributeString('Livestream'), $k2->daten()['video']], ['tuer_haupt', true]);
+check('Formular: Livevideo bereit', strpos((string)json_encode(json_decode($k2->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE), '✅ Livevideo über go2rtc-Stream „tuer_haupt') !== false, true);
+TestKachel::$eingang = 'kein sdp';
+check('WebRTC: Unsinn → 400', $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code'], 400);
+TestKachel::$eingang = 'v=0' . str_repeat('x', 40000);
+check('WebRTC: zu groß → 400', $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code'], 400);
+check('ungültige Angebote erreichen go2rtc nicht', TestKachel::$webrtc, []);
+TestKachel::$eingang = "v=0\r\no=- 42 2 IN IP4 127.0.0.1\r\n";
+$a = $k2->hook(['k' => $k2s, 'webrtc' => '1']);
+check('WebRTC: Angebot an den richtigen Stream', TestKachel::$webrtc, [['tuer_haupt', TestKachel::$eingang]]);
+check('WebRTC: Antwort durchgereicht', [$a['code'], $a['kopf']['Content-Type'], $a['inhalt']], [200, 'application/sdp', TestKachel::$webrtcAntwort['body']]);
+check('WebRTC ohne Schlüssel: 403', $k2->hook(['webrtc' => '1'])['code'], 403);
+TestKachel::$webrtcAntwort = ['code' => 404, 'body' => 'stream not found'];
+check('go2rtc-Fehler → 502', $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code'], 502);
+TestKachel::$webrtcAntwort = ['code' => 200, 'body' => '<html>Login</html>'];
+check('keine SDP-Antwort → 502', $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code'], 502);
+$k2->props(['KachelVideo' => false]);
+$k2->ApplyChanges();
+check('Video ausgeschaltet', [$k2->daten()['video'], $k2->hook(['k' => $k2s, 'webrtc' => '1'])['code']], [false, 404]);
+TestKachel::$api['/api/go2rtc/streams'] = [];
+$k2->props(['KachelVideo' => true]);
+$k2->ZustandAnfordern();
+check('Stream verschwunden → kein Video', $k2->daten()['video'], false);
 
 /* ------------------------------------------------------------- Schlüssel, Kachel, Formular */
 

@@ -59,7 +59,10 @@
   Endpunkte live 29.10.2026 geprüft: `/api/review`, `/clips/review/thumb-…webp`, `/api/events/<id>/thumbnail.jpg|snapshot.jpg|clip.mp4`.
   Bildhöhe: `height=` (0.15+) und `h=` (älter) zusammen schicken. Clips stückweise (512 KB, 206) aus dem
   Temp-Ordner — Symcon gab 1,7 MB über den Hook leer aus, Frigates clip.mp4 ignoriert Range.
-  go2rtc-Restream (RTSP 8554) ist bei Dietmar ohne Streams → kein Live-Video, Livebild = latest.jpg im Takt.
+  Livevideo (0.7.0): WebRTC, Signalisierung über den Hook an `POST /api/go2rtc/webrtc?src=` (Frigates nginx,
+  auth_request mit go2rtc-Stream-Prüfung), Medien direkt Browser↔go2rtc:8555 (braucht `go2rtc.webrtc.candidates`
+  mit Host-IP). WebSockets (/live/mse, /live/webrtc/api/ws) lassen sich über PHP-Hooks NICHT durchreichen.
+  Dietmars Door-Cam: H.264 1920×1080 13 fps + G.711 (WebRTC-tauglich ohne Umwandlung), go2rtc noch ohne Streams.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

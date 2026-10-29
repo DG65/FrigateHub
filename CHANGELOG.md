@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 (Build 13) — 29.10.2026
+
+- **Livevideo per WebRTC in der Kachel:** Der Verbindungsaufbau (SDP-Angebot/-Antwort) läuft über den WebHook (`?webrtc=1`, POST) an Frigates `POST /api/go2rtc/webrtc?src=<stream>` (nginx-Pfad der Home-Assistant-Integration, auf 8971 mit Anmeldung), das Video selbst direkt zwischen Browser und go2rtc (Port 8555). Stream-Name aus `cameras.<kamera>.live.streams`, sonst die Kamera-ID; angeboten nur, wenn `/api/go2rtc/streams` ihn kennt (geprüft beim Abgleich).
+- Kachel: Video startet stumm (Browser-Vorgabe), 🔇/🔊 schaltet den Ton, Tipp vergrößert. Kein Bild binnen 10 s, Verbindungsfehler oder außerhalb des Heimnetzes → Standbild; höchstens 3 Versuche. Beim Ausblenden wird die Verbindung getrennt.
+- Neue Einstellung „Livevideo" (Standard an) und Statuszeile im Panel „🖥️ Kachel".
+
 ## 0.6.0 (Build 12) — 29.10.2026
 
 - **Kachel** (HTML-SDK, `FrigateHubKamera/module.html`, Trait `FrigateHubKachel`): Livebild im einstellbaren Takt (Standard 2 s, nur solange sichtbar, wahlweise mit Erkennungsrahmen `bbox`), Statuszeile (online, Alarm, Erkennung, Bewegung, Zähler je Objekt), Alarm-/Erkennungsrahmen, Schalter Erkennung/Aufnahme/Schnappschüsse (über `requestAction`, folgen der Bestätigung von Frigate), Ereignisleiste der letzten 8 Reviews mit Vorschaubild, Großansicht mit Ereignis-Schnappschuss (1080 px) und Clip.

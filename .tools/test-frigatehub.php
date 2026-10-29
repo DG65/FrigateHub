@@ -453,7 +453,7 @@ TestKamera::$api = [
 TestKamera::$abgerufen = [];
 $text = $h->ZustandAnfordern();
 check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '18 Schalter, 1 Zone(n), Kamera liefert Bilder') !== false, true);
-check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/stats', '/api/Door-Cam/latest.jpg?height=720&h=720', '/api/review?cameras=Door-Cam&limit=8']);
+check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/go2rtc/streams', '/api/stats', '/api/Door-Cam/latest.jpg?height=720&h=720', '/api/review?cameras=Door-Cam&limit=8']);
 $hm = IPS_GetObjectIDByIdent('Schnappschuss', 5);
 check('Abgleich legt Medium mit Livebild an', base64_decode((string)(IPSTestState::$media[$hm]['content'] ?? '')), $livebild);
 // MQTT-Schnappschuss mit Adresse: Vollbild über die API statt Ausschnitt

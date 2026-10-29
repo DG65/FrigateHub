@@ -16,6 +16,10 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.7.0' => [
+            '• Neu: Livevideo in der Kachel. Hat Frigates go2rtc einen Stream für die Kamera, spielt die Kachel echtes Video mit Ton (WebRTC, im Heimnetz) statt des Standbilds. Einrichtung in Frigate: siehe Doku-Panel und README.',
+            '• Ein Tipp aufs Livevideo vergrößert es, 🔇/🔊 schaltet den Ton. Unterwegs oder ohne Stream bleibt es beim Standbild.',
+        ],
         '0.6.0' => [
             '• Neu: Die Frigate-Kamera ist jetzt auch eine Kachel für die Kachel-Visualisierung — Livebild mit Erkennungsrahmen, Alarm-Rahmen, Zähler und die letzten Ereignisse mit Vorschaubild.',
             '• Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip, ein Tipp aufs Livebild vergrößert es. Erkennung, Aufnahme und Schnappschüsse lassen sich direkt in der Kachel schalten.',

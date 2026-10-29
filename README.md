@@ -10,7 +10,7 @@
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.6.0:** MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator, Push bei Alarm und eine Kachel mit Livebild, Ereignissen und Clips.
+> **Stand 0.7.0:** Livevideo per WebRTC in der Kachel. Davor: MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator, Push bei Alarm und eine Kachel mit Livebild, Ereignissen und Clips.
 
 ## Was tut dieses Modul?
 
@@ -43,6 +43,34 @@ ein Tipp aufs Livebild vergrößert es; Erkennung, Aufnahme und Schnappschüsse 
 schalten. Die Bilder holt die Instanz selbst bei Frigate und reicht sie über einen eigenen
 WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf braucht einen
 geheimen Schlüssel der Instanz; der lässt sich im Panel „Kachel" erneuern.
+
+**Livevideo in der Kachel:** Hat Frigates eingebauter Restream (go2rtc) einen Stream für die
+Kamera, spielt die Kachel echtes Video mit Ton statt des Standbilds — im Heimnetz, per WebRTC.
+Dafür in der Frigate-Konfiguration (Beispiel, Namen und Zugang wie in der eigenen Kamera):
+
+```yaml
+go2rtc:
+  streams:
+    haustuer:                                   # Name = Kamera-ID in Frigate
+      - rtsp://benutzer:{FRIGATE_RTSP_PASSWORD}@192.168.1.30:554/stream1
+  webrtc:
+    candidates:
+      - 192.168.1.20:8555                       # IP des Frigate-Rechners
+      - stun:8555
+
+cameras:
+  haustuer:
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/haustuer  # optional: Frigate nutzt den Restream,
+          input_args: preset-rtsp-restream      # die Kamera hat dann nur eine Verbindung
+          roles: [record, detect, audio]
+```
+
+Im Docker-Aufruf Port 8555 (TCP und UDP) freigeben. Die Kamera muss H.264 liefern (H.265 spielt
+kaum ein Browser). Nach dem Neustart von Frigate in der Instanz „Zustand jetzt abfragen" — das
+Panel „🖥️ Kachel" zeigt dann „Livevideo über go2rtc-Stream …". Unterwegs (außerhalb des
+Heimnetzes) zeigt die Kachel weiter das Standbild.
 
 **Push bei Alarm:** Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen
 (WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
