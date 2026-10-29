@@ -26,14 +26,20 @@ class FrigateHubServerWerte
         'unusable'  => 'unbrauchbar',
     ];
 
+    /**
+     * Werte, die immer Variablen sind: darauf reagiert man (Benachrichtigung) oder verfolgt sie.
+     * Die übrigen Leistungswerte stehen im Formular und nur auf Wunsch als Variablen.
+     */
+    public const KERN = ['NeuesteVersion', 'AufnahmenFrei', 'Kameraprobleme', 'Kamerazustand'];
+
     /** Ab diesen Stufen gilt eine Kamera als gestört. */
     private const QUALITAET_PROBLEM = ['poor', 'unusable'];
 
     /**
      * Alle Werte, die die Server-Instanz zeigt.
      *
-     * @return array<int,array{ident:string,name:string,typ:string,wert:mixed,einheit:string,stellen:int,pos:int}>
-     *   typ: 'float' | 'int' | 'string'
+     * @return array<int,array{ident:string,name:string,typ:string,wert:mixed,einheit:string,stellen:int,pos:int,kern:bool}>
+     *   typ: 'float' | 'int' | 'string'; kern: immer als Variable (siehe KERN)
      */
     public static function werte(array $s): array
     {
@@ -129,6 +135,75 @@ class FrigateHubServerWerte
         return $out;
     }
 
+    /**
+     * Übersicht fürs Formular: Textzeilen zum Server und eine Zeile je Kamera für die Liste.
+     *
+     * @return array{zeilen:string[],kameras:array<int,array<string,string>>}
+     */
+    public static function uebersicht(array $s): array
+    {
+        $w = [];
+        foreach (self::werte($s) as $x) {
+            $w[$x['ident']] = $x;
+        }
+        $zahl = fn (array $x): string => number_format((float)$x['wert'], $x['stellen'], ',', '.') . $x['einheit'];
+        $zeilen = [];
+        if (isset($w['Version'])) {
+            $zeilen[] = 'Frigate ' . $w['Version']['wert'] . ' (' . $w['NeuesteVersion']['wert'] . ')'
+                . (isset($w['LaeuftSeit']) ? ' · läuft seit ' . $w['LaeuftSeit']['wert'] : '');
+        }
+        if (isset($w['CPU']) || isset($w['Arbeitsspeicher'])) {
+            $zeilen[] = implode(' · ', array_filter([
+                isset($w['CPU']) ? 'CPU-Last ' . $zahl($w['CPU']) : '',
+                isset($w['Arbeitsspeicher']) ? 'Arbeitsspeicher ' . $zahl($w['Arbeitsspeicher']) : '',
+            ]));
+        }
+        $geraete = [];
+        foreach ($w as $x) {
+            if (strpos($x['ident'], 'Erkennungszeit_') === 0 || strpos($x['ident'], 'GPU_') === 0) {
+                $geraete[] = $x['name'] . ' ' . $zahl($x);
+            }
+        }
+        if ($geraete !== []) {
+            $zeilen[] = implode(' · ', $geraete);
+        }
+        if (isset($w['AufnahmenBelegt'], $w['AufnahmenFrei'])) {
+            $zeilen[] = 'Speicher Aufnahmen: ' . $zahl($w['AufnahmenBelegt']) . ' belegt, ' . $zahl($w['AufnahmenFrei']) . ' frei';
+        }
+
+        $kameras = [];
+        foreach ((array)($s['cameras'] ?? []) as $name => $k) {
+            if (!is_array($k)) {
+                continue;
+            }
+            $fps = fn ($v): string => is_numeric($v) ? number_format((float)$v, 1, ',', '') : '';
+            $kameras[] = [
+                'kamera'      => (string)$name,
+                'bilder'      => $fps($k['camera_fps'] ?? null) . (is_numeric($k['expected_fps'] ?? null) ? ' von ' . (int)$k['expected_fps'] : ''),
+                'erkennungen' => $fps($k['detection_fps'] ?? null),
+                'verbindung'  => self::qualitaet((string)($k['connection_quality'] ?? '')),
+                'neu'         => is_numeric($k['reconnects_last_hour'] ?? null) ? (string)(int)$k['reconnects_last_hour'] : '',
+                'aussetzer'   => is_numeric($k['stalls_last_hour'] ?? null) ? (string)(int)$k['stalls_last_hour'] : '',
+            ];
+        }
+        return ['zeilen' => $zeilen, 'kameras' => $kameras];
+    }
+
+    /** Nur die Teile der Statistik, die Werte und Übersicht brauchen (die Prozessliste ist groß). */
+    public static function kuerzen(array $s): array
+    {
+        $out = [];
+        foreach (['service', 'detectors', 'gpu_usages', 'cameras'] as $teil) {
+            if (isset($s[$teil])) {
+                $out[$teil] = $s[$teil];
+            }
+        }
+        if (isset($s['cpu_usages']['frigate.full_system'])) {
+            $out['cpu_usages'] = ['frigate.full_system' => $s['cpu_usages']['frigate.full_system']];
+        }
+        return $out;
+    }
+
     public static function qualitaet(string $stufe): string
     {
         return self::QUALITAET[$stufe] ?? $stufe;
@@ -162,6 +237,7 @@ class FrigateHubServerWerte
 
     private static function wert(string $ident, string $name, string $typ, $wert, string $einheit, int $stellen, int $pos): array
     {
-        return ['ident' => $ident, 'name' => $name, 'typ' => $typ, 'wert' => $wert, 'einheit' => $einheit, 'stellen' => $stellen, 'pos' => $pos];
+        return ['ident' => $ident, 'name' => $name, 'typ' => $typ, 'wert' => $wert, 'einheit' => $einheit, 'stellen' => $stellen, 'pos' => $pos,
+            'kern' => in_array($ident, self::KERN, true)];
     }
 }

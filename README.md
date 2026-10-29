@@ -31,22 +31,26 @@ daraus je Kamera:
 | Schalter | Objekterkennung, Aufnahme, Schnappschüsse, Bewegungserkennung, Masken, Zonen … |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
-Dazu kommt eine Instanz **Frigate-Server** für den Server selbst:
+Dazu kommt eine Instanz **Frigate-Server** für den Server selbst. Als Variablen (für
+Benachrichtigungen und Archiv):
 
 | Variable | Bedeutung |
 |---|---|
 | Frigate erreichbar | Frigate ist mit dem MQTT-Server verbunden (`frigate/available`) |
-| Version, Neueste Version | laufende Version; „0.19.0 verfügbar", sobald Frigate eine neuere kennt |
-| Läuft seit | Start von Frigate |
-| CPU-Last, Arbeitsspeicher | Auslastung des Frigate-Rechners in % |
-| Erkennungszeit _Detektor_ | Dauer einer Objekterkennung in ms, je Detektor (z. B. OpenVINO, Coral) |
-| GPU-Last _GPU_ | Auslastung je Grafikeinheit in % |
-| Speicher Aufnahmen belegt / frei | Platte unter `/media/frigate/recordings` in % bzw. GB |
+| Neueste Version | „aktuell" oder „0.19.0 verfügbar", sobald Frigate eine neuere kennt |
+| Speicher Aufnahmen frei | freier Platz unter `/media/frigate/recordings` in GB |
 | Gestörte Kameras, Kamerazustand | Anzahl und Klartext: Kameras ohne Bilder oder mit schlechter/unbrauchbarer Verbindung |
 
+Die Leistungswerte stehen im Formular in der **Übersicht**, beim Öffnen frisch von Frigate
+geholt: Version, Laufzeit, CPU-Last, Arbeitsspeicher, Erkennungszeit je Detektor, GPU-Last,
+belegter Speicher und je Kamera Bilder/s, Erkennungen/s, Verbindungsqualität, Neuverbindungen
+und Aussetzer der letzten Stunde. Wer sie archivieren oder als Diagramm sehen will, setzt das
+Häkchen „Leistungswerte zusätzlich als Variablen".
+
 Die Werte kommen aus `frigate/stats` (Frigate schickt das jede Minute, `mqtt.stats_interval`).
-„Gestörte Kameras" eignet sich als Auslöser für eine Benachrichtigung. Im Formular lässt sich
-Frigate neu starten (`frigate/restart`; Docker muss es mit `restart: unless-stopped` wieder starten).
+„Frigate erreichbar" und „Gestörte Kameras" eignen sich als Auslöser für eine Benachrichtigung.
+Im Formular lässt sich Frigate neu starten (`frigate/restart`; Docker muss es mit
+`restart: unless-stopped` wieder starten).
 
 Mit eingetragener Frigate-Adresse kommt der Schnappschuss jeder Erkennung in voller
 Kameraauflösung. Ohne Adresse nimmt FrigateHub das Bild, das Frigate per MQTT schickt: einen

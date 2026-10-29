@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1 (Build 19) — 29.10.2026
+
+- **Frigate-Server: Leistungswerte ins Formular** (Dietmars Wunsch): Als Variablen bleiben nur Frigate erreichbar, Neueste Version, Speicher Aufnahmen frei, Gestörte Kameras und Kamerazustand. Version, Laufzeit, CPU, Arbeitsspeicher, GPU, Erkennungszeit und belegter Speicher stehen im neuen Panel „📊 Übersicht“ (beim Öffnen frisch über `/api/stats`, sonst letzte MQTT-Statistik), dazu eine Liste je Kamera: Bilder/s von erwarteten, Erkennungen/s, Verbindung, Neuverbindungen und Aussetzer der letzten Stunde.
+- Häkchen „Leistungswerte zusätzlich als Variablen“ (Standard aus) für Archiv und Diagramme. Vorhandene Leistungs-Variablen bleiben beim Ausschalten stehen und werden weiter aktualisiert; gelöschte kommen nicht wieder.
+
 ## 0.9.0 (Build 18) — 29.10.2026
 
 - **Neue Instanz Frigate-Server** (`FrigateHubServer`, Präfix FRIGS, unter dem MQTT-Server): Frigate erreichbar, Version und „Neueste Version" (aus Frigates `latest_version`), Läuft seit, CPU-Last, Arbeitsspeicher, Erkennungszeit je Detektor, GPU-Last je GPU, Speicher Aufnahmen belegt/frei, „Gestörte Kameras" mit Klartext „Kamerazustand" (keine Bilder, Verbindung schlecht/unbrauchbar, Neuverbindungen der letzten Stunde). Quelle `frigate/stats` und `frigate/available`; mit Frigate-Adresse zusätzlich sofort über `/api/stats`. „Frigate neu starten" (`frigate/restart`, mit Rückfrage, nie retain). Feldnamen und Einheiten an Frigate 0.18.2 geprüft.

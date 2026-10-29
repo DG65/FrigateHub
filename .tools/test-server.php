@@ -130,7 +130,21 @@ $s->ReceiveData(paket('frigate/Door-Cam/available', 'online'));
 check('fremdes Topic mit „available" ignoriert', $s->GetValue('Verfuegbar'), false);
 
 $s->ReceiveData(paket('frigate/stats', (string)json_encode($stats)));
-check('Variablen aus Statistik', count($s->variables), 12);
+check('ohne Häkchen nur die Kernwerte', array_keys($s->variables), ['Verfuegbar', 'NeuesteVersion', 'AufnahmenFrei', 'Kameraprobleme', 'Kamerazustand']);
+$u = FrigateHubServerWerte::uebersicht(json_decode($s->GetBuffer('Statistik'), true));
+check('Übersicht aus gepufferter Statistik', $u['zeilen'], ['Frigate 0.18.2 (aktuell) · läuft seit ' . date('d.m.Y H:i', 1793282319 - 6147),
+    'CPU-Last 23,8 % · Arbeitsspeicher 43,4 %', 'Erkennungszeit ov 13,7 ms · GPU-Last N100 iGPU 2,5 %', 'Speicher Aufnahmen: 12,6 % belegt, 384,3 GB frei']);
+check('Übersicht je Kamera', $u['kameras'], [['kamera' => 'Door-Cam', 'bilder' => '5,1 von 5', 'erkennungen' => '0,0', 'verbindung' => 'schlecht', 'neu' => '5', 'aussetzer' => '5']]);
+check('Puffer ohne Prozessliste', array_keys(json_decode($s->GetBuffer('Statistik'), true)['cpu_usages']), ['frigate.full_system']);
+$form = json_decode((string)$s->GetConfigurationForm(), true);
+$ue = null;
+foreach ($form['elements'] as $e) { if (($e['caption'] ?? '') === '📊  Übersicht') { $ue = $e; } }
+check('Formular: Übersicht mit Kameraliste', [$ue !== null, strpos($ue['items'][0]['caption'] ?? '', 'Stand der letzten Statistik') === 0,
+    end($ue['items'])['values'][0]['verbindung'] ?? null], [true, true, 'schlecht']);
+$s->props(['LeistungAlsVariablen' => true]);
+$s->ApplyChanges();
+$s->ReceiveData(paket('frigate/stats', (string)json_encode($stats)));
+check('mit Häkchen alle Variablen', count($s->variables), 12);
 check('CPU mit Einheit und Stellen', [$s->GetValue('CPU'), $s->variables['CPU']['presentation']['SUFFIX'], $s->variables['CPU']['presentation']['DIGITS']], [23.8, ' %', 1]);
 check('Text ohne Einheit/Stellen', isset($s->variables['Version']['presentation']['SUFFIX']) || isset($s->variables['Version']['presentation']['DIGITS']), false);
 check('Ganzzahl ohne Stellen', isset($s->variables['Kameraprobleme']['presentation']['DIGITS']), false);
@@ -147,6 +161,16 @@ check('neuer Wert, Name/Position bleiben', [$s->GetValue('CPU'), $s->variables['
 check('Kamera wieder in Ordnung', [$s->GetValue('Kameraprobleme'), $s->GetValue('Kamerazustand')], [0, 'Die Kamera läuft einwandfrei.']);
 $s->ReceiveData(paket('frigate/stats', 'kein json'));
 check('kaputte Statistik ändert nichts', $s->GetValue('CPU'), 50.0);
+
+// Häkchen wieder aus: vorhandene Leistungs-Variablen bleiben (gehören dem Nutzer) und aktuell
+$s->props(['LeistungAlsVariablen' => false]);
+$stats4 = $stats2;
+$stats4['cpu_usages']['frigate.full_system']['cpu'] = '61';
+$s->ReceiveData(paket('frigate/stats', (string)json_encode($stats4)));
+check('Häkchen aus: Variable bleibt und wird aktualisiert', [count($s->variables), $s->GetValue('CPU')], [12, 61.0]);
+unset($s->variables['CPU']);
+$s->ReceiveData(paket('frigate/stats', (string)json_encode($stats4)));
+check('gelöschte Leistungs-Variable kommt nicht wieder', isset($s->variables['CPU']), false);
 
 // Anderer Präfix
 $s->props(['TopicPrefix' => '/frigate2/']);

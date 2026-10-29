@@ -33,6 +33,8 @@ class FrigateHubServer extends IPSModule
         parent::Create();
 
         $this->RegisterPropertyString('TopicPrefix', 'frigate');
+        // Leistungswerte (CPU, GPU, Erkennungszeit …) stehen im Formular; als Variablen nur auf Wunsch
+        $this->RegisterPropertyBoolean('LeistungAlsVariablen', false);
         $this->apiRegistrieren();
         $this->RegisterAttributeInteger('LetzteStatistik', 0);
         $this->RegisterAttributeString('Abgleichstatus', '');
@@ -137,6 +139,7 @@ class FrigateHubServer extends IPSModule
     public function GetConfigurationForm()
     {
         $fach = [
+            $this->uebersichtPanel(),
             [
                 'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🖥️  Frigate-Server',
                 'items' => [
@@ -144,6 +147,7 @@ class FrigateHubServer extends IPSModule
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
                     ...$this->apiFormular('Optional: Mit Adresse stehen die Werte gleich nach dem Übernehmen bereit statt erst mit der nächsten Statistik per MQTT.'),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
+                    ['type' => 'CheckBox', 'name' => 'LeistungAlsVariablen', 'caption' => 'Leistungswerte zusätzlich als Variablen (CPU, Arbeitsspeicher, GPU, Erkennungszeit, Version, Laufzeit, Speicher belegt) — für Archiv und Diagramme'],
                     ['type' => 'RowLayout', 'items' => [
                         ['type' => 'Button', 'caption' => 'Werte jetzt abfragen', 'onClick' => 'echo FRIGS_ZustandAnfordern($id);'],
                         ['type' => 'Button', 'caption' => '🔄 Frigate neu starten', 'onClick' => 'echo FRIGS_Neustarten($id);',
@@ -176,7 +180,9 @@ class FrigateHubServer extends IPSModule
         return [
             'Unter demselben MQTT-Server bzw. MQTT-Client anlegen wie die Kameras (der Konfigurator bietet den Server mit an). Eine Instanz je Frigate-Server.',
             'Die Werte kommen aus frigate/stats; Frigate schickt das im Takt von mqtt.stats_interval (Standard 60 s). „Frigate erreichbar" folgt frigate/available und fällt sofort, wenn Frigate die MQTT-Verbindung verliert.',
-            'Variablen für Detektoren und GPUs entstehen, sobald Frigate sie meldet. „Neueste Version" kommt von Frigate selbst (es fragt GitHub ab); steht dort „unbekannt", ist diese Abfrage in Frigate abgeschaltet oder ohne Internet.',
+            'Als Variablen (für Benachrichtigungen und Archiv): Frigate erreichbar, Neueste Version, Speicher Aufnahmen frei, Gestörte Kameras und Kamerazustand. Version, Laufzeit, CPU, Arbeitsspeicher, GPU, Erkennungszeit und belegter Speicher stehen in der Übersicht oben; als Variablen nur mit dem Häkchen „Leistungswerte zusätzlich als Variablen".',
+            'Die Übersicht holt die Werte beim Öffnen des Formulars frisch von Frigate (mit Frigate-Adresse), sonst zeigt sie die letzte Statistik per MQTT. Je Kamera: Bilder/s (von erwarteten), Erkennungen/s, Verbindungsqualität, Neuverbindungen und Aussetzer der letzten Stunde.',
+            '„Neueste Version" kommt von Frigate selbst (es fragt GitHub ab); steht dort „unbekannt", ist diese Abfrage in Frigate abgeschaltet oder ohne Internet.',
             '„Gestörte Kameras" zählt Kameras, die keine Bilder liefern oder deren Verbindung Frigate als schlecht oder unbrauchbar einstuft; „Kamerazustand" sagt, welche und warum.',
             '„Frigate neu starten" schickt frigate/restart. Frigate beendet sich dann, Docker startet es neu (restart: unless-stopped). Ohne diese Docker-Einstellung bleibt Frigate aus.',
         ];
@@ -187,7 +193,16 @@ class FrigateHubServer extends IPSModule
     private function anwenden(array $stats): void
     {
         $this->WriteAttributeInteger('LetzteStatistik', time());
+        $this->SetBuffer('Statistik', (string)json_encode(FrigateHubServerWerte::kuerzen($stats)));
+        $alle = $this->ReadPropertyBoolean('LeistungAlsVariablen');
         foreach (FrigateHubServerWerte::werte($stats) as $w) {
+            if (!$w['kern'] && !$alle) {
+                // Behält der Nutzer eine solche Variable (früher angelegt), bleibt sie aktuell.
+                if (@$this->GetIDForIdent($w['ident']) !== false) {
+                    $this->SetValue($w['ident'], $w['wert']);
+                }
+                continue;
+            }
             $typ = ['float' => VARIABLETYPE_FLOAT, 'int' => VARIABLETYPE_INTEGER, 'string' => VARIABLETYPE_STRING][$w['typ']];
             $darstellung = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION];
             if ($w['einheit'] !== '') {
@@ -211,6 +226,54 @@ class FrigateHubServer extends IPSModule
         if (@$this->GetIDForIdent($ident) === false) {
             $this->MaintainVariable($ident, $name, $typ, $darstellung, $position, true);
         }
+    }
+
+    /** Panel „Übersicht": beim Öffnen frisch über die API, sonst aus der letzten MQTT-Statistik. */
+    private function uebersichtPanel(): array
+    {
+        $stats = null;
+        $quelle = '';
+        if ($this->apiUrl() !== '') {
+            $stats = $this->apiHolen('/api/stats');
+            if ($stats !== null) {
+                $this->SetBuffer('Statistik', (string)json_encode(FrigateHubServerWerte::kuerzen($stats)));
+                $quelle = 'Stand ' . date('H:i:s') . ' Uhr, beim Öffnen frisch von Frigate geholt.';
+            }
+        }
+        if ($stats === null) {
+            $gepuffert = json_decode($this->GetBuffer('Statistik'), true);
+            $ts = $this->ReadAttributeInteger('LetzteStatistik');
+            if (is_array($gepuffert) && $gepuffert !== []) {
+                $stats = $gepuffert;
+                $quelle = 'Stand der letzten Statistik vom ' . date('d.m.Y H:i:s', $ts) . ' Uhr.';
+            }
+        }
+        if ($stats === null) {
+            return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '📊  Übersicht', 'items' => [
+                ['type' => 'Label', 'caption' => 'ℹ️ Noch keine Statistik von Frigate. Sie kommt per MQTT standardmäßig jede Minute; mit Frigate-Adresse sofort beim Öffnen.'],
+            ]];
+        }
+        $u = FrigateHubServerWerte::uebersicht($stats);
+        $items = [['type' => 'Label', 'caption' => $quelle, 'italic' => true]];
+        foreach ($u['zeilen'] as $zeile) {
+            $items[] = ['type' => 'Label', 'caption' => $zeile];
+        }
+        if ($u['kameras'] !== []) {
+            $items[] = [
+                'type' => 'List', 'name' => 'KameraUebersicht', 'caption' => 'Kameras', 'rowCount' => min(8, max(2, count($u['kameras']))),
+                'add' => false, 'delete' => false,
+                'columns' => [
+                    ['caption' => 'Kamera', 'name' => 'kamera', 'width' => 'auto'],
+                    ['caption' => 'Bilder/s', 'name' => 'bilder', 'width' => '110px'],
+                    ['caption' => 'Erkennungen/s', 'name' => 'erkennungen', 'width' => '120px'],
+                    ['caption' => 'Verbindung', 'name' => 'verbindung', 'width' => '120px'],
+                    ['caption' => 'Neuverbindungen/h', 'name' => 'neu', 'width' => '150px'],
+                    ['caption' => 'Aussetzer/h', 'name' => 'aussetzer', 'width' => '110px'],
+                ],
+                'values' => $u['kameras'],
+            ];
+        }
+        return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '📊  Übersicht', 'items' => $items];
     }
 
     private function empfangsstatus(): string
