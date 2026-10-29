@@ -71,11 +71,28 @@ class TestKamera extends FrigateHubKamera
 final class TestPush
 {
     public static $ergebnis = true;
+    /** Kachel-Visualisierung lehnt ein Ziel-Objekt ab (Rückfall auf 0 prüfen). */
+    public static $zielAblehnen = false;
+}
+
+function SMTP_SendMailMedia(int $id, string $betreff, string $text, int $medium): bool
+{
+    $GLOBALS['gepusht'][] = ['MAIL', $id, $betreff, $text, $medium];
+    return TestPush::$ergebnis;
+}
+
+function SMTP_SendMail(int $id, string $betreff, string $text): bool
+{
+    $GLOBALS['gepusht'][] = ['MAILTEXT', $id, $betreff, $text];
+    return TestPush::$ergebnis;
 }
 
 function VISU_PostNotificationEx(int $id, string $titel, string $text, string $icon, string $ton, int $ziel)
 {
     $GLOBALS['gepusht'][] = ['VISU', $id, $titel, $text, $icon, $ton, $ziel];
+    if (TestPush::$zielAblehnen && $ziel !== 0) {
+        return false;
+    }
     return TestPush::$ergebnis ? 4711 : false;
 }
 
@@ -563,7 +580,7 @@ $p->props(['PushZiele' => json_encode([['Ziel' => 30], ['Ziel' => 31], ['Ziel' =
 $p->ApplyChanges();
 $alarm('a2');
 check('Alarm: zwei Ziele, doppeltes nur einmal', count($gepusht), 2);
-check('Kachel: Ex-Fassung mit Titel', $gepusht[0] ?? null, ['VISU', 30, '🚨 Haustür', '28.10.2026 18:06:00 – Person in haustuer', 'Alert', 'alarm', 0]);
+check('Kachel: Ex-Fassung mit Titel, Antippen öffnet die Kamera', $gepusht[0] ?? null, ['VISU', 30, '🚨 Haustür', '28.10.2026 18:06:00 – Person in haustuer', 'Alert', 'alarm', 20]);
 check('WebFront: WFC mit eigener Instanz', $gepusht[1] ?? null, ['WFC', 31, '🚨 Haustür', '28.10.2026 18:06:00 – Person in haustuer', 'alarm', 20]);
 check('Status: gesendet', strpos($p->ReadAttributeString('Pushstatus'), 'an Dietmar, WebFront gesendet') !== false, true);
 
@@ -596,6 +613,41 @@ $p->props(['PushZiele' => json_encode([['Ziel' => 30]])]);
 $p->ApplyChanges();
 check('Zustellung scheitert: ⛔', strpos($p->PushTesten(), '⛔') === 0, true);
 TestPush::$ergebnis = true;
+
+/* =================================================================== Meldung mit Schnappschuss */
+
+IPSTestState::$instances[33] = ['InstanceID' => 33, 'Name' => 'E-Mail', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{375EAF21-35EF-4BC4-83B3-C780FD8BD88A}']];
+$m = new TestKamera(22);
+IPSTestState::$instances[22] = ['InstanceID' => 22, 'Name' => 'Haustür', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$m->Create();
+$m->props(['Camera' => 'Door-Cam', 'PushZiele' => json_encode([['Ziel' => 30], ['Ziel' => 33]]), 'PushPause' => 0]);
+$m->ApplyChanges();
+$gepusht = [];
+$text = $m->MeldungMitSchnappschuss('Alarm Erdgeschoss', true);
+check('ohne Bild: Mail als Text mit Hinweis, Push trotzdem', [array_column($gepusht, 0), strpos($gepusht[1][3] ?? '', 'Kein Bild') !== false, strpos($text, '✅') === 0], [['VISU', 'MAILTEXT'], true, true]);
+$jpeg = "\xFF\xD8\xFF\xE0" . str_repeat('x', 100);
+$m->props(['ApiUrl' => 'http://127.0.0.1:5000']);
+$m->ApplyChanges();
+TestKamera::$api['/api/Door-Cam/latest.jpg?height=1080&h=1080&bbox=1'] = $jpeg;
+TestKamera::$abgerufen = [];
+$gepusht = [];
+$m->MeldungMitSchnappschuss('', true);
+$bild = @IPS_GetObjectIDByIdent('Meldungsbild', 22);
+check('Livebild in eigenem Medium „Meldungsbild", nur einmal geholt', [$bild !== false, count(array_filter(TestKamera::$abgerufen, fn ($p) => strpos($p, 'latest.jpg') !== false)), $gepusht[1][0] ?? null, $gepusht[1][4] ?? null],
+    [true, 1, 'MAIL', $bild]);
+check('Titel mit Kameraname', $gepusht[0][2] ?? null, '📷 Haustür');
+check('Schnappschuss nicht überschrieben', @IPS_GetObjectIDByIdent('Schnappschuss', 22), false);
+$gepusht = [];
+TestKamera::$abgerufen = [];
+$m->props(['PushZiele' => json_encode([['Ziel' => 30]])]);
+$m->ApplyChanges();
+$m->MeldungMitSchnappschuss('x', true);
+check('ohne SMTP-Ziel wird kein Bild geholt', count(array_filter(TestKamera::$abgerufen, fn ($p) => strpos($p, 'latest.jpg') !== false)), 0);
+TestPush::$zielAblehnen = true;
+$gepusht = [];
+$text = $m->MeldungMitSchnappschuss('x', false);
+check('Kachel lehnt Ziel-Objekt ab: Rückfall ohne Ziel', [array_column($gepusht, 6), strpos($text, '✅') === 0], [[22, 0], true]);
+TestPush::$zielAblehnen = false;
 
 /* =================================================================== Gesichter, Kennzeichen, KI */
 

@@ -130,10 +130,21 @@ dann „🔇 kein Ton" mit Erklärung: Der Stream hat keine abspielbare Tonspur,
 nur Stille. Das Zweite ist typisch für Kameras mit Line-Eingang ohne angeschlossenes Mikrofon und
 lässt sich erst nach dem Einschalten des Tons messen.
 
-**Push bei Alarm:** Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen
-(WebFront oder Kachel-Visualisierung). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
+**Push bei Alarm:** Im Panel „🔔 Push und Meldungen" eine oder mehrere Ziele eintragen
+(Kachel-Visualisierung, WebFront oder SMTP für E-Mail mit Bild). Jeder neue Alarm kommt dann einmal als Meldung aufs Handy,
 Titel ist der Name der Instanz, Text Zeit, Objekt und Zone. Was ein Alarm ist, legt man in Frigate
 fest (`review: alerts: labels` bzw. `required_zones`). Ton und Mindestabstand sind einstellbar.
+Push-Nachrichten können kein Bild mitschicken — Antippen öffnet die Kamera-Kachel. Wer das Bild
+in der Meldung will, trägt zusätzlich eine **SMTP-Instanz** als Ziel ein: Dann kommt jede Meldung
+als E-Mail mit dem aktuellen Kamerabild (Rahmen um erkannte Objekte).
+
+**Meldung mit Schnappschuss für Alarmanlagen und Regeln:**
+`FRIG_MeldungMitSchnappschuss($id, "Text", true)` schickt eine Meldung mit dem aktuellen
+Kamerabild an dieselben Ziele. In Symcon-Aktionen („Instanzfunktion ausführen") lässt sie sich
+z. B. in OpenHomeAlarm als Alarm-Aktion oder im DG65-Toolkit Automat eintragen. Leerer Text nimmt
+„Letztes Objekt", `false` den letzten Schnappschuss statt des Livebilds. Das Livebild landet im
+eigenen Medienobjekt „Meldungsbild" und überschreibt den Erkennungs-Schnappschuss nicht.
+
 Mit Frigates GenAI kommt die KI-Zusammenfassung als zweite Meldung hinterher; findet die KI eine
 bloße Erkennung verdächtig, meldet FrigateHub auch diese (abschaltbar). Bedingte Meldungen
 (nur bei Abwesenheit, nachts …) gehören in eine Regel, z. B. mit dem DG65-Toolkit Automat.

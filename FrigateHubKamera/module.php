@@ -58,6 +58,7 @@ class FrigateHubKamera extends IPSModule
      */
     private const WEBFRONT_GUID = '{3565B1F2-8F7B-4311-A4B6-1BF1D868F39E}';
     private const KACHEL_GUID   = '{B5B875BB-9B76-45FD-4E67-2607E45B3AC4}';
+    private const SMTP_GUID     = '{375EAF21-35EF-4BC4-83B3-C780FD8BD88A}';
 
     /** Töne laut Symcon-Doku, für WebFront und Kachel-Visualisierung gleich. */
     private const PUSH_TOENE = ['alarm', 'bell', 'boom', 'buzzer', 'connected', 'dark', 'digital', 'drums', 'duck', 'full',
@@ -325,15 +326,29 @@ class FrigateHubKamera extends IPSModule
         return $text;
     }
 
-    /** Vergisst die gelernten Zonen (z. B. nach Umbenennen in Frigate). Variablen bleiben. */
     /** Probemeldung an alle eingetragenen Ziele. Rückgabe: Text fürs Formular. */
     public function PushTesten(): string
     {
-        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), 'Probemeldung von FrigateHub – so sieht ein Alarm aus.');
+        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), 'Probemeldung von FrigateHub – so sieht ein Alarm aus.', true);
         $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
         return $text;
     }
 
+    /**
+     * FRIG_MeldungMitSchnappschuss($id, $Text, $Livebild): Meldung an alle eingetragenen Ziele —
+     * Push an Kachel-Visualisierung/WebFront (Antippen öffnet diese Kamera), E-Mail mit Bild an
+     * SMTP-Instanzen. Gedacht als Aktion für Alarmanlagen und Regeln (z. B. OpenHomeAlarm, Automat).
+     * $Livebild: aktuelles Kamerabild statt des letzten Schnappschusses. Leerer Text: „Letztes Objekt".
+     */
+    public function MeldungMitSchnappschuss(string $Text, bool $Livebild): string
+    {
+        $text = trim($Text) !== '' ? trim($Text) : (string)@$this->GetValue('LetztesObjekt');
+        $status = $this->pushSenden('📷 ' . IPS_GetName($this->InstanceID), $text !== '' ? $text : 'Meldung von FrigateHub', $Livebild);
+        $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
+        return $status;
+    }
+
+    /** Vergisst die gelernten Zonen (z. B. nach Umbenennen in Frigate). Variablen bleiben. */
     public function ZonenVergessen(): string
     {
         $anzahl = count($this->zonen());
@@ -371,13 +386,14 @@ class FrigateHubKamera extends IPSModule
                 ],
             ],
             [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push bei Alarm',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Meldet jeden neuen Alarm dieser Kamera als Push-Nachricht aufs Handy, einmal je Alarm. Was ein Alarm ist, legst du in Frigate fest (review: alerts: labels / required_zones). Ohne Ziel bleibt der Push aus.'],
-                    ['type' => 'List', 'name' => 'PushZiele', 'caption' => 'Ziele (WebFront oder Kachel-Visualisierung)', 'add' => true, 'delete' => true, 'rowCount' => 3,
+                    ['type' => 'Label', 'caption' => 'Meldet jeden neuen Alarm dieser Kamera an die Ziele, einmal je Alarm. Was ein Alarm ist, legst du in Frigate fest (review: alerts: labels / required_zones). Ohne Ziel bleibt der Push aus.'],
+                    ['type' => 'Label', 'caption' => 'Push-Nachrichten (Kachel-Visualisierung, WebFront) können kein Bild mitschicken; Antippen öffnet diese Kamera. Als SMTP-Instanz eingetragen, kommt die Meldung als E-Mail mit dem aktuellen Kamerabild (Rahmen um erkannte Objekte).'],
+                    ['type' => 'List', 'name' => 'PushZiele', 'caption' => 'Ziele (Kachel-Visualisierung, WebFront oder E-Mail/SMTP)', 'add' => true, 'delete' => true, 'rowCount' => 3,
                         'columns' => [[
-                            'caption' => 'Visualisierung', 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
-                            'edit' => ['type' => 'SelectInstance', 'validModules' => [self::KACHEL_GUID, self::WEBFRONT_GUID]],
+                            'caption' => 'Ziel', 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
+                            'edit' => ['type' => 'SelectInstance', 'validModules' => [self::KACHEL_GUID, self::WEBFRONT_GUID, self::SMTP_GUID]],
                         ]],
                     ],
                     ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Ton', 'options' => $this->tonOptionen()],
@@ -385,6 +401,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => 'KI-Einschätzung von Frigate (GenAI) zum Alarm nachreichen und verdächtige Erkennungen melden'],
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
                     ['type' => 'Button', 'caption' => 'Probemeldung senden', 'onClick' => 'echo FRIG_PushTesten($id);'],
+                    ['type' => 'Label', 'caption' => 'Für Alarmanlagen und Regeln (z. B. OpenHomeAlarm, DG65-Toolkit Automat, Skripte): FRIG_MeldungMitSchnappschuss($id, "Text", true) schickt eine Meldung mit dem aktuellen Kamerabild an dieselben Ziele — in Symcon-Aktionen als „Instanzfunktion ausführen". Leerer Text: „Letztes Objekt"; false statt true: letzter Schnappschuss statt Livebild.'],
                 ],
             ],
             [
@@ -563,21 +580,50 @@ class FrigateHubKamera extends IPSModule
      */
     private function bildSetzen(string $jpeg, string $quelle): void
     {
-        $id = @IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID);
-        if ($id === false) {
-            $id = IPS_CreateMedia(MEDIATYPE_IMAGE);
-            IPS_SetParent($id, $this->InstanceID);
-            IPS_SetIdent($id, 'Schnappschuss');
-            IPS_SetName($id, 'Schnappschuss');
-            IPS_SetPosition($id, 9);
-            IPS_SetMediaFile($id, 'media/FrigateHub_' . $this->InstanceID . '.jpg', false);
-            IPS_SetMediaCached($id, true);
-        }
-        if (!IPS_SetMediaContent($id, base64_encode($jpeg))) {
-            $this->LogMessage('Schnappschuss konnte nicht gespeichert werden (Medienobjekt ' . $id . ')', KL_ERROR);
+        if ($this->mediumSchreiben('Schnappschuss', 'Schnappschuss', 9, '', $jpeg) === 0) {
             return;
         }
         $this->WriteAttributeString('Bildstatus', $quelle . ' vom ' . date('d.m.Y H:i:s') . ' Uhr (' . round(strlen($jpeg) / 1024) . ' KB)');
+    }
+
+    /** Bild-Medienobjekt anlegen (falls nötig, gecacht) und beschreiben. Rückgabe: Medien-ID, 0 bei Fehler. */
+    private function mediumSchreiben(string $ident, string $name, int $position, string $dateiZusatz, string $jpeg): int
+    {
+        $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        if ($id === false) {
+            $id = IPS_CreateMedia(MEDIATYPE_IMAGE);
+            IPS_SetParent($id, $this->InstanceID);
+            IPS_SetIdent($id, $ident);
+            IPS_SetName($id, $name);
+            IPS_SetPosition($id, $position);
+            IPS_SetMediaFile($id, 'media/FrigateHub_' . $this->InstanceID . $dateiZusatz . '.jpg', false);
+            IPS_SetMediaCached($id, true);
+        }
+        if (!IPS_SetMediaContent($id, base64_encode($jpeg))) {
+            $this->LogMessage($name . ' konnte nicht gespeichert werden (Medienobjekt ' . $id . ')', KL_ERROR);
+            return 0;
+        }
+        return $id;
+    }
+
+    /**
+     * Bild für eine Meldung: mit Frigate-Adresse das aktuelle Kamerabild (mit Rahmen um erkannte
+     * Objekte) im eigenen Medienobjekt „Meldungsbild" — so bleibt der Erkennungs-Schnappschuss
+     * unangetastet. Sonst (oder wenn das nicht klappt) der letzte Schnappschuss. 0 = kein Bild.
+     */
+    private function meldungsbild(bool $livebild): int
+    {
+        if ($livebild && $this->kamera() !== '' && $this->apiUrl() !== '') {
+            $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(1080) . '&bbox=1', 'image/jpeg');
+            if ($bild !== null && FrigateHubTopics::bildBytes($bild) !== null) {
+                $id = $this->mediumSchreiben('Meldungsbild', 'Meldungsbild', 10, '_meldung', $bild);
+                if ($id > 0) {
+                    return $id;
+                }
+            }
+        }
+        $id = @IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID);
+        return $id === false ? 0 : (int)$id;
     }
 
     /** @return string[] */
@@ -825,7 +871,7 @@ class FrigateHubKamera extends IPSModule
             return;
         }
         $this->WriteAttributeString('LetzterPush', (string)json_encode(['id' => $id, 'zeit' => time()]));
-        $this->pushSenden('🚨 ' . IPS_GetName($this->InstanceID), $text);
+        $this->pushSenden('🚨 ' . IPS_GetName($this->InstanceID), $text, true);
     }
 
     /** @return int[] gültige Ziel-Instanzen aus der Liste */
@@ -841,8 +887,12 @@ class FrigateHubKamera extends IPSModule
         return $ziele;
     }
 
-    /** An alle Ziele senden; Ergebnis landet im Attribut Pushstatus. Rückgabe: derselbe Text. */
-    private function pushSenden(string $titel, string $text): string
+    /**
+     * An alle Ziele senden; Ergebnis landet im Attribut Pushstatus. Rückgabe: derselbe Text.
+     * SMTP-Ziele bekommen eine E-Mail mit Bild ($livebild: aktuelles Kamerabild, sonst letzter
+     * Schnappschuss) — das Bild wird nur geholt, wenn ein SMTP-Ziel eingetragen ist.
+     */
+    private function pushSenden(string $titel, string $text, bool $livebild = false): string
     {
         $ziele = $this->pushZiele();
         if ($ziele === []) {
@@ -854,6 +904,7 @@ class FrigateHubKamera extends IPSModule
         $titel = FrigateHubTopics::kuerzenBytes($titel, 32);
         $text = FrigateHubTopics::kuerzenBytes($text, 256);
         $ton = (string)$this->ReadPropertyString('PushTon');
+        $bild = null;   // Meldungsbild nur einmal je Meldung holen
         $ok = [];
         $fehler = [];
         foreach ($ziele as $ziel) {
@@ -861,7 +912,15 @@ class FrigateHubKamera extends IPSModule
             $modul = IPS_InstanceExists($ziel) ? (string)(IPS_GetInstance($ziel)['ModuleInfo']['ModuleID'] ?? '') : '';
             if ($modul === self::KACHEL_GUID && function_exists('VISU_PostNotificationEx')) {
                 // Ex-Fassung: die einfache VISU_PostNotification lieferte live immer false (Stolperstein 22).
-                $gesendet = @VISU_PostNotificationEx($ziel, $titel, $text, 'Alert', $ton, 0);
+                // Ziel = diese Instanz: Antippen der Meldung öffnet die Kamera-Kachel.
+                $gesendet = @VISU_PostNotificationEx($ziel, $titel, $text, 'Alert', $ton, $this->InstanceID);
+                if ($gesendet === false) {
+                    // Rückfall: ohne Ziel-Objekt (so live bestätigt 29.10.2026)
+                    $gesendet = @VISU_PostNotificationEx($ziel, $titel, $text, 'Alert', $ton, 0);
+                }
+            } elseif ($modul === self::SMTP_GUID && function_exists('SMTP_SendMailMedia')) {
+                $bild = $bild ?? $this->meldungsbild($livebild);
+                $gesendet = $bild > 0 ? @SMTP_SendMailMedia($ziel, $titel, $text, $bild) : @SMTP_SendMail($ziel, $titel, $text . "\n\n(Kein Bild verfügbar.)");
             } elseif ($modul === self::WEBFRONT_GUID && function_exists('WFC_PushNotification')) {
                 $gesendet = @WFC_PushNotification($ziel, $titel, $text, $ton, $this->InstanceID);
             } else {
