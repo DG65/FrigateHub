@@ -4,7 +4,7 @@
 
 - **`FRIG_MeldungMitSchnappschuss($id, $Text, $Livebild)`:** Meldung mit Kamerabild an alle Ziele, als Aktion für Alarmanlagen und Regeln (OpenHomeAlarm, Automat, Skripte). Das Livebild (mit Rahmen) kommt in ein eigenes Medienobjekt „Meldungsbild“, der Erkennungs-Schnappschuss bleibt unangetastet.
 - **SMTP als Ziel:** Die Zielliste nimmt jetzt auch SMTP-Instanzen; jede Meldung (Alarm, Probe, KI, Meldung mit Schnappschuss) kommt dort als E-Mail mit Bild (`SMTP_SendMailMedia`). Das Bild wird nur geholt, wenn ein SMTP-Ziel eingetragen ist; ohne Bild als Text mit Hinweis.
-- **Push öffnet die Kamera:** Kachel-Push-Meldungen tragen die Kamera-Instanz als Ziel, Antippen öffnet die Kachel; lehnt Symcon das ab, Rückfall auf die bisherige Meldung ohne Ziel.
+- **Push öffnet die Kamera:** Kachel-Push-Meldungen tragen die Kamera-Instanz als Ziel, Antippen öffnet die Kachel (live bestätigt 29.10.2026, ebenso die E-Mail mit Bild); lehnt Symcon das ab, Rückfall auf die bisherige Meldung ohne Ziel.
 - Panel heißt jetzt „🔔 Push und Meldungen“.
 
 ## 0.10.0 (Build 22) — 29.10.2026
