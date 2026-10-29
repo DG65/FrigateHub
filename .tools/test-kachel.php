@@ -163,19 +163,19 @@ check('Takt höchstens 60 s', $k->daten()['live'], 60);
 $k->props(['KachelLiveTakt' => 2]);
 $k->ApplyChanges();
 
-TestKachel::$frigate['/api/Door-Cam/latest.jpg?h=480&bbox=1'] = ['code' => 200, 'body' => 'JPEG', 'kopf' => ['content-type' => 'image/jpeg']];
+TestKachel::$frigate['/api/Door-Cam/latest.jpg?height=480&h=480&bbox=1'] = ['code' => 200, 'body' => 'JPEG', 'kopf' => ['content-type' => 'image/jpeg']];
 $a = $k->hook(['k' => $schluessel, 'bild' => 'live']);
 check('Livebild mit Rahmen', [$a['code'], $a['inhalt'], $a['kopf']['Cache-Control']], [200, 'JPEG', 'no-store']);
 $k->hook(['k' => $schluessel, 'bild' => 'live', 'rahmen' => '0', 'h' => '5000']);
-check('ohne Rahmen, Höhe begrenzt', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?h=1080');
+check('ohne Rahmen, Höhe begrenzt', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?height=1080&h=1080');
 $k->hook(['k' => $schluessel, 'bild' => 'live', 'h' => '-5']);
-check('Höhe mindestens 120', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?h=120&bbox=1');
+check('Höhe mindestens 120', end(TestKachel::$durchgereicht)[0], '/api/Door-Cam/latest.jpg?height=120&h=120&bbox=1');
 $k->hook(['k' => $schluessel, 'bild' => 'review', 'id' => $ID]);
 check('Review-Vorschau', end(TestKachel::$durchgereicht)[0], '/clips/review/thumb-Door-Cam-' . $ID . '.webp');
 $k->hook(['k' => $schluessel, 'bild' => 'vorschau', 'id' => $EV]);
 check('Objekt-Vorschau', end(TestKachel::$durchgereicht)[0], '/api/events/' . $EV . '/thumbnail.jpg');
 $k->hook(['k' => $schluessel, 'bild' => 'ereignis', 'id' => $EV, 'h' => '1080']);
-check('Ereignis-Schnappschuss', end(TestKachel::$durchgereicht)[0], '/api/events/' . $EV . '/snapshot.jpg?h=1080');
+check('Ereignis-Schnappschuss', end(TestKachel::$durchgereicht)[0], '/api/events/' . $EV . '/snapshot.jpg?height=1080&h=1080');
 
 // Keine fremden Pfade
 $vorher = count(TestKachel::$durchgereicht);
@@ -185,15 +185,38 @@ foreach ([['bild' => 'review', 'id' => '../../api/config'], ['bild' => 'ereignis
 }
 check('abgelehnte Anfragen erreichen Frigate nicht', count(TestKachel::$durchgereicht), $vorher);
 
-// Clip mit Range (Safari/iOS)
-TestKachel::$frigate['/api/events/' . $EV . '/clip.mp4'] = ['code' => 206, 'body' => 'MP4TEIL',
-    'kopf' => ['content-type' => 'video/mp4', 'content-range' => 'bytes 0-6/1734835']];
-$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=0-6']);
-check('Clip: Range durchgereicht, längere Zeit', array_slice(end(TestKachel::$durchgereicht), 1), ['bytes=0-6', 60]);
-check('Clip: 206 mit Content-Range', [$a['code'], $a['kopf']['Content-Range'], $a['kopf']['Accept-Ranges'], $a['kopf']['Content-Type']],
-    [206, 'bytes 0-6/1734835', 'bytes', 'video/mp4']);
-$k->hook(['k' => $schluessel, 'bild' => 'live'], ['HTTP_RANGE' => 'bytes=0-6']);
-check('Bild: kein Range', end(TestKachel::$durchgereicht)[1], '');
+// Clip: einmal von Frigate holen, stückweise ausliefern (Symcon gab 1,7 MB leer aus; Frigate kennt kein Range)
+foreach (glob(sys_get_temp_dir() . '/frigatehub_1_*.mp4') ?: [] as $f) { unlink($f); }
+$mp4 = '';
+for ($i = 0; strlen($mp4) < 1258291; $i++) { $mp4 .= sprintf('%08d', $i); }
+$mp4 = substr($mp4, 0, 1258291);
+TestKachel::$frigate['/api/events/' . $EV . '/clip.mp4'] = ['code' => 200, 'body' => $mp4, 'kopf' => ['content-type' => 'video/mp4']];
+$vorher = count(TestKachel::$durchgereicht);
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV]);
+check('Clip ohne Range: erstes Stück 206', [$a['code'], $a['kopf']['Content-Range'], $a['kopf']['Accept-Ranges'], $a['kopf']['Content-Type'], $a['inhalt'] === substr($mp4, 0, 524288)],
+    [206, 'bytes 0-524287/1258291', 'bytes', 'video/mp4', true]);
+check('Clip bei Frigate ohne Range, 60 s', array_slice(end(TestKachel::$durchgereicht), 0), ['/api/events/' . $EV . '/clip.mp4', '', 60]);
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=524288-']);
+check('Clip: zweites Stück', [$a['kopf']['Content-Range'], $a['inhalt'] === substr($mp4, 524288, 524288)], ['bytes 524288-1048575/1258291', true]);
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=1048576-']);
+check('Clip: letztes Stück', [$a['kopf']['Content-Range'], $a['inhalt'] === substr($mp4, 1048576)], ['bytes 1048576-1258290/1258291', true]);
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=0-1']);
+check('Clip: Safari-Probe 0-1', [$a['kopf']['Content-Range'], $a['inhalt']], ['bytes 0-1/1258291', '00']);
+$a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=-8']);
+check('Clip: letzte 8 Bytes', $a['inhalt'], substr($mp4, -8));
+check('Clip: außerhalb → 416', $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=9999999-'])['code'], 416);
+check('Clip nur einmal bei Frigate geholt', count(TestKachel::$durchgereicht) - $vorher, 1);
+foreach (glob(sys_get_temp_dir() . '/frigatehub_1_*.mp4') ?: [] as $f) { touch($f, time() - 700); }
+$k->hook(['k' => $schluessel, 'clip' => $EV]);
+check('alter Clip wird neu geholt', count(TestKachel::$durchgereicht) - $vorher, 2);
+TestKachel::$frigate['/api/events/1793259000.1-weg/clip.mp4'] = ['code' => 404, 'body' => '', 'kopf' => []];
+check('Clip fehlt bei Frigate → 404', $k->hook(['k' => $schluessel, 'clip' => '1793259000.1-weg'])['code'], 404);
+check('Bereich: Unsinn → erstes Stück', FrigateHubTopics::bereich('bytes=abc', 100, 40), [0, 39]);
+check('Bereich: rückwärts → ungültig', FrigateHubTopics::bereich('bytes=5-2', 100, 40), null);
+check('Bereich: leere Datei', FrigateHubTopics::bereich('', 0, 40), null);
+check('Bereich: Ende begrenzt', FrigateHubTopics::bereich('bytes=90-500', 100, 40), [90, 99]);
+$k->hook(['k' => $schluessel, 'bild' => 'live']);
+check('Bild: kein Range an Frigate', end(TestKachel::$durchgereicht)[1], '');
 TestKachel::$frigate['/api/events/' . $EV . '/thumbnail.jpg'] = ['code' => 500, 'body' => 'kaputt', 'kopf' => []];
 $a = $k->hook(['k' => $schluessel, 'bild' => 'vorschau', 'id' => $EV]);
 check('Frigate-Fehler → 502 ohne Inhalt von Frigate', [$a['code'], strpos($a['inhalt'], 'kaputt')], [502, false]);
@@ -246,7 +269,7 @@ $k2->Create();
 $k2->props(['Camera' => 'Door-Cam', 'ApiUrl' => 'http://127.0.0.1:5000']);
 $k2->ApplyChanges();
 TestKachel::$api = ['/api/config' => ['cameras' => ['Door-Cam' => ['enabled' => true]]], '/api/stats' => ['cameras' => ['Door-Cam' => ['camera_fps' => 5.0]]],
-    '/api/Door-Cam/latest.jpg?h=720' => $jpeg, '/api/review?cameras=Door-Cam&limit=8' => [$review, $fremd]];
+    '/api/Door-Cam/latest.jpg?height=720&h=720' => $jpeg, '/api/review?cameras=Door-Cam&limit=8' => [$review, $fremd]];
 $k2->ZustandAnfordern();
 check('Abgleich füllt die Leiste (nur eigene Kamera)', array_column($k2->daten()['ereignisse'], 'id'), [$ID]);
 TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [];
@@ -276,6 +299,8 @@ check('beim Start: Hook wartet', [IPSTestState::$setProperties, isset(IPSTestSta
 IPSTestState::$runlevel = KR_READY;
 $k3->MessageSink(0, 0, IPS_KERNELMESSAGE, [KR_READY]);
 check('KR_READY: Hook eingetragen', count(IPSTestState::$setProperties), 1);
+
+foreach (glob(sys_get_temp_dir() . '/frigatehub_*.mp4') ?: [] as $f) { unlink($f); }
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

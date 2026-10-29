@@ -57,6 +57,8 @@
   `/hook/frigatehub<ID>?k=<Schlüssel>` (WebHooks sind sonst offen, auch über Connect). Erlaubte Frigate-
   Pfade fest im Code, IDs per `idGueltig()` (Regex mit `\z`, nicht `$` — `$` ließ „\n" durch, Prüfstand-Fund).
   Endpunkte live 29.10.2026 geprüft: `/api/review`, `/clips/review/thumb-…webp`, `/api/events/<id>/thumbnail.jpg|snapshot.jpg|clip.mp4`.
+  Bildhöhe: `height=` (0.15+) und `h=` (älter) zusammen schicken. Clips stückweise (512 KB, 206) aus dem
+  Temp-Ordner — Symcon gab 1,7 MB über den Hook leer aus, Frigates clip.mp4 ignoriert Range.
   go2rtc-Restream (RTSP 8554) ist bei Dietmar ohne Streams → kein Live-Video, Livebild = latest.jpg im Takt.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.

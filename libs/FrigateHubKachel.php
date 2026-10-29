@@ -19,6 +19,13 @@ trait FrigateHubKachel
     /** Höchstzahl Ereignisse in der Kachelleiste. */
     private static int $FRIGATEHUB_KACHEL_EREIGNISSE = 8;
 
+    /**
+     * Größtes Stück eines Clips je WebHook-Antwort. Symcon lieferte live (29.10.2026) 127 KB aus,
+     * einen 1,7-MB-Clip aber leer; Frigate selbst kennt keine Teilabrufe. Deshalb holt der Hook den
+     * Clip einmal, legt ihn kurz ab und liefert ihn stückweise (206), wie es Browser für Videos tun.
+     */
+    private static int $FRIGATEHUB_CLIP_STUECK = 524288;
+
     /** WebHook-Control (Symcon-Kernmodul). */
     private static string $FRIGATEHUB_WEBHOOK_GUID = '{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}';
 
@@ -82,27 +89,23 @@ trait FrigateHubKachel
             $this->hookSchnappschuss();
             return;
         }
+        if (isset($get['clip'])) {
+            $this->hookClip($get['clip'], (string)($_SERVER['HTTP_RANGE'] ?? ''));
+            return;
+        }
         $pfad = $this->hookFrigatePfad($get);
         if ($pfad === null) {
             $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
             return;
         }
-        $clip = isset($get['clip']);
-        $a = $this->apiDurchreichen($pfad, $clip ? (string)($_SERVER['HTTP_RANGE'] ?? '') : '', $clip ? 60 : 8);
-        if ($a['code'] !== 200 && $a['code'] !== 206) {
+        $a = $this->apiDurchreichen($pfad, '', 8);
+        if ($a['code'] !== 200) {
             $this->hookAntwort($a['code'] === 404 ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
                 'Frigate liefert nichts (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
             return;
         }
-        $kopf = ['Content-Type' => $a['kopf']['content-type'] ?? ($clip ? 'video/mp4' : 'image/jpeg'),
-            'Cache-Control' => ($get['bild'] ?? '') === 'live' ? 'no-store' : 'private, max-age=86400'];
-        if ($clip) {
-            $kopf['Accept-Ranges'] = 'bytes';
-            if (isset($a['kopf']['content-range'])) {
-                $kopf['Content-Range'] = $a['kopf']['content-range'];
-            }
-        }
-        $this->hookAntwort($a['code'], $kopf, $a['body']);
+        $this->hookAntwort(200, ['Content-Type' => $a['kopf']['content-type'] ?? 'image/jpeg',
+            'Cache-Control' => ($get['bild'] ?? '') === 'live' ? 'no-store' : 'private, max-age=86400'], $a['body']);
     }
 
     /* ---------------------------------------------------------------- intern */
@@ -116,23 +119,69 @@ trait FrigateHubKachel
         if ($this->apiUrl() === '' || $kamera === '') {
             return null;
         }
-        $id = (string)($get['id'] ?? $get['clip'] ?? '');
+        $id = (string)($get['id'] ?? '');
         $h = max(120, min(1080, (int)($get['h'] ?? 480)));
-        if (isset($get['clip'])) {
-            return FrigateHubTopics::idGueltig($id) ? '/api/events/' . $id . '/clip.mp4' : null;
-        }
         switch ((string)($get['bild'] ?? '')) {
             case 'live':
                 $rahmen = isset($get['rahmen']) ? $get['rahmen'] === '1' : $this->ReadPropertyBoolean('KachelRahmen');
-                return '/api/' . rawurlencode($kamera) . '/latest.jpg?h=' . $h . ($rahmen ? '&bbox=1' : '');
+                return '/api/' . rawurlencode($kamera) . '/latest.jpg?' . FrigateHubTopics::hoehe($h) . ($rahmen ? '&bbox=1' : '');
             case 'review':
                 return FrigateHubTopics::idGueltig($id) ? '/clips/review/thumb-' . rawurlencode($kamera) . '-' . $id . '.webp' : null;
             case 'vorschau':
                 return FrigateHubTopics::idGueltig($id) ? '/api/events/' . $id . '/thumbnail.jpg' : null;
             case 'ereignis':
-                return FrigateHubTopics::idGueltig($id) ? '/api/events/' . $id . '/snapshot.jpg?h=' . $h : null;
+                return FrigateHubTopics::idGueltig($id) ? '/api/events/' . $id . '/snapshot.jpg?' . FrigateHubTopics::hoehe($h) : null;
         }
         return null;
+    }
+
+    /** Clip eines Ereignisses stückweise ausliefern (Range, 206). */
+    private function hookClip(string $id, string $range): void
+    {
+        if ($this->apiUrl() === '' || !FrigateHubTopics::idGueltig($id)) {
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
+            return;
+        }
+        $this->clipsAufraeumen();
+        $datei = $this->clipDatei($id);
+        if (!is_file($datei)) {
+            $a = $this->apiDurchreichen('/api/events/' . $id . '/clip.mp4', '', 60);
+            if ($a['code'] !== 200 || $a['body'] === '') {
+                $this->hookAntwort($a['code'] === 404 ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
+                    'Frigate liefert keinen Clip (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                return;
+            }
+            file_put_contents($datei, $a['body']);
+        }
+        $groesse = (int)filesize($datei);
+        $bereich = FrigateHubTopics::bereich($range, $groesse, self::$FRIGATEHUB_CLIP_STUECK);
+        if ($bereich === null) {
+            $this->hookAntwort(416, ['Content-Range' => 'bytes */' . $groesse, 'Content-Type' => 'text/plain; charset=utf-8'], '');
+            return;
+        }
+        [$von, $bis] = $bereich;
+        $this->hookAntwort(206, [
+            'Content-Type'  => 'video/mp4',
+            'Accept-Ranges' => 'bytes',
+            'Content-Range' => 'bytes ' . $von . '-' . $bis . '/' . $groesse,
+            'Cache-Control' => 'private, max-age=600',
+        ], (string)file_get_contents($datei, false, null, $von, $bis - $von + 1));
+    }
+
+    /** Ablage eines Clips im Temp-Ordner (je Instanz und Ereignis). */
+    private function clipDatei(string $id): string
+    {
+        return sys_get_temp_dir() . '/frigatehub_' . $this->InstanceID . '_' . md5($id) . '.mp4';
+    }
+
+    /** Clips dieser Instanz, die älter als 10 Minuten sind, löschen. */
+    private function clipsAufraeumen(): void
+    {
+        foreach (glob(sys_get_temp_dir() . '/frigatehub_' . $this->InstanceID . '_*.mp4') ?: [] as $alt) {
+            if (@filemtime($alt) < time() - 600) {
+                @unlink($alt);
+            }
+        }
     }
 
     private function hookSchnappschuss(): void

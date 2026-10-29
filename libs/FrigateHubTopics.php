@@ -598,4 +598,43 @@ class FrigateHubTopics
     {
         return (bool)preg_match('/^\d{9,11}\.\d{1,6}-[a-z0-9]{1,12}\z/', $id);
     }
+
+    /**
+     * Höhenangabe für Frigates Bild-Endpunkte. Ab 0.15 (FastAPI) heißt sie „height", davor „h";
+     * das jeweils andere ignoriert Frigate (live 29.10.2026: 0.18.2 lieferte bei h=480 volle 1280×720).
+     */
+    public static function hoehe(int $pixel): string
+    {
+        return 'height=' . $pixel . '&h=' . $pixel;
+    }
+
+    /**
+     * Byte-Bereich aus einem Range-Kopf, höchstens $stueck Bytes lang. Ohne Kopf: das erste Stück.
+     * null, wenn der Bereich außerhalb der Datei liegt (HTTP 416).
+     *
+     * @return array{0:int,1:int}|null
+     */
+    public static function bereich(string $range, int $groesse, int $stueck): ?array
+    {
+        if ($groesse <= 0) {
+            return null;
+        }
+        $von = 0;
+        $bis = $groesse - 1;
+        if (preg_match('/^\s*bytes=(\d*)-(\d*)\s*$/i', $range, $m) && ($m[1] !== '' || $m[2] !== '')) {
+            if ($m[1] === '') {
+                // „bytes=-500": die letzten 500 Bytes
+                $von = max(0, $groesse - (int)$m[2]);
+            } else {
+                $von = (int)$m[1];
+                if ($m[2] !== '') {
+                    $bis = min($bis, (int)$m[2]);
+                }
+            }
+        }
+        if ($von >= $groesse || $bis < $von) {
+            return null;
+        }
+        return [$von, min($bis, $von + $stueck - 1)];
+    }
 }

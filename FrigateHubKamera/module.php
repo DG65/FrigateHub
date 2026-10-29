@@ -265,7 +265,7 @@ class FrigateHubKamera extends IPSModule
         if ($this->kamera() === '' || $this->apiUrl() === '') {
             return 'ℹ️ Dafür braucht es Kamera-ID und Frigate-Adresse. Schnappschüsse zu Erkennungen kommen auch ohne Adresse per MQTT.';
         }
-        $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?h=' . self::LIVEBILD_HOEHE, 'image/jpeg');
+        $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(self::LIVEBILD_HOEHE), 'image/jpeg');
         if ($bild === null || FrigateHubTopics::bildBytes($bild) === null) {
             $text = '⛔ Kein Bild von Frigate (' . ($bild === null ? $this->apiFehler : 'Antwort ist kein JPEG') . ').';
         } else {

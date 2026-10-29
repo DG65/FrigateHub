@@ -448,12 +448,12 @@ $livebild = "\xFF\xD8\xFF\xDBLIVE\xFF\xD9";
 TestKamera::$api = [
     '/api/config' => ['cameras' => ['Door-Cam' => $kameraConfig]],
     '/api/stats'  => ['cameras' => ['Door-Cam' => ['camera_fps' => 5.1, 'detection_fps' => 0.3]], 'service' => ['uptime' => 43]],
-    '/api/Door-Cam/latest.jpg?h=720' => $livebild,
+    '/api/Door-Cam/latest.jpg?height=720&h=720' => $livebild,
 ];
 TestKamera::$abgerufen = [];
 $text = $h->ZustandAnfordern();
 check('Abgleich ✅', strpos($text, '✅ Abgleich am ') === 0 && strpos($text, '18 Schalter, 1 Zone(n), Kamera liefert Bilder') !== false, true);
-check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/stats', '/api/Door-Cam/latest.jpg?h=720', '/api/review?cameras=Door-Cam&limit=8']);
+check('Pfade abgerufen (Livebild, weil noch kein Medium; Ereignisse, weil Leiste leer)', TestKamera::$abgerufen, ['/api/config', '/api/stats', '/api/Door-Cam/latest.jpg?height=720&h=720', '/api/review?cameras=Door-Cam&limit=8']);
 $hm = IPS_GetObjectIDByIdent('Schnappschuss', 5);
 check('Abgleich legt Medium mit Livebild an', base64_decode((string)(IPSTestState::$media[$hm]['content'] ?? '')), $livebild);
 // MQTT-Schnappschuss mit Adresse: Vollbild über die API statt Ausschnitt
@@ -473,13 +473,13 @@ unset(TestKamera::$api['/api/Door-Cam/person/snapshot.jpg']);
 // Ein Schnappschuss einer Erkennung darf der nächste Abgleich nicht mit dem Livebild überschreiben
 TestKamera::$abgerufen = [];
 $h->ZustandAnfordern();
-check('Abgleich holt kein Livebild mehr', in_array('/api/Door-Cam/latest.jpg?h=720', TestKamera::$abgerufen, true), false);
+check('Abgleich holt kein Livebild mehr', in_array('/api/Door-Cam/latest.jpg?height=720&h=720', TestKamera::$abgerufen, true), false);
 check('Schnappschuss bleibt', base64_decode((string)IPSTestState::$media[$hm]['content']), $jpeg);
 check('BildHolen per Knopf', strpos($h->BildHolen(), '✅ Livebild vom') === 0 && base64_decode((string)IPSTestState::$media[$hm]['content']) === $livebild, true);
 check('BildHolen meldet ins Formular', in_array('Bildstatus', array_column($h->formFieldUpdates, 0), true), true);
-TestKamera::$api['/api/Door-Cam/latest.jpg?h=720'] = '<html>404</html>';
+TestKamera::$api['/api/Door-Cam/latest.jpg?height=720&h=720'] = '<html>404</html>';
 check('BildHolen ohne JPEG', $h->BildHolen(), '⛔ Kein Bild von Frigate (Antwort ist kein JPEG).');
-TestKamera::$api['/api/Door-Cam/latest.jpg?h=720'] = $livebild;
+TestKamera::$api['/api/Door-Cam/latest.jpg?height=720&h=720'] = $livebild;
 check('Abgleich: erreichbar', $h->GetValue('Verfuegbar'), true);
 check('Abgleich: online', $h->GetValue('Online'), true);
 check('Abgleich: Kontrast', $h->GetValue('Schalter_improve_contrast'), true);
