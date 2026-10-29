@@ -282,6 +282,17 @@ IPSTestState::addObject(42, 'LetzterAlarm', '29.10.2026 16:20:00 – Person', 'L
 $s->MeldungLetzteKamera('', false);
 check('jüngerer Alarm einer anderen Kamera gewinnt', $GLOBALS['meldungen'][1][0] ?? null, 42);
 
+// 🪟 Formular: Aufbau
+$s->props(['FormLayout' => json_encode([['Key' => 'server', 'Pos' => 1], ['Key' => 'uebersicht', 'Pos' => 3, 'Hidden' => true]])]);
+$el = json_decode((string)$s->GetConfigurationForm(), true)['elements'];
+$caps = array_values(array_map(fn ($e) => trim((string)preg_replace('/^[^\p{L}\p{N}]+/u', '', (string)$e['caption'])), array_filter($el, fn ($e) => ($e['type'] ?? '') === 'ExpansionPanel'
+    && preg_match('/Frigate-Server|Übersicht|Kachel und IPSView|Formular: Aufbau/u', (string)$e['caption']))));
+check('Server: Aufbau ordnet und blendet aus', $caps, ['Frigate-Server', 'Kachel und IPSView', 'Übersicht', 'Formular: Aufbau (1 ausgeblendet)']);
+$ue = array_values(array_filter($el, fn ($e) => strpos((string)($e['caption'] ?? ''), 'Übersicht') !== false))[0];
+check('Server: ausgeblendet = visible:false', $ue['visible'] ?? true, false);
+check('Server: Zurücksetzen-Knopf mit eigenem Präfix', strpos(json_encode($el), 'FRIGS_ResetFormLayout($id)') !== false, true);
+$s->props(['FormLayout' => '[]']);
+
 // Formular und Modulbeschreibung
 $form = (string)$s->GetConfigurationForm();
 check('Formular: Neustart mit Rückfrage', strpos($form, '"confirm"') !== false && strpos($form, 'FRIGS_Neustarten($id)') !== false, true);

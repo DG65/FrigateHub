@@ -50,6 +50,7 @@ class FrigateHubServer extends IPSModule
         $this->RegisterAttributeString('HookSchluessel', '');
         $this->RegisterAttributeBoolean('Birdseye', false);
         $this->registerFormAttributes();
+        $this->formAufbauRegistrieren();
         $this->SetVisualizationType(1);
 
         $this->RegisterTimer('Abgleich', 0, 'FRIGS_ZustandAnfordern($_IPS[\'TARGET\']);');
@@ -413,11 +414,12 @@ class FrigateHubServer extends IPSModule
 
     /* ==================================================================== Formular */
 
-    public function GetConfigurationForm()
+    /** Fachpanels mit festem Schlüssel (Reihenfolge = Standard) für „🪟 Formular: Aufbau“. */
+    protected function frigatehubFachpanels(): array
     {
-        $fach = [
-            $this->uebersichtPanel(),
-            [
+        return [
+            'uebersicht' => $this->uebersichtPanel(),
+            'kachel' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel und IPSView',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Übersichtskachel aller Kameras dieser Frigate-Instanz: Livebild je Kamera, Alarm, Personen, gestörte Verbindung; dazu Birdseye, wenn Frigate es liefert. Ein Tipp vergrößert. Die Bilder braucht die Frigate-Adresse.'],
@@ -429,7 +431,7 @@ class FrigateHubServer extends IPSModule
                     ]],
                 ],
             ],
-            [
+            'server' => [
                 'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🖥️  Frigate-Server',
                 'items' => [
                     ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT-Präfix (Frigate: mqtt.topic_prefix, Standard „frigate")'],
@@ -446,10 +448,14 @@ class FrigateHubServer extends IPSModule
                 ],
             ],
         ];
+    }
+
+    public function GetConfigurationForm()
+    {
         $status = [
             ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
         ];
-        return $this->frigatehubFormular($fach, [], $status);
+        return $this->frigatehubFormular($this->formAufbau($this->frigatehubFachpanels()), [], $status);
     }
 
     protected function frigatehubPrefix(): string

@@ -198,6 +198,10 @@ mqtt:
 Das Panel **Empfangene Nachrichten** zeigt, was von Frigate ankommt — hilfreich, wenn eine
 Variable fehlt.
 
+Im Panel **🪟 Formular: Aufbau** (Kamera und Frigate-Server) legst du fest, welche Bereiche beim
+Öffnen aufgeklappt, zugeklappt oder ausgeblendet sind und in welcher Reihenfolge sie stehen.
+Ausgeblendete Bereiche behalten ihre Einstellungen und arbeiten weiter.
+
 ### Anmeldung über Port 8971
 
 Ist Port 5000 nicht freigegeben, geht der Weg über Frigates Weboberfläche auf Port 8971:

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0 (Build 28) — 29.10.2026
+
+- **🪟 Formular: Aufbau** (SUITE.md 3a, Referenz Batteriewächter) in Frigate-Kamera und Frigate-Server: je Fachpanel aufgeklappt, zugeklappt oder ausgeblendet (`visible:false`, Werte bleiben und wirken weiter) und Position 1–99; Property `FormLayout`, stabile Schlüssel, unbekannte Schlüssel fallen auf Standard zurück; „↩️ Auf Standard zurücksetzen“ (`FRIG_/FRIGS_ResetFormLayout`). Der Konfigurator hat nur ein Fachpanel und bekommt es nicht.
+- Neu-Panel um die Versionen 0.8.0 bis 0.14.0 ergänzt.
+
 ## 0.13.0 (Build 27) — 29.10.2026
 
 - **Alarme an OpenHomeAlarm melden** über dessen neue Externe Alarmereignis-Schnittstelle (OpenHomeAlarm 1.423, `OHA_TriggerExternalAlarmEvent`, Ereignis-API 1, am Quellcode von Burki24 geprüft): je Kamera Quellen-ID und „Melden bei“ (Frigate-Alarm / auch Erkennung), einmal je Review, EventID = `frigate-<Review-ID>`. Statuszeile aus `OHA_GetExternalAlarmEventApi()` (Quelle eingetragen? Bereich, Modi), Ergebnis der letzten Meldung im Klartext. „Verbindung prüfen“ sendet ein Probeereignis nur bei unscharfem Bereich. Andere Ereignis-API-Version → Melden aus.

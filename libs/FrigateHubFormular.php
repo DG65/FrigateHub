@@ -16,6 +16,25 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.14.0' => [
+            '• 🪟 Neu: Formular-Aufbau selbst wählen — im Panel „🪟 Formular: Aufbau" je Bereich aufgeklappt, zugeklappt oder ausgeblendet und die Reihenfolge. Ausgeblendete Bereiche arbeiten weiter.',
+        ],
+        '0.13.0' => [
+            '• Neu: Frigate-Alarme an die Alarmanlage OpenHomeAlarm melden (ab dessen Version 1.423) — Panel „🛡️ OpenHomeAlarm (optional)", Quellen-ID eintragen. Dort auch: beim Scharfschalten Aufnahme und Erkennung einschalten.',
+        ],
+        '0.11.0' => [
+            '• Neu: Meldung mit Kamerabild. SMTP-Instanz als Ziel eintragen, dann kommt jeder Alarm als E-Mail mit Bild; Antippen einer Push-Meldung öffnet die Kamera. FRIG_MeldungMitSchnappschuss() für Alarmanlagen und Regeln.',
+        ],
+        '0.10.0' => [
+            '• Neu in der Kachel: 📅 Archiv nach Tag mit Filter, Aufnahme ab Uhrzeit, ungesehene Ereignisse, ☆ dauerhaft behalten, 💾 Export, Warnhinweise und PTZ-Steuerkreuz.',
+            '• Neu: Gesichter, Kennzeichen und KI-Beschreibung/-Einschätzung von Frigate als Variablen (wenn in Frigate eingerichtet), Bewegungsschwelle als Schieberegler.',
+        ],
+        '0.9.0' => [
+            '• Neu: Instanz „Frigate-Server" — erreichbar, Version, freier Speicher, gestörte Kameras, Übersicht im Formular und als Kachel aller Kameras. Im Konfigurator mit anlegen.',
+        ],
+        '0.8.0' => [
+            '• Neu: Die Kachel gibt es als eigenständige Seite für IPSView — Adresse im Panel „🖥️ Kachel und IPSView".',
+        ],
         '0.7.0' => [
             '• Neu: Livevideo in der Kachel. Hat Frigates go2rtc einen Stream für die Kamera, spielt die Kachel echtes Video mit Ton (WebRTC, im Heimnetz) statt des Standbilds. Einrichtung in Frigate: siehe Doku-Panel und README.',
             '• Ein Tipp aufs Livevideo vergrößert es, 🔇/🔊 schaltet den Ton. Unterwegs oder ohne Stream bleibt es beim Standbild.',
@@ -206,6 +225,126 @@ trait FrigateHubFormular
                 ['type' => 'Button', 'caption' => '☕  Spenden via PayPal', 'onClick' => "echo '" . self::$FRIGATEHUB_PAYPAL_URL . "';", 'link' => true],
             ],
         ];
+    }
+
+    /* ------------------------------------------------------------ 🪟 Formular: Aufbau (SUITE.md 3a) */
+
+    /** In Create() aufrufen (nur Module mit mehr als zwei Fachpanels). */
+    protected function formAufbauRegistrieren(): void
+    {
+        $this->RegisterPropertyString('FormLayout', '[]');
+    }
+
+    /**
+     * Reihenfolge und Zustand der Fachpanels aus „FormLayout" (Referenz Batteriewächter formLayout()).
+     * Unbekannte oder fehlende Schlüssel fallen auf Standard und Standardposition zurück.
+     *
+     * @param string[] $schluessel Fachpanel-Schlüssel in Standardreihenfolge
+     * @return array<string,array{open:string,pos:int,idx:int}> in anzuwendender Reihenfolge
+     */
+    protected function formAufbauLesen(array $schluessel): array
+    {
+        $gespeichert = json_decode((string)$this->ReadPropertyString('FormLayout'), true);
+        $nach = [];
+        foreach (is_array($gespeichert) ? $gespeichert : [] as $zeile) {
+            if (is_array($zeile) && isset($zeile['Key'])) {
+                $nach[(string)$zeile['Key']] = $zeile;
+            }
+        }
+        $out = [];
+        foreach (array_values($schluessel) as $i => $k) {
+            $z = $nach[$k] ?? [];
+            // Vorrang bei Widerspruch: ausgeblendet vor zugeklappt vor aufgeklappt; kein Haken = Standard
+            $open = !empty($z['Hidden']) ? 'hidden' : (!empty($z['Closed']) ? 'closed' : (!empty($z['Opened']) ? 'open' : 'std'));
+            $out[$k] = ['open' => $open, 'pos' => isset($z['Pos']) ? max(1, min(99, (int)$z['Pos'])) : $i + 1, 'idx' => $i];
+        }
+        // Stabile Sortierung: bei gleicher Position bleibt die Standardreihenfolge
+        uasort($out, fn ($a, $b) => [$a['pos'], $a['idx']] <=> [$b['pos'], $b['idx']]);
+        return $out;
+    }
+
+    /**
+     * Fachpanels nach „FormLayout" anordnen, auf-/zuklappen bzw. ausblenden (visible:false, nie
+     * weglassen — ihre Werte bleiben beim Übernehmen erhalten) und „🪟 Formular: Aufbau" anhängen.
+     *
+     * @param array<string,array> $fach Schlüssel → Panel, Standardreihenfolge
+     */
+    protected function formAufbau(array $fach): array
+    {
+        $aufbau = $this->formAufbauLesen(array_keys($fach));
+        $out = [];
+        foreach ($aufbau as $k => $a) {
+            $panel = $fach[$k];
+            if ($a['open'] === 'open') {
+                $panel['expanded'] = true;
+            } elseif ($a['open'] === 'closed') {
+                $panel['expanded'] = false;
+            } elseif ($a['open'] === 'hidden') {
+                $panel['visible'] = false;
+            }
+            $out[] = $panel;
+        }
+        $out[] = $this->formAufbauPanel($aufbau, $fach);
+        return $out;
+    }
+
+    /** Name eines Fachpanels für die Liste: Caption ohne Klammerzusatz. */
+    protected static function formAufbauName(array $panel, string $k): string
+    {
+        return trim((string)preg_replace('/\s*\(.*$/u', '', (string)($panel['caption'] ?? $k)));
+    }
+
+    private function formAufbauPanel(array $aufbau, array $fach): array
+    {
+        $zeilen = [];
+        $aus = [];
+        foreach ($aufbau as $k => $a) {
+            $name = self::formAufbauName($fach[$k], $k);
+            $zeilen[] = ['Key' => $k, 'Panel' => $name, 'Opened' => $a['open'] === 'open', 'Closed' => $a['open'] === 'closed',
+                'Hidden' => $a['open'] === 'hidden', 'Pos' => $a['pos']];
+            if ($a['open'] === 'hidden') {
+                $aus[] = trim((string)preg_replace('/^[^\p{L}\p{N}]+/u', '', $name));
+            }
+        }
+        $ausZeile = $aus === [] ? [] : [['type' => 'Label', 'caption' => '🙈 Ausgeblendet: ' . implode(', ', $aus)
+            . ' — zum Wiederzeigen den Haken bei „Ausgeblendet" entfernen. Ausgeblendete Bereiche arbeiten weiter, nur die Anzeige fehlt.']];
+        return [
+            'type' => 'ExpansionPanel', 'expanded' => false,
+            'caption' => '🪟  Formular: Aufbau' . ($aus === [] ? '' : ' (' . count($aus) . ' ausgeblendet)'),
+            'items' => array_merge($ausZeile, [
+                ['type' => 'Label', 'caption' => 'Hier legst du fest, welche Bereiche beim Öffnen des Formulars aufgeklappt sind und in welcher Reihenfolge sie stehen. Symcon merkt sich das Auf- und Zuklappen nicht selbst, deshalb gilt die Einstellung hier jedes Mal beim Öffnen. Sie wirkt nach „Übernehmen" beim nächsten Öffnen des Formulars.'],
+                ['type' => 'Label', 'caption' => 'Kein Haken heißt „Standard": wie das Modul es vorsieht (z. B. „Frigate-Kamera" aufgeklappt, solange keine Kamera eingetragen ist). Die Position ist eine Zahl; bei gleicher Zahl bleibt die Standardreihenfolge. „Ausgeblendet" nimmt einen Bereich aus der Anzeige, ohne dass er etwas verliert: seine Einstellungen bleiben erhalten und wirken weiter. Sind mehrere Haken gesetzt, gilt „Ausgeblendet" vor „Zugeklappt" vor „Aufgeklappt". Die Bereiche oben (Zweck, Neu, Dokumentation) und unten (Rückmeldungen, Über dieses Modul) bleiben, wo sie sind, und lassen sich nicht ausblenden.'],
+                [
+                    'type' => 'List', 'name' => 'FormLayout', 'caption' => 'Bereiche', 'rowCount' => count($zeilen), 'add' => false, 'delete' => false,
+                    'loadValuesFromConfiguration' => false,
+                    'values' => $zeilen,
+                    'columns' => [
+                        ['caption' => 'Bereich', 'name' => 'Panel', 'width' => 'auto', 'add' => ''],
+                        ['caption' => 'Schlüssel', 'name' => 'Key', 'width' => '0px', 'visible' => false, 'add' => '', 'save' => true],
+                        ['caption' => 'Aufgeklappt', 'name' => 'Opened', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => 'Zugeklappt', 'name' => 'Closed', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => '🙈 Ausgeblendet', 'name' => 'Hidden', 'width' => '130px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => 'Position', 'name' => 'Pos', 'width' => '100px', 'add' => 1, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 1, 'maximum' => 99]],
+                    ],
+                ],
+                ['type' => 'Button', 'caption' => '↩️ Auf Standard zurücksetzen', 'onClick' => 'echo ' . $this->frigatehubPrefix() . '_ResetFormLayout($id);'],
+            ]),
+        ];
+    }
+
+    /** PREFIX_ResetFormLayout($id): Aufbau im offenen Formular auf Standard (gilt nach „Übernehmen"). */
+    public function ResetFormLayout(): string
+    {
+        if (!method_exists($this, 'frigatehubFachpanels')) {
+            return 'ℹ️ Dieses Modul hat keinen wählbaren Formular-Aufbau.';
+        }
+        $zeilen = [];
+        $i = 0;
+        foreach ($this->frigatehubFachpanels() as $k => $panel) {
+            $zeilen[] = ['Key' => $k, 'Panel' => self::formAufbauName($panel, (string)$k), 'Opened' => false, 'Closed' => false, 'Hidden' => false, 'Pos' => ++$i];
+        }
+        $this->UpdateFormField('FormLayout', 'values', (string)json_encode($zeilen, JSON_UNESCAPED_UNICODE));
+        return 'ℹ️ Auf Standard gesetzt. Zum Speichern unten „Übernehmen" klicken.';
     }
 
     /** Baut das komplette Formular aus Rahmen + Fachpanels. */

@@ -101,6 +101,7 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterAttributeString('Pushstatus', '');
         $this->RegisterAttributeString('LetzterKiPush', '');
         $this->registerFormAttributes();
+        $this->formAufbauRegistrieren();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
     }
@@ -601,11 +602,12 @@ class FrigateHubKamera extends IPSModule
 
     /* ==================================================================== Formular */
 
-    public function GetConfigurationForm()
+    /** Fachpanels mit festem Schlüssel (Reihenfolge = Standard) für „🪟 Formular: Aufbau“. */
+    protected function frigatehubFachpanels(): array
     {
         $kamera = $this->kamera();
-        $fach = [
-            [
+        return [
+            'kamera' => [
                 'type' => 'ExpansionPanel', 'expanded' => $kamera === '', 'caption' => '📷  Frigate-Kamera',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Die Kamera-ID aus der Frigate-Konfiguration (Abschnitt cameras:), nicht der Anzeigename. Groß-/Kleinschreibung zählt, z. B. „haustuer" oder „Door-Cam".'],
@@ -617,7 +619,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Button', 'caption' => 'Zustand jetzt abfragen', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
                 ],
             ],
-            [
+            'schnappschuss' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖼️  Schnappschuss',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das Bild der letzten Erkennung (Frigate: snapshots aktiviert). Mit Frigate-Adresse kommt es in voller Größe, sonst als Ausschnitt per MQTT (Größe in Frigate unter mqtt: height/crop). Mit Adresse lässt sich auch das aktuelle Kamerabild holen.'],
@@ -625,7 +627,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
             ],
-            [
+            'meldungen' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Meldet jeden neuen Alarm dieser Kamera an die Ziele, einmal je Alarm. Was ein Alarm ist, legst du in Frigate fest (review: alerts: labels / required_zones). Ohne Ziel bleibt der Push aus.'],
@@ -644,7 +646,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Label', 'caption' => 'Für Alarmanlagen und Regeln (z. B. OpenHomeAlarm, DG65-Toolkit Automat, Skripte): FRIG_MeldungMitSchnappschuss($id, "Text", true) schickt eine Meldung mit dem aktuellen Kamerabild an dieselben Ziele — in Symcon-Aktionen als „Instanzfunktion ausführen". Leerer Text: „Letztes Objekt"; false statt true: letzter Schnappschuss statt Livebild.'],
                 ],
             ],
-            [
+            'kachel' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel und IPSView',
                 'items' => [
                     ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Kachel für die Kachel-Visualisierung: Livebild, Alarm, Zähler, die letzten Ereignisse mit Vorschaubild, Schnappschuss und Clip per Tipp sowie Schalter für Erkennung, Aufnahme und Schnappschüsse. Livebild, Vorschaubilder und Clips brauchen die Frigate-Adresse.'],
@@ -661,24 +663,28 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Button', 'caption' => 'Kachel-Schlüssel erneuern', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
                 ],
             ],
-            $this->ohaFormular(),
-            [
+            'openhomealarm' => $this->ohaFormular(),
+            'zonen' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🗺️  Zonen',
                 'items' => [
                     ['type' => 'Label', 'caption' => $this->zonenstatus()],
                     ['type' => 'Button', 'caption' => 'Gelernte Zonen vergessen', 'onClick' => 'echo FRIG_ZonenVergessen($id);'],
                 ],
             ],
-            [
+            'nachrichten' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '📨  Empfangene Nachrichten',
                 'items' => $this->nachrichtenLabels(),
             ],
         ];
+    }
+
+    public function GetConfigurationForm()
+    {
         $status = [
             ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
             ['code' => 104, 'icon' => 'inactive', 'caption' => 'Bitte die Kamera-ID aus Frigate eintragen'],
         ];
-        return $this->frigatehubFormular($fach, [], $status);
+        return $this->frigatehubFormular($this->formAufbau($this->frigatehubFachpanels()), [], $status);
     }
 
     protected function frigatehubPrefix(): string
