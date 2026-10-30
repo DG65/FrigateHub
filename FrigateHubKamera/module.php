@@ -411,10 +411,22 @@ class FrigateHubKamera extends IPSModule
         if (trim($this->ReadPropertyString('OhaBereich')) === '' || $id === 0 || IPS_GetKernelRunlevel() !== KR_READY) {
             return;
         }
+        // Nur die Zustandsvariablen (OpenHomeAlarm-Quellcode: „State" für main, „Partition_<hex>_State"
+        // für weitere Bereiche) — die übrigen ~20 Variablen ändern sich ständig und bräuchten keine Nachfrage.
+        // Findet sich keine davon (andere Benennung), auf alle hören wie bisher.
+        $alle = [];
+        $zustand = [];
         foreach (IPS_GetChildrenIDs($id) as $kind) {
-            if (IPS_GetObject($kind)['ObjectType'] === 2) {
-                $this->RegisterMessage($kind, VM_UPDATE);
+            $o = IPS_GetObject($kind);
+            if ($o['ObjectType'] === 2) {
+                $alle[] = $kind;
+                if (preg_match(FrigateHubOha::ZUSTAND_IDENT, (string)($o['ObjectIdent'] ?? ''))) {
+                    $zustand[] = $kind;
+                }
             }
+        }
+        foreach ($zustand !== [] ? $zustand : $alle as $kind) {
+            $this->RegisterMessage($kind, VM_UPDATE);
         }
         $this->ohaPruefen(false);
     }

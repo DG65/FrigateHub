@@ -78,6 +78,7 @@ trait FrigateHubFormular
 
     private static $FRIGATEHUB_REPO_URL     = 'https://github.com/DG65/FrigateHub';
     private static $FRIGATEHUB_ISSUES_URL   = 'https://github.com/DG65/FrigateHub/issues';
+    private static $FRIGATEHUB_FORUM_URL    = 'https://community.symcon.de/t/beta-modul-frigatehub-frigate-videoanalyse-in-ip-symcon-erkennungen-kachel-mit-livevideo-archiv-und-alarmanlage/144813';
     private static $FRIGATEHUB_LICENSE_URL  = 'https://github.com/DG65/FrigateHub/blob/beta/LICENSE';
     private static $FRIGATEHUB_PAYPAL_URL   = 'https://paypal.me/DietmarGureth';
     private static $FRIGATEHUB_LIBRARY_GUID = '{4EE3C963-19C2-4F9A-A21B-CFFDC371223D}';
@@ -198,13 +199,12 @@ trait FrigateHubFormular
         if ($this->ReadAttributeBoolean('ForumHintGone')) {
             return null;
         }
-        // Noch kein Forum-Thread: Rückmeldungen vorerst über GitHub.
         return [
             'type' => 'ExpansionPanel', 'name' => 'ForumHintPanel', 'expanded' => true,
             'caption' => '💬  Rückmeldungen',
             'items' => [
-                ['type' => 'Label', 'caption' => '🧪 FrigateHub ist neu. Läuft deine Kamera? Fehlt etwas? Schreib es gern als Meldung auf GitHub — mit Frigate-Version und den Topics aus dem Panel „Empfangene Nachrichten".'],
-                ['type' => 'Button', 'caption' => 'Fehler auf GitHub melden', 'onClick' => "echo '" . self::$FRIGATEHUB_ISSUES_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => '🧪 FrigateHub ist neu. Läuft deine Kamera? Fehlt etwas? Schreib es gern im Symcon-Forum — mit Frigate-Version, Anzahl Kameras und einem Ausschnitt aus dem Panel „Empfangene Nachrichten".'],
+                ['type' => 'Button', 'caption' => 'Zum Forum-Thema', 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
                 ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => $this->frigatehubPrefix() . '_AckForumHint($id);'],
             ],
         ];

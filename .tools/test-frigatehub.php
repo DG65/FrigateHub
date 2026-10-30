@@ -689,6 +689,8 @@ check('Lage', array_map([FrigateHubOha::class, 'lage'], ['disarmed', 'exit_delay
 
 IPSTestState::$instances[50] = ['InstanceID' => 50, 'Name' => 'Alarmanlage', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => FrigateHubOha::GUID]];
 $ohaVar = IPSTestState::addObject(50, 'State', 0, 'Zustand');
+$ohaBereit = IPSTestState::addObject(50, 'ReadyToArm', true, 'Bereit');
+$ohaGarage = IPSTestState::addObject(50, 'Partition_' . bin2hex('garage') . '_State', 0, 'Garage – Zustand');
 IPSTestState::$instances[51] = ['InstanceID' => 51, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}']];
 IPSTestState::$instances[23] = ['InstanceID' => 23, 'Name' => 'Haustür', 'ConnectionID' => 51, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
 $c = new TestKamera(23);
@@ -705,6 +707,7 @@ $c->props(['OhaBereich' => 'main', 'OhaBeiScharf' => 3, 'OhaBeiUnscharf' => true
 IPSTestState::$sentPackets = [];
 $c->ApplyChanges();
 check('mit Bereich: hört auf OHA-Variablen, Übernehmen schaltet nichts', [isset(IPSTestState::$registeredMessages[$ohaVar][VM_UPDATE]), IPSTestState::$sentPackets], [true, []]);
+check('nur Zustandsvariablen (main und weitere Bereiche), nicht „ReadyToArm"', [isset(IPSTestState::$registeredMessages[$ohaGarage][VM_UPDATE]), isset(IPSTestState::$registeredMessages[$ohaBereit][VM_UPDATE])], [true, false]);
 $GLOBALS['ohaAntwort'] = $oha('exit_delay');
 $c->MessageSink(0, $ohaVar, VM_UPDATE, []);
 check('Ausgangsverzögerung: noch nichts', IPSTestState::$sentPackets, []);

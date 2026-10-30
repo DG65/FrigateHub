@@ -20,6 +20,9 @@ class FrigateHubOha
     /** Control-API von OpenHomeAlarm, gegen die FrigateHub geprüft ist (ApiVersion in GetControlState). */
     public const API = 3;
 
+    /** Idents der Zustandsvariablen in OpenHomeAlarm (PartitionStatusVariableIdents, Quellcode 30.10.2026). */
+    public const ZUSTAND_IDENT = '/^(State|Partition_[0-9a-f]+_State)\z/';
+
     /** Zustände, die als „scharf" gelten. exit_delay noch nicht: erst der tatsächliche Wechsel zählt. */
     private const SCHARF = ['armed', 'entry_delay', 'alarm'];
 

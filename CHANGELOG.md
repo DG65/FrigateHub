@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.1 (Build 29) — 30.10.2026
+
+- Panel „💬 Rückmeldungen“ verweist jetzt auf den Forum-Thread (community.symcon.de/t/144813) statt auf GitHub.
+- OpenHomeAlarm-Kopplung hört nur noch auf dessen Zustandsvariablen (`State`, `Partition_<hex>_State`, laut Quellcode) statt auf alle ~22 Variablen; findet sie keine, wie bisher auf alle. Weniger Nachfragen, gleiches Verhalten.
+
 ## 0.14.0 (Build 28) — 29.10.2026
 
 - **🪟 Formular: Aufbau** (SUITE.md 3a, Referenz Batteriewächter) in Frigate-Kamera und Frigate-Server: je Fachpanel aufgeklappt, zugeklappt oder ausgeblendet (`visible:false`, Werte bleiben und wirken weiter) und Position 1–99; Property `FormLayout`, stabile Schlüssel, unbekannte Schlüssel fallen auf Standard zurück; „↩️ Auf Standard zurücksetzen“ (`FRIG_/FRIGS_ResetFormLayout`). Der Konfigurator hat nur ein Fachpanel und bekommt es nicht.
