@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.15.0' => [
+            '• 🎥 Neu: Aufnahme-Wächter in der Instanz „Frigate-Server" — meldet, wenn Frigate nicht mehr aufzeichnet, obwohl es „läuft": Schreibfehler (z. B. abgerissene USB-Platte), gewechselter Aufnahmespeicher, Alarm ohne Aufnahme, stehende Daueraufnahme, Frigate antwortet nicht. Braucht die Frigate-Adresse; Meldeziele im neuen Panel eintragen.',
+        ],
         '0.14.0' => [
             '• 🪟 Neu: Formular-Aufbau selbst wählen — im Panel „🪟 Formular: Aufbau" je Bereich aufgeklappt, zugeklappt oder ausgeblendet und die Reihenfolge. Ausgeblendete Bereiche arbeiten weiter.',
         ],

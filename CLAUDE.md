@@ -69,6 +69,12 @@
 - Server-Instanz (0.9.0): `FrigateHubServer` (FRIGS, GUID `{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}`), Auswertung
   rein in `libs/FrigateHubServerWerte.php`. Live 29.10.2026: `/api/stats` = Inhalt von MQTT `frigate/stats`
   (stats_interval 60), Speicher in MB, `gpu_usages.*.gpu` als Text „2.51%", `connection_quality` z. B. „poor".
+- Aufnahme-Wächter (0.15.0): Bewertung rein in `libs/FrigateHubWaechter.php`, Server sammelt über die API.
+  Belegt 31.10.2026 (SSD-Abriss): Frigate bleibt „healthy“, schreibt ab 5 s danach alle 5 s
+  „Error occurred when attempting to maintain recording cache“ + „[Errno 5] Input/output error“ ins Protokoll.
+  `/api/logs/frigate` nur Rolle admin (Port 5000 = admin), `start` negativ = letzte N Zeilen (Python-Slice),
+  gleiche Folgezeilen → „[LOGGING] Last message repeated N times“ mit Zeitstempel der ersten.
+  Ohne Daueraufnahme (`record.continuous.days: 0`, so bei Dietmar) sind fehlende neue Teilstücke normal.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

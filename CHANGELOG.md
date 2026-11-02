@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.0 (Build 30) — 02.11.2026
+
+- **Aufnahme-Wächter** in der Instanz Frigate-Server (neues Panel „🎥 Aufnahme-Wächter“, Bewertung rein in `libs/FrigateHubWaechter.php`): prüft jede Minute über die API, ob Frigate aufzeichnet. Anlass: Abriss der Aufnahme-SSD bei Dietmar am 31.10.2026, Frigate meldete weiter „healthy“, 75 min ohne Aufnahme.
+  - Frigate antwortet 3 min nicht.
+  - Schreibfehler aus `/api/logs/frigate?start=-300` (ab 3 neuen Zeilen „Error occurred when attempting to maintain recording cache“ / „Unable to store recording segment“ / „Unable to convert“ je Prüfung, behoben nach 2 Prüfungen ohne; Frigates „Last message repeated N times“ zählt den Zuwachs). Endpunkt laut Quellcode 0.18.2 nur Rolle admin; ohne Zugriff Hinweis im Formular.
+  - Aufnahmespeicher gewechselt: Größe (> 2 %) oder `mount_type` von `/media/frigate/recordings` weicht vom gemerkten Stand ab; „Aktuellen Speicher übernehmen“ (`FRIGS_SpeicherUebernehmen`).
+  - Alarm ohne Aufnahme: Alarm seit 2 min zu Ende, keine Teilstücke mit Inhalt (`/api/<kamera>/recordings`); nur Kameras mit `record.alerts.retain.days` > 0. Steht bis zum nächsten Alarm mit Aufnahme, höchstens 24 h.
+  - Daueraufnahme steht: neueste Aufnahme älter als 5 min, nur bei `record.continuous.days` > 0 und Kamera liefert Bilder.
+  - Meldung je neuer Störung, tägliche Erinnerung, Entwarnung; Variablen „Aufnahme in Ordnung“ und „Aufnahmezustand“; `FRIGS_AufnahmePruefen`, `FRIGS_PushTesten`. Abschaltbar („Aufnahme überwachen“).
+- Push-Versand als gemeinsamer Baustein `libs/FrigateHubPush.php` für Kamera und Server; Verhalten der Kamera unverändert, außer: Der Wächter schickt E-Mails ohne Bild und ohne den Hinweis „Kein Bild verfügbar“.
+- Prüfstand `.tools/test-waechter.php` (76 Prüfungen, mit den echten Protokollzeilen vom 31.10.2026), in der CI.
+
 ## 0.14.1 (Build 29) — 30.10.2026
 
 - Panel „💬 Rückmeldungen“ verweist jetzt auf den Forum-Thread (community.symcon.de/t/144813) statt auf GitHub.

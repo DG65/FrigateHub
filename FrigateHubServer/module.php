@@ -7,11 +7,17 @@ require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
 require_once __DIR__ . '/../libs/FrigateHubServerWerte.php';
 require_once __DIR__ . '/../libs/FrigateHubWebhook.php';
+require_once __DIR__ . '/../libs/FrigateHubPush.php';
+require_once __DIR__ . '/../libs/FrigateHubWaechter.php';
 
 /**
  * Der Frigate-Server selbst: erreichbar, Version (mit Hinweis auf eine neuere), Laufzeit,
  * CPU/Arbeitsspeicher, Erkennungszeit je Detektor, GPU-Last, Speicher der Aufnahmen und eine
  * Sammelmeldung über gestörte Kameras. Dazu Frigate neu starten.
+ *
+ * Aufnahme-Wächter (0.15.0, nur mit Frigate-Adresse): prüft jede Minute über die API, ob Frigate
+ * aufzeichnet (Bewertung in libs/FrigateHubWaechter.php), und meldet Störung, Erinnerung und
+ * Entwarnung an die eingetragenen Ziele.
  *
  * Quelle ist frigate/stats, das Frigate im Takt von mqtt.stats_interval (Standard 60 s) schickt,
  * und frigate/available. Mit Frigate-Adresse holt die Instanz die Werte nach dem Übernehmen und
@@ -23,6 +29,7 @@ class FrigateHubServer extends IPSModule
     use FrigateHubFormular;
     use FrigateHubApi;
     use FrigateHubWebhook;
+    use FrigateHubPush;
 
     private const KAMERA_GUID = '{6BB54171-2F24-4653-9061-F2BC352A9D3B}';
 
@@ -34,6 +41,21 @@ class FrigateHubServer extends IPSModule
 
     /** Wartezeit nach dem Übernehmen bis zum Abgleich (ms) — ApplyChanges nicht blockieren. */
     private const ABGLEICH_VERZOEGERUNG = 2000;
+
+    /** Takt des Aufnahme-Wächters (ms). */
+    private const WAECHTER_TAKT = 60000;
+
+    /** So viele Protokollzeilen liest der Wächter je Prüfung (die jüngsten). */
+    private const PROTOKOLL_ZEILEN = 300;
+
+    /** Meldeziele wie in der Kamera (SUITE.md Stolperstein 22). */
+    private const WEBFRONT_GUID = '{3565B1F2-8F7B-4311-A4B6-1BF1D868F39E}';
+    private const KACHEL_GUID   = '{B5B875BB-9B76-45FD-4E67-2607E45B3AC4}';
+    private const SMTP_GUID     = '{375EAF21-35EF-4BC4-83B3-C780FD8BD88A}';
+
+    /** Töne laut Symcon-Doku, für WebFront und Kachel-Visualisierung gleich. */
+    private const PUSH_TOENE = ['alarm', 'bell', 'boom', 'buzzer', 'connected', 'dark', 'digital', 'drums', 'duck', 'full',
+        'happy', 'horn', 'inception', 'kazoo', 'roll', 'siren', 'space', 'trickling', 'turn'];
 
     public function Create()
     {
@@ -53,7 +75,16 @@ class FrigateHubServer extends IPSModule
         $this->formAufbauRegistrieren();
         $this->SetVisualizationType(1);
 
+        // Aufnahme-Wächter: an, sobald eine Frigate-Adresse eingetragen ist; Meldungen nur mit Ziel
+        $this->RegisterPropertyBoolean('WaechterAktiv', true);
+        $this->RegisterPropertyString('PushZiele', '[]');
+        $this->RegisterPropertyString('PushTon', 'alarm');
+        $this->RegisterAttributeString('Waechter', '{}');
+        $this->RegisterAttributeString('Waechterstatus', '');
+        $this->RegisterAttributeString('Pushstatus', '');
+
         $this->RegisterTimer('Abgleich', 0, 'FRIGS_ZustandAnfordern($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('Waechter', 0, 'FRIGS_AufnahmePruefen($_IPS[\'TARGET\']);');
     }
 
     public function ApplyChanges()
@@ -85,6 +116,17 @@ class FrigateHubServer extends IPSModule
         $this->kachelSenden(true);
         $this->SetStatus(IS_ACTIVE);
         $this->SetTimerInterval('Abgleich', $this->apiUrl() !== '' ? self::ABGLEICH_VERZOEGERUNG : 0);
+        if ($this->waechterAn()) {
+            $this->variableAnlegen('AufnahmeOk', 'Aufnahme in Ordnung', VARIABLETYPE_BOOLEAN, [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+                'OPTIONS'      => (string)json_encode([
+                    ['Value' => false, 'Caption' => 'gestört', 'IconActive' => false, 'IconValue' => '', 'ColorActive' => true, 'ColorValue' => 0xE53935],
+                    ['Value' => true, 'Caption' => 'in Ordnung', 'IconActive' => false, 'IconValue' => '', 'ColorActive' => true, 'ColorValue' => 0x43A047],
+                ]),
+            ], 60);
+            $this->variableAnlegen('Aufnahmezustand', 'Aufnahmezustand', VARIABLETYPE_STRING, ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION], 61);
+        }
+        $this->SetTimerInterval('Waechter', $this->waechterAn() ? self::WAECHTER_TAKT : 0);
     }
 
     public function Destroy()
@@ -412,6 +454,164 @@ class FrigateHubServer extends IPSModule
         return '🔄 Neustart angefordert. Frigate ist in der Regel nach 1–2 Minuten wieder da („Frigate erreichbar").';
     }
 
+    /* ==================================================================== Aufnahme-Wächter */
+
+    /**
+     * FRIGS_AufnahmePruefen($id): prüft, ob Frigate aufzeichnet, setzt „Aufnahme in Ordnung" und
+     * „Aufnahmezustand" und meldet Störung, Erinnerung und Entwarnung. Läuft jede Minute.
+     * Rückgabe: Text fürs Formular.
+     */
+    public function AufnahmePruefen(): string
+    {
+        if (!$this->waechterAn()) {
+            $this->SetTimerInterval('Waechter', 0);
+            return 'ℹ️ Der Aufnahme-Wächter ist aus: ' . ($this->apiUrl() === '' ? 'er braucht die Frigate-Adresse.' : 'Häkchen „Aufnahme überwachen" ist nicht gesetzt.');
+        }
+        $jetzt = time();
+        $z = json_decode($this->ReadAttributeString('Waechter'), true);
+        $z = is_array($z) ? $z : [];
+        $hinweise = [];
+        $e = FrigateHubWaechter::bewerten($z, $this->waechterBeobachten($z, $jetzt, $hinweise), $jetzt);
+        $this->WriteAttributeString('Waechter', (string)json_encode($e['zustand'], JSON_UNESCAPED_UNICODE));
+        $zustand = FrigateHubWaechter::zustandText($e['probleme']);
+        if (@$this->GetIDForIdent('AufnahmeOk') !== false) {
+            $this->SetValue('AufnahmeOk', $e['probleme'] === []);
+            $this->SetValue('Aufnahmezustand', $zustand);
+        }
+        if ($e['meldung'] !== null) {
+            $m = $e['meldung'];
+            $this->LogMessage($m['titel'] . ': ' . $m['text'], $m['art'] === 'entwarnung' ? KL_NOTIFY : KL_WARNING);
+            if ($this->pushZiele() !== []) {
+                $this->pushSenden($m['titel'], $m['text']);
+            }
+        }
+        $text = ($e['probleme'] === [] ? '✅ ' : '⛔ ') . date('d.m.Y H:i:s') . ': ' . $zustand . ($hinweise === [] ? '' : ' ⚠️ ' . implode(' ', $hinweise));
+        $this->WriteAttributeString('Waechterstatus', $text);
+        $this->UpdateFormField('Waechterstatus', 'caption', $text);
+        $this->UpdateFormField('Speicherstand', 'caption', $this->speicherstand());
+        $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
+        return $text;
+    }
+
+    /** FRIGS_SpeicherUebernehmen($id): nach einem gewollten Speichertausch den jetzigen als richtig merken. */
+    public function SpeicherUebernehmen(): string
+    {
+        $z = json_decode($this->ReadAttributeString('Waechter'), true);
+        $z = is_array($z) ? $z : [];
+        unset($z['speicher']);
+        $this->WriteAttributeString('Waechter', (string)json_encode($z, JSON_UNESCAPED_UNICODE));
+        $text = $this->AufnahmePruefen();
+        return strpos($text, 'ℹ️') === 0 ? $text : '✅ Jetziger Aufnahmespeicher übernommen: ' . $this->speicherstand();
+    }
+
+    /** Probemeldung an die Ziele des Wächters. Rückgabe: Text fürs Formular. */
+    public function PushTesten(): string
+    {
+        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), 'Probemeldung vom Aufnahme-Wächter – so kommt eine Störung an.');
+        $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
+        return $text;
+    }
+
+    /** Der Wächter verschickt nur Text, kein Bild. */
+    protected function pushBild(bool $livebild): int
+    {
+        return -1;
+    }
+
+    private function waechterAn(): bool
+    {
+        return $this->ReadPropertyBoolean('WaechterAktiv') && $this->apiUrl() !== '';
+    }
+
+    /**
+     * Beobachtungen für FrigateHubWaechter::bewerten() über Frigates API sammeln.
+     *
+     * @param string[] $hinweise Prüfungen, die nicht möglich waren (fürs Formular)
+     */
+    private function waechterBeobachten(array $z, int $jetzt, array &$hinweise): array
+    {
+        $stats = $this->apiHolen('/api/stats');
+        if ($stats === null) {
+            $hinweise[] = $this->apiFehlerText();
+            return ['erreichbar' => false];
+        }
+        $b = ['erreichbar' => true, 'speicher' => FrigateHubWaechter::speicher($stats), 'protokoll' => null];
+
+        // Protokoll: nur die jüngsten Zeilen (negativer Start, Frigate schneidet per Python-Slice)
+        $log = $this->apiHolen('/api/logs/frigate?start=-' . self::PROTOKOLL_ZEILEN);
+        if ($log === null || !is_array($log['lines'] ?? null)) {
+            $hinweise[] = 'Frigates Protokoll ist nicht lesbar (' . ($log === null ? $this->apiFehler : 'unerwartete Antwort')
+                . ') — auf Port 8971 braucht der Frigate-Benutzer die Rolle „admin". Schreibfehler erkennt der Wächter so nicht.';
+        } else {
+            $alt = is_array($z['protokoll'] ?? null) ? $z['protokoll'] : [];
+            $wiederholt = is_array($alt['wiederholt'] ?? null) ? $alt['wiederholt'] + ['ts' => '', 'n' => 0] : ['ts' => '', 'n' => 0];
+            $b['protokoll'] = FrigateHubWaechter::protokoll(array_slice($log['lines'], -self::PROTOKOLL_ZEILEN), (string)($alt['neueste'] ?? ''), $wiederholt);
+        }
+
+        $config = $this->apiHolen('/api/config');
+        if ($config === null) {
+            $hinweise[] = 'Frigates Einstellungen sind nicht lesbar — Alarme und Daueraufnahme ungeprüft.';
+            return $b;
+        }
+        $kameras = FrigateHubWaechter::kameras($config);
+
+        // Alarme, die seit der letzten Prüfung zu Ende gingen: haben sie einen Film?
+        [$nach, $bis] = FrigateHubWaechter::alarmFenster($z, $jetzt);
+        $alarmKameras = array_keys(array_filter($kameras, fn ($k) => $k['alarme']));
+        $b['alarme'] = [];
+        $vollstaendig = true;
+        if ($alarmKameras !== []) {
+            $reviews = $this->apiHolen('/api/review?severity=alert&limit=50&cameras=' . rawurlencode(implode(',', $alarmKameras)) . '&after=' . $nach . '&before=' . $bis);
+            $vollstaendig = $reviews !== null;
+            foreach (FrigateHubWaechter::alarme((array)$reviews, $nach, $bis) as $a) {
+                if (!in_array($a['kamera'], $alarmKameras, true)) {
+                    continue;
+                }
+                $aufnahmen = $this->apiHolen('/api/' . rawurlencode($a['kamera']) . '/recordings?after=' . (int)floor($a['start']) . '&before=' . (int)ceil($a['ende']));
+                if ($aufnahmen === null) {
+                    $vollstaendig = false;   // nächste Prüfung versucht dasselbe Fenster noch einmal
+                    break;
+                }
+                $b['alarme'][] = ['kamera' => $a['kamera'], 'ende' => $a['ende'], 'film' => FrigateHubWaechter::hatFilm($aufnahmen)];
+            }
+        }
+        if ($vollstaendig) {
+            $b['alarmeBis'] = $bis;
+        } else {
+            $b['alarme'] = [];
+        }
+
+        // Daueraufnahme: nur Kameras, die Bilder liefern
+        $b['dauer'] = [];
+        foreach ($kameras as $name => $k) {
+            $fps = $stats['cameras'][$name]['camera_fps'] ?? null;
+            if (!$k['dauer'] || !is_numeric($fps) || (float)$fps <= 0) {
+                continue;
+            }
+            $aufnahmen = $this->apiHolen('/api/' . rawurlencode($name) . '/recordings?after=' . ($jetzt - 900) . '&before=' . $jetzt);
+            if ($aufnahmen !== null) {
+                $b['dauer'][$name] = FrigateHubWaechter::neuesteAufnahme($aufnahmen);
+            }
+        }
+        return $b;
+    }
+
+    private function waechterstatus(): string
+    {
+        if (!$this->waechterAn()) {
+            return $this->apiUrl() === '' ? 'ℹ️ Aus: der Wächter braucht die Frigate-Adresse (Panel „Frigate-Server").' : 'ℹ️ Aus.';
+        }
+        $text = $this->ReadAttributeString('Waechterstatus');
+        return $text !== '' ? $text : 'ℹ️ Noch nicht geprüft — geschieht innerhalb einer Minute.';
+    }
+
+    private function speicherstand(): string
+    {
+        $z = json_decode($this->ReadAttributeString('Waechter'), true);
+        $s = is_array($z['speicher'] ?? null) ? $z['speicher'] : null;
+        return $s === null ? 'Aufnahmespeicher: noch nicht gemerkt.' : 'Gemerkter Aufnahmespeicher: ' . FrigateHubWaechter::speicherText($s) . '.';
+    }
+
     /* ==================================================================== Formular */
 
     /** Fachpanels mit festem Schlüssel (Reihenfolge = Standard) für „🪟 Formular: Aufbau“. */
@@ -447,6 +647,26 @@ class FrigateHubServer extends IPSModule
                     ]],
                 ],
             ],
+            'waechter' => [
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🎥  Aufnahme-Wächter',
+                'items' => [
+                    ['type' => 'Label', 'caption' => 'Prüft jede Minute über Frigates API, ob Frigate wirklich aufzeichnet, und meldet sich, wenn nicht — auch wenn Frigate selbst „läuft" meldet. Erkennt: Frigate antwortet nicht mehr (3 min), Schreibfehler beim Speichern der Aufnahmen (z. B. abgerissene USB-Platte), einen gewechselten Aufnahmespeicher (Platte fehlt, Frigate schreibt auf die Systemplatte), Alarme ohne Aufnahme und stehende Daueraufnahme.'],
+                    ['type' => 'Label', 'caption' => 'Braucht die Frigate-Adresse. Schreibfehler liest der Wächter aus Frigates Protokoll; auf Port 8971 braucht der Frigate-Benutzer dafür die Rolle „admin". Läuft Symcon auf demselben Rechner wie Frigate, kann bei dessen Ausfall nichts mehr warnen.'],
+                    ['type' => 'CheckBox', 'name' => 'WaechterAktiv', 'caption' => 'Aufnahme überwachen'],
+                    ['type' => 'Label', 'name' => 'Waechterstatus', 'caption' => $this->waechterstatus()],
+                    ['type' => 'Label', 'name' => 'Speicherstand', 'caption' => $this->speicherstand()],
+                    ['type' => 'Label', 'caption' => 'Meldung bei einer Störung, eine Erinnerung täglich, solange sie anhält, und eine Entwarnung. Ohne Ziel stehen Störungen nur in den Variablen „Aufnahme in Ordnung" und „Aufnahmezustand" und im Meldungsprotokoll.'],
+                    $this->pushZielListe(),
+                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Ton', 'options' => $this->tonOptionen()],
+                    ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
+                    ['type' => 'RowLayout', 'items' => [
+                        ['type' => 'Button', 'caption' => 'Jetzt prüfen', 'onClick' => 'echo FRIGS_AufnahmePruefen($id);'],
+                        ['type' => 'Button', 'caption' => 'Probemeldung senden', 'onClick' => 'echo FRIGS_PushTesten($id);'],
+                        ['type' => 'Button', 'caption' => 'Aktuellen Speicher übernehmen', 'onClick' => 'echo FRIGS_SpeicherUebernehmen($id);',
+                            'confirm' => 'Den jetzigen Aufnahmespeicher als richtig merken? Nur nach einem gewollten Plattentausch.'],
+                    ]],
+                ],
+            ],
         ];
     }
 
@@ -468,6 +688,7 @@ class FrigateHubServer extends IPSModule
         return [
             'Überwacht den Frigate-Server: erreichbar, Version und ob es eine neuere gibt, CPU, Arbeitsspeicher, Erkennungszeit, GPU-Last und freier Speicher für Aufnahmen.',
             'Meldet gestörte Kameras (keine Bilder, schlechte Verbindung) in einer Variablen — gut als Auslöser für eine Benachrichtigung. Frigate lässt sich von hier neu starten.',
+            'Der Aufnahme-Wächter meldet sich, wenn Frigate nicht mehr aufzeichnet — auch wenn Frigate selbst „läuft" meldet, etwa nach einer abgerissenen Aufnahme-Platte.',
         ];
     }
 
@@ -481,6 +702,9 @@ class FrigateHubServer extends IPSModule
             '„Neueste Version" kommt von Frigate selbst (es fragt GitHub ab); steht dort „unbekannt", ist diese Abfrage in Frigate abgeschaltet oder ohne Internet.',
             '„Gestörte Kameras" zählt Kameras, die keine Bilder liefern oder deren Verbindung Frigate als schlecht oder unbrauchbar einstuft; „Kamerazustand" sagt, welche und warum.',
             '„Frigate neu starten" schickt frigate/restart. Frigate beendet sich dann, Docker startet es neu (restart: unless-stopped). Ohne diese Docker-Einstellung bleibt Frigate aus.',
+            'Aufnahme-Wächter (mit Frigate-Adresse, jede Minute): „Frigate antwortet nicht" nach 3 min ohne Antwort. „Schreibfehler" aus Frigates Protokoll (ab 3 neuen Fehlern beim Ablegen der Aufnahmen in einer Prüfung, behoben nach 2 Prüfungen ohne) — auf Port 8971 nur mit der Frigate-Rolle „admin". „Aufnahmespeicher gewechselt", wenn Größe (über 2 %) oder Art des Speichers unter /media/frigate/recordings vom gemerkten Stand abweicht; nach einem gewollten Tausch „Aktuellen Speicher übernehmen".',
+            '„Alarm ohne Aufnahme": ein Alarm ist seit 2 min vorbei und hat keine Aufnahme (nur Kameras, die Alarme aufzeichnen); die Meldung steht bis zum nächsten Alarm mit Aufnahme, höchstens 24 h. „Daueraufnahme steht": neueste Aufnahme älter als 5 min (nur Kameras mit Daueraufnahme, die Bilder liefern). Ohne Daueraufnahme sind Stunden ohne neue Aufnahme normal und kein Fehler.',
+            'Meldungen: eine bei jeder neuen Störung, eine Erinnerung täglich, solange sie anhält, und eine Entwarnung. Variablen „Aufnahme in Ordnung" und „Aufnahmezustand" für eigene Abläufe. Läuft Symcon auf demselben Rechner wie Frigate, kann bei einem Ausfall des ganzen Rechners nichts warnen.',
         ];
     }
 

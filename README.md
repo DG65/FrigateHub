@@ -43,6 +43,7 @@ Benachrichtigungen und Archiv):
 | Neueste Version | „aktuell" oder „0.19.0 verfügbar", sobald Frigate eine neuere kennt |
 | Speicher Aufnahmen frei | freier Platz unter `/media/frigate/recordings` in GB |
 | Gestörte Kameras, Kamerazustand | Anzahl und Klartext: Kameras ohne Bilder oder mit schlechter/unbrauchbarer Verbindung |
+| Aufnahme in Ordnung, Aufnahmezustand | Aufnahme-Wächter: zeichnet Frigate wirklich auf? (siehe unten) |
 
 Die Leistungswerte stehen im Formular in der **Übersicht**, beim Öffnen frisch von Frigate
 geholt: Version, Laufzeit, CPU-Last, Arbeitsspeicher, Erkennungszeit je Detektor, GPU-Last,
@@ -85,6 +86,24 @@ Weiter in der Kachel:
   keinen Zeitstempel — dort hilft nur die Uhrzeit-Einblendung der Kamera selbst.
 - **PTZ:** Kann Frigate die Kamera schwenken oder zoomen (`/api/<kamera>/ptz/info`), erscheint in
   der vergrößerten Liveansicht ein Steuerkreuz mit den Voreinstellungen.
+
+**Aufnahme-Wächter:** Frigate meldet weiter „läuft", auch wenn es nichts mehr speichert — etwa
+wenn die USB-Platte mit den Aufnahmen abreißt. Der Wächter in der Instanz **Frigate-Server**
+prüft deshalb jede Minute über Frigates API (braucht die Frigate-Adresse):
+
+| Prüfung | Woran er es erkennt |
+|---|---|
+| Frigate antwortet nicht | 3 Minuten keine Antwort der API |
+| Schreibfehler | neue Fehler beim Ablegen der Aufnahmen in Frigates Protokoll (ab 3 je Prüfung); auf Port 8971 braucht der Frigate-Benutzer dafür die Rolle „admin" |
+| Aufnahmespeicher gewechselt | Größe oder Art des Speichers unter `/media/frigate/recordings` weicht vom gemerkten Stand ab (Platte fehlt, Frigate schreibt auf die Systemplatte) |
+| Alarm ohne Aufnahme | ein Alarm ist seit 2 Minuten vorbei und hat keine Aufnahme |
+| Daueraufnahme steht | neueste Aufnahme älter als 5 Minuten (nur Kameras mit Daueraufnahme) |
+
+Meldungen gehen an Kachel-Visualisierung, WebFront oder E-Mail: bei jeder neuen Störung, als
+tägliche Erinnerung und als Entwarnung. Ohne Daueraufnahme sind Stunden ohne neue Aufnahme
+normal; das wertet der Wächter nicht als Fehler. Nach einem gewollten Plattentausch
+„Aktuellen Speicher übernehmen". Läuft Symcon auf demselben Rechner wie Frigate, kann bei einem
+Ausfall des ganzen Rechners nichts warnen.
 
 **Übersicht aller Kameras:** Die Instanz **Frigate-Server** ist zugleich eine Kachel mit den
 Livebildern aller Kameras dieser Frigate-Instanz (Alarm, Personen, offline, gestörte Verbindung)
