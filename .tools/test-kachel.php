@@ -487,21 +487,21 @@ $k->props(['FormLayout' => json_encode([
 ])]);
 $ps = $panels();
 // Ohne Eintrag gilt die Standardposition (Schnappschuss 2 …); bei gleicher Zahl die Standardreihenfolge
-check('Reihenfolge nach Position, gleiche Zahl stabil', $nur($ps), ['Zonen', 'Schnappschuss', 'Empfangene Nachrichten', 'Push und Meldungen', 'Kachel und IPSView', 'Frigate-Kamera', 'OpenHomeAlarm (optional)', 'Formular: Aufbau (1 ausgeblendet)']);
+check('Reihenfolge nach Position, gleiche Zahl stabil', $nur($ps), ['Zonen', 'Schnappschuss', 'Empfangene Nachrichten', 'Push und Meldungen', 'Frigate-Kamera', 'Kachel und IPSView', 'OpenHomeAlarm (optional)', 'Formular: Aufbau (1 ausgeblendet)']);
 $c = array_column($ps, null, 'c');
 check('Aufgeklappt / Zugeklappt', [$c['Zonen']['auf'], $c['Frigate-Kamera']['auf']], [true, false]);
 check('Ausgeblendet = visible:false, Felder bleiben, Vorrang vor Aufgeklappt', [$c['Empfangene Nachrichten']['sichtbar'], count($c['Empfangene Nachrichten']['e']['items']) > 0, $c['Empfangene Nachrichten']['auf']], [false, true, false]);
 $liste = null;
 foreach ($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'] as $it) { if (($it['name'] ?? '') === 'FormLayout') { $liste = $it; } }
 check('Liste: alle Fachpanels, unbekannter Schlüssel fällt weg, Schlüssel gespeichert', [count($liste['values']), in_array('gibtsnicht', array_column($liste['values'], 'Key'), true),
-    array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [7, false, true]);
+    array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [8, false, true]);
 check('Hinweiszeile nennt den ausgeblendeten Bereich', strpos($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'][0]['caption'], 'Ausgeblendet: Empfangene Nachrichten') !== false, true);
 $k->formFieldUpdates = [];
 $text = $k->ResetFormLayout();
 $r = end($k->formFieldUpdates);
 $werte = json_decode((string)$r[2], true);
 check('Zurücksetzen: Liste auf Standard im offenen Formular, Hinweis zum Übernehmen', [$r[0], $r[1], array_column($werte, 'Pos'), array_sum(array_map(fn ($w) => (int)$w['Opened'] + (int)$w['Closed'] + (int)$w['Hidden'], $werte)), strpos($text, 'Übernehmen') !== false],
-    ['FormLayout', 'values', [1, 2, 3, 4, 5, 6, 7], 0, true]);
+    ['FormLayout', 'values', [1, 2, 3, 4, 5, 6, 7, 8], 0, true]);
 check('Zurücksetzen speichert nicht selbst', json_decode((string)$k->ReadPropertyString('FormLayout'), true)[0]['Key'] ?? null, 'zonen');
 check('Neu-Panel kennt 0.14.0', strpos((string)file_get_contents(__DIR__ . '/../libs/FrigateHubFormular.php'), "'0.14.0' =>") !== false, true);
 $k->props(['FormLayout' => '[]']);

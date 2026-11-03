@@ -16,6 +16,11 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.16.0' => [
+            '• 🧠 Neu: Kamera als Sensor (Panel „Kamera als Sensor"): Zustände aus Frigates Klassifizierung (Tor offen/zu …), „Auto steht seit" je Zone, „verweilt" je Zone, Paket entfernt, erkannte und unbekannte Gesichter und Kennzeichen, Geschwindigkeit, Auslöser, gesprochener Text, Tageszähler.',
+            '• 🔧 Neu: Bildprüfung — meldet eine abgedeckte, verdreckte oder verstellte Kamera und Dauerbewegung.',
+            '• Frigate-Server: Frigate-Profile anzeigen und schalten; FRIGS_GetCameras() liefert für Alarmanlagen jetzt auch Verweilen, Sabotage und Störungen (Vertrag 1.1).',
+        ],
         '0.15.1' => [
             '• Kachel: Datum und Uhrzeit sowie der Archiv-Knopf stehen jetzt groß oben rechts. Bei Livevideo läuft die Uhr mit („Live"), beim Standbild steht sein Zeitpunkt.',
         ],

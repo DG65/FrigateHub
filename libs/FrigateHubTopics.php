@@ -142,6 +142,8 @@ class FrigateHubTopics
                     return ['art' => 'reviews'];
                 case 'tracked_object_update':
                     return ['art' => 'objektupdate'];
+                case 'triggers':
+                    return ['art' => 'ausloeser'];
             }
             return null;
         }
@@ -192,10 +194,17 @@ class FrigateHubTopics
                 return ['art' => 'status', 'rolle' => $teile[2]];
             }
             if ($zweite === 'audio') {
-                if (in_array($teile[2], ['dBFS', 'rms', 'transcription'], true)) {
-                    return ['art' => 'ignorieren', 'grund' => 'Pegel/Transkript (sehr häufig)'];
+                if ($teile[2] === 'transcription') {
+                    return ['art' => 'transkript'];
+                }
+                if (in_array($teile[2], ['dBFS', 'rms'], true)) {
+                    return ['art' => 'ignorieren', 'grund' => 'Pegel (sehr häufig)'];
                 }
                 return ['art' => 'geraeusch', 'typ' => $teile[2], 'name' => self::geraeuschName($teile[2])];
+            }
+            if ($zweite === 'classification') {
+                // Zustandsklassifizierung (Frigate 0.17+): Wert = Klasse, nur bei Änderung
+                return ['art' => 'zustand', 'modell' => $teile[2]];
             }
             if ($teile[2] === 'active') {
                 return ['art' => 'aktiv', 'label' => $zweite];
@@ -450,7 +459,7 @@ class FrigateHubTopics
      */
     public static function empfangsfilter(string $kamera, array $zonen): string
     {
-        $merkmale = array_merge([$kamera], $zonen, ['available', 'events', 'reviews', 'tracked_object_update']);
+        $merkmale = array_merge([$kamera], $zonen, ['available', 'events', 'reviews', 'tracked_object_update', 'triggers']);
         $merkmale = array_map(fn ($m) => preg_quote((string)$m), array_filter($merkmale, 'strlen'));
         return '.*(' . implode('|', $merkmale) . ').*';
     }

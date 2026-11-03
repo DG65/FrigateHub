@@ -9,6 +9,7 @@ require_once __DIR__ . '/../libs/FrigateHubWebhook.php';
 require_once __DIR__ . '/../libs/FrigateHubKachel.php';
 require_once __DIR__ . '/../libs/FrigateHubOha.php';
 require_once __DIR__ . '/../libs/FrigateHubPush.php';
+require_once __DIR__ . '/../libs/FrigateHubKameraSensor.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -28,6 +29,7 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubApi;
     use FrigateHubWebhook;
     use FrigateHubPush;
+    use FrigateHubKameraSensor;
     use FrigateHubKachel {
         MessageSink as private kachelMessageSink;
     }
@@ -46,6 +48,7 @@ class FrigateHubKamera extends IPSModule
     private const POS_OBJEKT    = 200;
     private const POS_ZONE      = 300;
     private const POS_GERAEUSCH = 400;
+    private const POS_SENSOR    = 500;
 
     /**
      * Schonfrist (s): Frigates /api/config hinkt der MQTT-Bestätigung einige Sekunden hinterher
@@ -106,6 +109,7 @@ class FrigateHubKamera extends IPSModule
         $this->formAufbauRegistrieren();
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
+        $this->sensorRegistrieren();
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -140,6 +144,7 @@ class FrigateHubKamera extends IPSModule
         $this->festeVariablen();
         $this->kachelUebernehmen();
 
+        $this->sensorUebernehmen();
         $kamera = $this->kamera();
         if ($kamera === '') {
             $this->SetReceiveDataFilter(FrigateHubTopics::sperrfilter());
@@ -193,6 +198,7 @@ class FrigateHubKamera extends IPSModule
                 $wert = FrigateHubTopics::anAus($payload);
                 if ($wert !== null) {
                     $this->SetValue('Bewegung', $wert);
+                    $this->sensorBewegung($wert);
                 }
                 break;
 
@@ -252,6 +258,18 @@ class FrigateHubKamera extends IPSModule
 
             case 'objektupdate':
                 $this->objektUpdateVerarbeiten($payload);
+                break;
+
+            case 'zustand':
+                $this->sensorZustand($d['modell'], $payload);
+                break;
+
+            case 'transkript':
+                $this->sensorTranskript($payload);
+                break;
+
+            case 'ausloeser':
+                $this->sensorAusloeser($payload);
                 break;
 
             case 'zahl':
@@ -641,6 +659,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
             ],
+            'sensor' => $this->sensorPanel(),
             'meldungen' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
                 'items' => [
@@ -721,6 +740,7 @@ class FrigateHubKamera extends IPSModule
             'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
+            ...$this->sensorDoku(),
         ];
     }
 
@@ -746,6 +766,7 @@ class FrigateHubKamera extends IPSModule
             return '⛔ Frigate kennt keine Kamera „' . $kamera . '". Vorhanden: ' . (implode(', ', array_keys($kameras)) ?: 'keine') . '.';
         }
         $this->SetValue('Verfuegbar', true);
+        $this->WriteAttributeString('Einheit', ($config['ui']['unit_system'] ?? 'metric') === 'imperial' ? ' mph' : ' km/h');
 
         $schalter = FrigateHubTopics::schalterAusConfig($kameras[$kamera]);
         $frisch = $this->frisch();
@@ -1015,6 +1036,7 @@ class FrigateHubKamera extends IPSModule
             $this->SetValue('LetztesObjekt', FrigateHubTopics::eventText($after));
             $this->WriteAttributeString('LetzteEventId', (string)($after['id'] ?? ''));
         }
+        $this->sensorEvent($typ, $after);
     }
 
     private function reviewVerarbeiten(string $payload): void
@@ -1031,6 +1053,9 @@ class FrigateHubKamera extends IPSModule
         if ($typ === 'new' || $typ === 'update') {
             $text = FrigateHubTopics::reviewText($after);
             if ((string)($after['severity'] ?? '') === 'alert') {
+                if ($typ === 'new') {
+                    $this->sensorAlarm();
+                }
                 $this->SetValue('LetzterAlarm', $text);
                 $this->alarmMelden((string)($after['id'] ?? ''), $text);
             } else {
@@ -1055,6 +1080,9 @@ class FrigateHubKamera extends IPSModule
     private function objektUpdateVerarbeiten(string $payload): void
     {
         $u = json_decode($payload, true);
+        if (is_array($u)) {
+            $this->sensorObjektUpdate($u);
+        }
         $d = is_array($u) ? FrigateHubTopics::objektUpdate($u) : null;
         if ($d === null) {
             return;

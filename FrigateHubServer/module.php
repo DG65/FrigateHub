@@ -82,6 +82,8 @@ class FrigateHubServer extends IPSModule
         $this->RegisterAttributeString('Waechter', '{}');
         $this->RegisterAttributeString('Waechterstatus', '');
         $this->RegisterAttributeString('Pushstatus', '');
+        // Frigate-Profile (0.18+): verfügbare Namen → Anzeigename, aus /api/profiles
+        $this->RegisterAttributeString('Profile', '{}');
 
         $this->RegisterTimer('Abgleich', 0, 'FRIGS_ZustandAnfordern($_IPS[\'TARGET\']);');
         $this->RegisterTimer('Waechter', 0, 'FRIGS_AufnahmePruefen($_IPS[\'TARGET\']);');
@@ -102,7 +104,7 @@ class FrigateHubServer extends IPSModule
             ]),
         ], 1);
         // Schrägstrichfreie Merkmale (CometWiFi-Fund); welches Topic gemeint ist, prüft ReceiveData.
-        $this->SetReceiveDataFilter('.*(stats|available).*');
+        $this->SetReceiveDataFilter('.*(stats|available|profile).*');
         $this->SetVisualizationType(1);
         if ($this->ReadAttributeString('HookSchluessel') === '') {
             $this->WriteAttributeString('HookSchluessel', bin2hex(random_bytes(16)));
@@ -197,12 +199,15 @@ class FrigateHubServer extends IPSModule
     }
 
     /** Vertragsversion von FRIGS_GetCameras() (Major nur bei Bruch erhöhen, SUITE.md-Regel). */
-    public const VERTRAG = '1.0';
+    public const VERTRAG = '1.1';
 
     /**
      * FRIGS_GetCameras($id): neutrale Liste der Kameras dieser Frigate-Instanz für andere Module
      * (Alarmanlagen wie OpenHomeAlarm, Regelwerke): Variablen-IDs für Melder und Schalter sowie die
      * Meldefunktion. Nur Kameras, für die es eine FrigateHub-Kamera-Instanz gibt. 0 = gibt es nicht.
+     * 1.1 (rein ergänzend): melder.verweilen/geraeusche/unbekanntesGesicht/unbekanntesKennzeichen,
+     * sabotage, stoerung.offline (Online: false = Störung) / stoerung.aufnahme (AufnahmeOk der
+     * Server-Instanz: false = Störung), zustaende. Profile schaltet FRIGS_ProfilSetzen().
      */
     public function GetCameras(): array
     {
@@ -210,10 +215,22 @@ class FrigateHubServer extends IPSModule
         foreach ($this->kameraInstanzen() as $kamera => $id) {
             $v = fn (string $ident): int => (int)(@IPS_GetObjectIDByIdent($ident, $id) ?: 0);
             $zonen = [];
+            $verweilen = [];
+            $geraeusche = [];
+            $zustaende = [];
             foreach (IPS_GetChildrenIDs($id) as $kind) {
                 $o = IPS_GetObject($kind);
-                if ($o['ObjectType'] === 2 && preg_match('/^Zone_(.+)_person(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
+                if ($o['ObjectType'] !== 2) {
+                    continue;
+                }
+                if (preg_match('/^Zone_(.+)_person(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
                     $zonen[] = ['zone' => $m[1], 'name' => $o['ObjectName'], 'personen' => $kind];
+                } elseif (preg_match('/^Verweilt_(.+?)(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
+                    $verweilen[] = ['zone' => $m[1], 'name' => $o['ObjectName'], 'variable' => $kind];
+                } elseif (preg_match('/^Geraeusch_(.+?)(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
+                    $geraeusche[] = ['typ' => $m[1], 'name' => $o['ObjectName'], 'variable' => $kind];
+                } elseif (preg_match('/^Zustand_(.+?)(?:_[0-9a-f]{4})?$/', $o['ObjectIdent'], $m)) {
+                    $zustaende[] = ['modell' => $m[1], 'name' => $o['ObjectName'], 'variable' => $kind];
                 }
             }
             $kameras[] = [
@@ -222,7 +239,14 @@ class FrigateHubServer extends IPSModule
                 'name'            => IPS_GetName($id),
                 'instanz'         => $id,
                 'melder'          => ['alarm' => $v('Alarm'), 'erkennung' => $v('Erkennung'), 'bewegung' => $v('Bewegung'), 'personen' => $v('Objekt_person'),
-                    'online' => $v('Online'), 'zonen' => $zonen],
+                    'online' => $v('Online'), 'zonen' => $zonen,
+                    // 1.1: Verweilen je Zone (besserer Scharf-Melder), Geräusche, unbekanntes Gesicht/Kennzeichen (Zeitpunkt)
+                    'verweilen' => $verweilen, 'geraeusche' => $geraeusche,
+                    'unbekanntesGesicht' => $v('UnbekanntesGesicht'), 'unbekanntesKennzeichen' => $v('UnbekanntesKennzeichen')],
+                // 1.1: Sabotage (Bild abgedeckt/verstellt/Dauerbewegung) und Störungen für Störungseingänge
+                'sabotage'        => $v('BildAuffaellig'),
+                'stoerung'        => ['offline' => $v('Online'), 'aufnahme' => (int)(@$this->GetIDForIdent('AufnahmeOk') ?: 0)],
+                'zustaende'       => $zustaende,
                 'schalter'        => ['aufnahme' => $v('Schalter_recordings'), 'objekterkennung' => $v('Schalter_detect'), 'schnappschuesse' => $v('Schalter_snapshots')],
                 'bild'            => $v('Schnappschuss'),
                 'meldung'         => 'FRIG_MeldungMitSchnappschuss',
@@ -393,6 +417,8 @@ class FrigateHubServer extends IPSModule
         $payload = (string)($paket['Payload'] ?? '');
         if ($topic === $praefix . '/available') {
             $this->SetValue('Verfuegbar', trim($payload) === 'online');
+        } elseif ($topic === $praefix . '/profile/state') {
+            $this->profilAnzeigen(trim($payload));
         } elseif ($topic === $praefix . '/stats') {
             $stats = json_decode($payload, true);
             if (is_array($stats)) {
@@ -423,6 +449,20 @@ class FrigateHubServer extends IPSModule
         $this->anwenden($stats);
         // Antwortet die API, läuft Frigate — auch wenn frigate/available noch nicht kam.
         $this->SetValue('Verfuegbar', true);
+        // Profile: frigate/profile/state ist retained, Symcons MQTT-Server gibt das neuen Kindern nicht weiter
+        $profile = $this->apiHolen('/api/profiles');
+        if (is_array($profile)) {
+            $namen = [];
+            foreach ((array)($profile['profiles'] ?? []) as $p) {
+                if (is_array($p) && (string)($p['name'] ?? '') !== '') {
+                    $namen[(string)$p['name']] = (string)($p['friendly_name'] ?? $p['name']);
+                }
+            }
+            $this->WriteAttributeString('Profile', (string)json_encode($namen));
+            if ($namen !== [] || @$this->GetIDForIdent('Profil') !== false) {
+                $this->profilAnzeigen((string)($profile['active_profile'] ?? 'none'));
+            }
+        }
         // Birdseye nur anbieten, wenn Frigate es liefert (sonst 404 „Camera not found", live 29.10.2026)
         $this->WriteAttributeBoolean('Birdseye', $this->apiDurchreichen('/api/birdseye/latest.jpg?height=120&h=120', '', 5)['code'] === 200);
         $this->kamerasBeobachten();
@@ -453,6 +493,56 @@ class FrigateHubServer extends IPSModule
         ], JSON_UNESCAPED_SLASHES));
         $this->LogMessage('Neustart von Frigate angefordert', KL_NOTIFY);
         return '🔄 Neustart angefordert. Frigate ist in der Regel nach 1–2 Minuten wieder da („Frigate erreichbar").';
+    }
+
+    /**
+     * FRIGS_ProfilSetzen($id, $Profil): Frigate-Profil aktivieren (Name wie in Frigate, '' oder
+     * „none" = keins) — z. B. „away" beim Scharfschalten der Alarmanlage. Rückgabe: Text.
+     */
+    public function ProfilSetzen(string $Profil): string
+    {
+        if (!$this->HasActiveParent()) {
+            return '⛔ Keine aktive MQTT-Instanz darüber — der Befehl kann Frigate nicht erreichen.';
+        }
+        $name = trim($Profil) === '' ? 'none' : trim($Profil);
+        $bekannt = (array)json_decode($this->ReadAttributeString('Profile'), true);
+        if ($name !== 'none' && $bekannt !== [] && !isset($bekannt[$name])) {
+            return '⛔ Frigate kennt kein Profil „' . $name . '". Vorhanden: ' . implode(', ', array_keys($bekannt)) . '.';
+        }
+        $this->SendDataToParent((string)json_encode([
+            'DataID'           => self::MQTT_TX,
+            'PacketType'       => 3,
+            'QualityOfService' => 0,
+            'Retain'           => false,
+            'Topic'            => FrigateHubTopics::praefix($this->ReadPropertyString('TopicPrefix')) . '/profile/set',
+            'Payload'          => $name,
+        ], JSON_UNESCAPED_SLASHES));
+        return '✅ Profil „' . ($name === 'none' ? 'keins' : ($bekannt[$name] ?? $name)) . '" angefordert; Frigate bestätigt über frigate/profile/state.';
+    }
+
+    public function RequestAction($Ident, $Value)
+    {
+        if ($Ident === 'Profil') {
+            echo $this->ProfilSetzen((string)$Value);
+            return;
+        }
+        throw new Exception('Unbekannte Aktion: ' . $Ident);
+    }
+
+    /** Aktives Profil in der Variablen „Frigate-Profil" (Anzeigename, „keins" bei none). */
+    private function profilAnzeigen(string $name): void
+    {
+        $bekannt = (array)json_decode($this->ReadAttributeString('Profile'), true);
+        $optionen = [['Value' => 'none', 'Caption' => 'keins', 'IconActive' => false, 'IconValue' => '', 'ColorActive' => false, 'ColorValue' => -1]];
+        foreach ($bekannt as $schluessel => $anzeige) {
+            $optionen[] = ['Value' => (string)$schluessel, 'Caption' => (string)$anzeige, 'IconActive' => false, 'IconValue' => '', 'ColorActive' => false, 'ColorValue' => -1];
+        }
+        if (@$this->GetIDForIdent('Profil') === false) {
+            $this->MaintainVariable('Profil', 'Frigate-Profil', VARIABLETYPE_STRING, [
+                'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION, 'OPTIONS' => (string)json_encode($optionen)], 70, true);
+            $this->EnableAction('Profil');
+        }
+        $this->SetValue('Profil', $name === '' ? 'none' : $name);
     }
 
     /* ==================================================================== Aufnahme-Wächter */

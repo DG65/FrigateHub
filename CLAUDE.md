@@ -75,6 +75,13 @@
   `/api/logs/frigate` nur Rolle admin (Port 5000 = admin), `start` negativ = letzte N Zeilen (Python-Slice),
   gleiche Folgezeilen → „[LOGGING] Last message repeated N times“ mit Zeitstempel der ersten.
   Ohne Daueraufnahme (`record.continuous.days: 0`, so bei Dietmar) sind fehlende neue Teilstücke normal.
+- Kamera als Sensor (0.16.0): Trait `FrigateHubKameraSensor`, Bewertung in `FrigateHubSensor`. Objektliste im Puffer
+  `Objekte` aus `frigate/events` (Felder `stationary`, `current_zones`, `average_estimated_speed`,
+  `recognized_license_plate`, `sub_label`). Frigate schickt für stillstehende Objekte keine Updates → Verweil-Timer.
+  Dietmars Frigate 03.11.: LPR und Gesichter an, Zonen Eingangsbereich/Carport nur `person`, keine Profile,
+  `ui.unit_system` metric, `detect.stationary.threshold` 50 bei 5 fps. Symcon-Darstellungen Datum/Uhrzeit (0 = „-")
+  und Aufzählung (OPTIONS) live geprüft. Frigate-Konfiguration schreiben ginge über `PUT /api/config/set`
+  (admin, `config_data` + `update_topic` `config/cameras/<cam>/<bereich>`, `requires_restart: 0`) — noch nicht gebaut.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

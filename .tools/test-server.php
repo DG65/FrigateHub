@@ -148,7 +148,7 @@ IPSTestState::$instances[1] = ['InstanceID' => 1, 'ConnectionID' => 0, 'Instance
 $s = new TestServer(1);
 $s->Create();
 $s->ApplyChanges();
-check('aktiv, Filter ohne Schrägstrich', [$s->GetStatus(), $s->receiveFilter], [102, '.*(stats|available).*']);
+check('aktiv, Filter ohne Schrägstrich', [$s->GetStatus(), $s->receiveFilter], [102, '.*(stats|available|profile).*']);
 check('feste Variable', array_keys($s->variables), ['Verfuegbar']);
 check('ohne Adresse kein Abgleich-Timer', $s->timers['Abgleich']['interval'] ?? null, 0);
 
@@ -274,8 +274,31 @@ $liste = $s->GetCameras();
 $haus = array_values(array_filter($liste, fn ($k) => $k['kamera'] === 'Door-Cam'))[0] ?? [];
 check('GetCameras: Vertrag, Melder, Zone, Schalter, Meldefunktion', [$haus['contractVersion'] ?? null, $haus['melder']['alarm'] ?? null, $haus['melder']['zonen'][0]['personen'] ?? null,
     $haus['melder']['zonen'][0]['zone'] ?? null, $haus['schalter']['aufnahme'] > 0, $haus['schalter']['objekterkennung'] ?? null, $haus['meldung'] ?? null],
-    ['1.0', $alarm40, $zone, 'Eingangsbereich', true, 0, 'FRIG_MeldungMitSchnappschuss']);
+    ['1.1', $alarm40, $zone, 'Eingangsbereich', true, 0, 'FRIG_MeldungMitSchnappschuss']);
 check('GetCameras: beide Kameras desselben Brokers', array_column($liste, 'kamera'), ['Door-Cam', 'garten']);
+// Vertrag 1.1: neue Melder, Sabotage, Störungen, Zustände (rein ergänzend)
+$verweilt = IPSTestState::addObject(40, 'Verweilt_Eingangsbereich', false, 'Eingangsbereich: verweilt');
+$glas = IPSTestState::addObject(40, 'Geraeusch_glass', false, 'Glas');
+$sabotage = IPSTestState::addObject(40, 'BildAuffaellig', false, 'Bild auffällig');
+$tor = IPSTestState::addObject(40, 'Zustand_garagentor', 'closed', 'Zustand garagentor');
+$gesicht = IPSTestState::addObject(40, 'UnbekanntesGesicht', 0, 'Unbekanntes Gesicht');
+$haus = array_values(array_filter($s->GetCameras(), fn ($k) => $k['kamera'] === 'Door-Cam'))[0] ?? [];
+check('GetCameras 1.1: Verweilen, Geräusche, unbekanntes Gesicht', [$haus['melder']['verweilen'] ?? null, $haus['melder']['geraeusche'][0]['variable'] ?? null,
+    $haus['melder']['unbekanntesGesicht'] ?? null, $haus['melder']['unbekanntesKennzeichen'] ?? null],
+    [[['zone' => 'Eingangsbereich', 'name' => 'Eingangsbereich: verweilt', 'variable' => $verweilt]], $glas, $gesicht, 0]);
+check('GetCameras 1.1: Sabotage, Störung, Zustände', [$haus['sabotage'] ?? null, ($haus['stoerung']['offline'] ?? 0) > 0, array_key_exists('aufnahme', $haus['stoerung'] ?? []), $haus['zustaende'][0]['variable'] ?? null],
+    [$sabotage, true, true, $tor]);
+check('GetCameras 1.1: alte Felder unverändert', [$haus['melder']['alarm'] ?? null, $haus['melder']['zonen'][0]['zone'] ?? null], [$alarm40, 'Eingangsbereich']);
+
+// Frigate-Profile
+$s->ReceiveData(paket('frigate/profile/state', 'away'));
+check('Profil aus frigate/profile/state', [$s->GetValue('Profil'), $s->variables['Profil']['presentation']['PRESENTATION'] ?? null], ['away', VARIABLE_PRESENTATION_ENUMERATION]);
+IPSTestState::$sentPackets = [];
+$text = $s->ProfilSetzen('');
+$p = end(IPSTestState::$sentPackets);
+check('Profil leer → none an frigate/profile/set, nie retain', [$p['Topic'] ?? null, $p['Payload'] ?? null, $p['Retain'] ?? null, strpos($text, '✅') === 0], ['frigate/profile/set', 'none', false, true]);
+$s->WriteAttributeString('Profile', json_encode(['away' => 'Abwesend', 'home' => 'Zuhause']));
+check('unbekanntes Profil abgelehnt, bekanntes mit Anzeigename', [strpos($s->ProfilSetzen('urlaub'), 'Frigate kennt kein Profil „urlaub"') !== false, strpos($s->ProfilSetzen('away'), '„Abwesend"') !== false], [true, true]);
 $text = $s->MeldungLetzteKamera('Alarm!', true);
 check('Alarm 30 s vor einer Erkennung zählt mehr (60 s Vorsprung)', [$GLOBALS['meldungen'][0] ?? null, strpos($text, 'Haustür') === 0], [[40, 'Alarm!', true], true]);
 IPSTestState::addObject(42, 'LetzterAlarm', '29.10.2026 16:20:00 – Person', 'Letzter Alarm', 1100);

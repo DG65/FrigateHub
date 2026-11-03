@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.16.0 (Build 33) — 03.11.2026
+
+- **Kamera als Sensor** (Trait `libs/FrigateHubKameraSensor.php`, Bewertung rein in `libs/FrigateHubSensor.php`, Felder laut Frigate 0.18.2 `docs/integrations/mqtt.md`):
+  - „Zustand <Modell>" aus `frigate/<kamera>/classification/<modell>` (Zustandsklassifizierung).
+  - „<Objekt> steht seit" / „<Zone>: <Objekt> steht seit" (Datum/Uhrzeit, 0 = „-") aus `stationary` der Events; „Paket entfernt", wenn ein stehendes `package` endet.
+  - „<Zone>: verweilt": ein Objekt der gewählten Klassen (Standard `person`) ist ≥ N s in der Zone (Standard 30, 0 = aus). Timer genau auf die nächste Schwelle, weil Frigate stillstehende Objekte nicht mehr meldet.
+  - „Erkannte Person (Name)", „Unbekanntes Gesicht" (erst am Objektende: Versuche, aber kein Treffer), „Erkanntes Fahrzeug" (Name aus Frigates bekannten Kennzeichen, sonst Kennzeichen), „Unbekanntes Kennzeichen".
+  - „Letzte Geschwindigkeit" (`average_estimated_speed`, Einheit aus `ui.unit_system`), „Auslöser <Name>" (`frigate/triggers`), „Gesprochener Text" (`audio/transcription`, bisher verworfen).
+  - Tageszähler „Heute: <Objekte>" und „Heute: Alarme", Mitternacht auf 0.
+  - Bildprüfung (Standard alle 5 min, braucht Frigate-Adresse und GD): 8×8-Graustufenraster gegen die gelernte Ansicht je Tagesstunde, ohne mittlere Helligkeit verglichen (Schwelle 30; an Dietmars Door-Cam 03.11.: gleiches Bild 0,2, gespiegelt 51, Streuung tags 40); „einfarbig" nur, wenn die Stunde sonst Struktur hat (Nacht); 3 Treffer in Folge; Dauerbewegung ab 15 min. „Bild auffällig"/„Bildzustand", Meldung an die Push-Ziele (abschaltbar), „Ansicht neu lernen".
+- **Frigate-Server:** Profile (Frigate 0.18+): Variable „Frigate-Profil" (Aufzählung, schaltbar) aus `frigate/profile/state` und `/api/profiles`, `FRIGS_ProfilSetzen($id, $Profil)` (`frigate/profile/set`, nie retain, unbekannte Namen abgelehnt).
+- **`FRIGS_GetCameras()` Vertrag 1.1** (rein ergänzend): `melder.verweilen`, `melder.geraeusche`, `melder.unbekanntesGesicht`, `melder.unbekanntesKennzeichen`, `sabotage`, `stoerung.offline`/`stoerung.aufnahme`, `zustaende` — für OpenHomeAlarm und Regelwerke.
+- Darstellungen „Datum/Uhrzeit" und „Aufzählung" live geprüft (Symcon 9, 03.11.2026). Prüfstand `.tools/test-sensor.php` (76 Prüfungen, Mutationsgegenprobe), `test-server.php` um Vertrag 1.1 und Profile erweitert.
+
 ## 0.15.2 (Build 32) — 03.11.2026
 
 - **Kachel der Kamera:** Oben rechts stehen jetzt Datum und Uhrzeit (`03.11.2026 10:31:14`), auch bei Livevideo — dann mit „Live“ davor und sekündlich mitlaufend; beim Standbild der Zeitpunkt des Bildes. In 0.15.1 fehlte die Uhrzeit bei Livevideo ganz (Dietmars Rückmeldung).

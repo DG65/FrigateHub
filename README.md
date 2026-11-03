@@ -175,6 +175,31 @@ bloße Erkennung verdächtig, meldet FrigateHub auch diese (abschaltbar). Beding
 Schalter übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt die Bestätigung aus,
 zeigt Symcon weiter den echten Zustand.
 
+## Kamera als Sensor
+
+Jede Kamera liefert über Alarm und Erkennung hinaus Werte mit Bedeutung — für Abläufe (z. B. mit
+dem DG65-Toolkit Automat), Alarmanlagen und das Energiemanagement. Die Variablen entstehen erst,
+wenn Frigate die Daten liefert; was Frigate erkennen soll, muss dort eingerichtet sein.
+
+| Variable | Bedeutung | Frigate braucht |
+|---|---|---|
+| Zustand \<Modell\> | Klasse aus der Zustandsklassifizierung, z. B. Tor `open`/`closed`, Tonne draußen | Zustandsklassifizierung (0.17+) |
+| \<Objekt\> steht seit, \<Zone\>: \<Objekt\> steht seit | Zeitpunkt, seit dem z. B. ein Auto im Carport steht („-" = keins) | Objekt verfolgen (stationary ist Standard) |
+| Paket entfernt | ein liegendes Paket ist verschwunden | Objekt `package` |
+| \<Zone\>: verweilt | jemand bleibt länger als N Sekunden in der Zone (Standard 30 s, Personen) | Zonen |
+| Erkannte Person (Name), Unbekanntes Gesicht | wer erkannt wurde; Zeitpunkt, wenn ein Gesicht gesehen, aber niemand erkannt wurde | Gesichtserkennung |
+| Erkanntes Fahrzeug, Unbekanntes Kennzeichen | Name aus Frigates bekannten Kennzeichen, sonst das Kennzeichen; Zeitpunkt bei fremdem Kennzeichen | Kennzeichenerkennung |
+| Letzte Geschwindigkeit | Durchschnitt des letzten gemessenen Objekts (km/h bzw. mph) | Zone mit Geschwindigkeitsmessung |
+| Auslöser \<Name\> | Zeitpunkt, wann ein semantischer Auslöser anschlug („roter Transporter") | Semantische Suche mit Auslösern |
+| Gesprochener Text | Transkript, was an der Kamera gesagt wurde | Audio-Transkription |
+| Heute: Personen, Autos …, Alarme | Tageszähler, um Mitternacht auf 0 | — |
+| Bild auffällig, Bildzustand | Kamera abgedeckt/verdreckt, verstellt oder Dauerbewegung (Spinnennetz, Regen) | Frigate-Adresse |
+
+Die **Bildprüfung** holt alle 5 Minuten ein kleines Livebild und vergleicht es mit der gelernten
+Ansicht derselben Tagesstunde. Helligkeit zählt dabei nicht (Sonne, Licht), nur das Muster; erst
+drei auffällige Prüfungen in Folge melden. Nachts ohne Licht ist ein dunkles Bild normal.
+Nach einem gewollten Umbau „Ansicht neu lernen".
+
 ## Voraussetzungen
 
 - IP-Symcon 9.0 oder neuer
@@ -291,7 +316,12 @@ Vertragsversion, kein Muss):
   statt falsch zu lesen.
 - Für andere Module bietet die Instanz Frigate-Server `FRIGS_GetCameras($id)`: je Kamera die
   Variablen für Melder (Alarm, Erkennung, Bewegung, Personen, Zonen-Zähler, online), die Schalter
-  und die Meldefunktion, mit `contractVersion` (derzeit 1.0, Hauptversion nur bei Bruch).
+  und die Meldefunktion, mit `contractVersion` (derzeit 1.1, Hauptversion nur bei Bruch).
+  Seit 1.1 zusätzlich: Verweilen je Zone (ein besserer Scharf-Melder als „Person erkannt"),
+  Geräusche, unbekanntes Gesicht/Kennzeichen, Sabotage (Bild abgedeckt/verstellt), Störungen
+  (Kamera offline, Aufnahme gestört) und Zustände aus Frigates Klassifizierung.
+- `FRIGS_ProfilSetzen($id, "away")` schaltet ein Frigate-Profil (Frigate 0.18+), etwa beim
+  Scharfschalten; `""` oder `"none"` schaltet es ab.
 
 Fragen zu OpenHomeAlarm selbst gehören in dessen Forum-Thread, Fragen zu Kameras und Frigate in
 den von FrigateHub.
