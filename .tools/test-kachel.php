@@ -234,6 +234,7 @@ check('Clip: letzte 8 Bytes', $a['inhalt'], substr($mp4, -8));
 check('Clip: außerhalb → 416', $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=9999999-'])['code'], 416);
 check('Clip nur einmal bei Frigate geholt', count(TestKachel::$durchgereicht) - $vorher, 1);
 foreach (glob(sys_get_temp_dir() . '/frigatehub_1_*.mp4') ?: [] as $f) { touch($f, time() - 700); }
+clearstatcache();   // PHP 8.2 (CI) hielt sonst die alte Dateizeit im Zwischenspeicher
 $k->hook(['k' => $schluessel, 'clip' => $EV]);
 check('alter Clip wird neu geholt', count(TestKachel::$durchgereicht) - $vorher, 2);
 TestKachel::$frigate['/api/events/1793259000.1-weg/clip.mp4'] = ['code' => 404, 'body' => '', 'kopf' => []];
