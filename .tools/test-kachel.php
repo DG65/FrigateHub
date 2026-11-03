@@ -568,6 +568,8 @@ $html = (string)file_get_contents(__DIR__ . '/../FrigateHubKamera/module.html');
 preg_match('#<div class="rechts">(.*?)</div>#s', $html, $rechts);
 check('Kopfzeile rechts: Uhrzeit und Archiv', [strpos($rechts[1] ?? '', 'id="zeit"') !== false, strpos($rechts[1] ?? '', 'id="archiv"') !== false], [true, true]);
 preg_match('#<div class="bild" id="bild">(.*?)\n        </div>#s', $html, $bild);
+check('keine LIVE-Marke und kein „online"-Chip mehr (doppelte Anzeige verwirrte)', [strpos($html, 'class="marke"'), strpos($html, "chip('online'")], [false, false]);
+check('Datum und Uhrzeit, bei Video mit „Live" und mitlaufend', [strpos($html, "zeitZeigen('Live', new Date())") !== false, strpos($html, 'd.getFullYear()') !== false], [true, true]);
 check('Uhrzeit nicht mehr im Livebild', isset($bild[1]) && strpos($bild[1], 'id="zeit"') === false, true);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";

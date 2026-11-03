@@ -37,7 +37,7 @@
         /* Stand des Livebilds und Archiv gut sichtbar oben rechts (Wunsch Dietmar 03.11.2026) */
         .zeit { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .zeit[hidden] { display: none; }
-        .wrap:has(.bild.video) .zeit { display: none; }
+        .zeit .art { font-weight: 500; color: var(--textmuted); margin-right: 6px; }
         .archivknopf { border: none; background: var(--accent); color: #062b30; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .archivknopf:hover { filter: brightness(1.1); }
         .archivknopf[hidden] { display: none; }
@@ -60,9 +60,6 @@
         .bild video { display: none; background: #000; }
         .bild.video video { display: block; }
         .bild.video img { visibility: hidden; }
-        .marke { position: absolute; left: 8px; top: 6px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 6px; padding: 1px 6px; display: none; align-items: center; gap: 5px; }
-        .marke::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--alarm); }
-        .bild.video .marke { display: inline-flex; }
         .ton { position: absolute; right: 8px; top: 6px; border: none; background: rgba(0, 0, 0, .45); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: 13px; cursor: pointer; display: none; }
         .bild.video .ton { display: block; }
         .ton.ohne { opacity: .7; font-size: 11px; }
@@ -141,7 +138,6 @@
         <div class="bild" id="bild">
             <img id="live" alt="">
             <video id="video" autoplay muted playsinline></video>
-            <span class="marke">LIVE</span>
             <button class="ton" id="ton" title="Ton">🔇</button>
             <div class="hinweis" id="hinweis">Lade …</div>
             <div class="meldung" id="meldung" hidden></div>
@@ -183,6 +179,7 @@
         var letzterSchnappschuss = null;
         var pc = null;             // WebRTC-Verbindung zu go2rtc (über den WebHook aufgebaut)
         var videoLaeuft = false;
+        var uhrTimer = null;
         var videoVersuche = 0;
         var tonZustand = '';       // '' = unbekannt, 'ok', 'keineSpur', 'stille' (je Verbindung neu)
         var tonTimer = null;
@@ -235,9 +232,7 @@
                 } else {
                     el('live').src = neu.src;
                     hinweis('');
-                    var z = new Date();
-                    el('zeit').textContent = ('0' + z.getHours()).slice(-2) + ':' + ('0' + z.getMinutes()).slice(-2) + ':' + ('0' + z.getSeconds()).slice(-2);
-                    el('zeit').hidden = false;
+                    if (!videoLaeuft) { zeitZeigen('', new Date()); }
                 }
                 naechstes();
             };
@@ -263,6 +258,18 @@
             el('live').src = quelle;
             el('zeit').textContent = text || '';
             el('zeit').hidden = !text;
+        }
+
+        /** Datum und Uhrzeit oben rechts; art z. B. „Live" (läuft mit) oder leer (Stand des Standbilds). */
+        function zeitZeigen(art, d) {
+            var z = el('zeit');
+            var zwei = function (n) { return ('0' + n).slice(-2); };
+            z.textContent = '';
+            if (art) { var a = document.createElement('span'); a.className = 'art'; a.textContent = art; z.appendChild(a); }
+            z.appendChild(document.createTextNode(zwei(d.getDate()) + '.' + zwei(d.getMonth() + 1) + '.' + d.getFullYear() + ' '
+                + zwei(d.getHours()) + ':' + zwei(d.getMinutes()) + ':' + zwei(d.getSeconds())));
+            z.title = art ? 'Livevideo, aktuelle Uhrzeit' : 'Stand des Livebilds';
+            z.hidden = false;
         }
 
         function hinweis(text) {
@@ -334,6 +341,9 @@
             if (pc) { try { pc.close(); } catch (e) { } }
             pc = null;
             videoLaeuft = false;
+            if (uhrTimer) { el('zeit').hidden = true; }   // „Live" gilt nicht mehr; das nächste Standbild zeigt seinen Stand
+            clearInterval(uhrTimer);
+            uhrTimer = null;
             el('video').srcObject = null;
             el('bild').classList.remove('video');
             el('rahmen').hidden = !daten || !daten.api;
@@ -342,6 +352,10 @@
         el('video').addEventListener('playing', function () {
             videoLaeuft = true;
             videoVersuche = 0;
+            // Livevideo: Uhr läuft mit (statt LIVE-Marke im Bild — „online" und „LIVE" verwirrten, Dietmar 03.11.2026)
+            clearInterval(uhrTimer);
+            zeitZeigen('Live', new Date());
+            uhrTimer = setInterval(function () { zeitZeigen('Live', new Date()); }, 1000);
             clearTimeout(liveTimer);
             hinweis('');
             el('bild').classList.add('video');
@@ -465,9 +479,8 @@
                 kopf.appendChild(chip('Frigate nicht erreichbar', 'aus', true));
             } else if (daten.online === false) {
                 kopf.appendChild(chip('Kamera offline', 'aus', true));
-            } else if (daten.online === true) {
-                kopf.appendChild(chip('online', 'ok', true));
             }
+            // „online" zeigt die Kachel nicht eigens: laufende Uhrzeit bzw. frisches Bild sagen das schon.
             (daten.warnungen || []).forEach(function (w) { kopf.appendChild(chip('⚠️ ' + w, 'warn')); });
             if (daten.alarm) { kopf.appendChild(chip('🚨 Alarm', 'alarm')); }
             else if (daten.erkennung) { kopf.appendChild(chip('Erkennung', 'bewegung', true)); }

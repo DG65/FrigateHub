@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.2 (Build 32) — 03.11.2026
+
+- **Kachel der Kamera:** Oben rechts stehen jetzt Datum und Uhrzeit (`03.11.2026 10:31:14`), auch bei Livevideo — dann mit „Live“ davor und sekündlich mitlaufend; beim Standbild der Zeitpunkt des Bildes. In 0.15.1 fehlte die Uhrzeit bei Livevideo ganz (Dietmars Rückmeldung).
+- Die Marke „● LIVE“ im Bild und der Chip „● online“ entfallen: Zwei Punkte für fast dasselbe verwirrten. Die Kopfzeile zeigt nur noch Störungen (Frigate nicht erreichbar, Kamera offline), Zähler und Warnungen.
+
 ## 0.15.1 (Build 31) — 03.11.2026
 
 - **Kachel der Kamera:** Uhrzeit des Livebilds (18 px) und „📅 Archiv“ (farbiger Knopf) stehen oben rechts in der Kopfzeile, statt 11 px klein unten rechts im Bild bzw. unauffällig in der Schalterzeile (Wunsch Dietmar). Bei Livevideo bleibt die Uhrzeit wie bisher ausgeblendet. 8 px Abstand zum Vergrößern-Knopf von Symcon, damit der frei bleibt.
