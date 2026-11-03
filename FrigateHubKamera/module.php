@@ -10,6 +10,7 @@ require_once __DIR__ . '/../libs/FrigateHubKachel.php';
 require_once __DIR__ . '/../libs/FrigateHubOha.php';
 require_once __DIR__ . '/../libs/FrigateHubPush.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraSensor.php';
+require_once __DIR__ . '/../libs/FrigateHubKameraEinstellungen.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -30,6 +31,7 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubWebhook;
     use FrigateHubPush;
     use FrigateHubKameraSensor;
+    use FrigateHubKameraEinstellungen;
     use FrigateHubKachel {
         MessageSink as private kachelMessageSink;
     }
@@ -660,6 +662,7 @@ class FrigateHubKamera extends IPSModule
                 ],
             ],
             'sensor' => $this->sensorPanel(),
+            'einstellungen' => $this->einstellungenPanel(),
             'meldungen' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
                 'items' => [
@@ -712,7 +715,8 @@ class FrigateHubKamera extends IPSModule
             ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
             ['code' => 104, 'icon' => 'inactive', 'caption' => 'Bitte die Kamera-ID aus Frigate eintragen'],
         ];
-        return $this->frigatehubFormular($this->formAufbau($this->frigatehubFachpanels()), [], $status);
+        $teile = $this->formAufbauTeilen($this->frigatehubFachpanels());
+        return $this->frigatehubFormular($teile['elements'], $teile['actions'], $status);
     }
 
     protected function frigatehubPrefix(): string
@@ -741,6 +745,7 @@ class FrigateHubKamera extends IPSModule
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
             ...$this->sensorDoku(),
+            'In Frigate einstellen (unten bei den Aktionen): zeigt beim Öffnen Frigates Einstellungen dieser Kamera und schreibt nur Geändertes über Frigates API zurück (PUT /api/config/set, wie Frigates eigene Oberfläche, sofort wirksam). Frigate prüft die Werte und nimmt ungültige zurück; der Grund erscheint im Formular. Braucht die Rolle „admin" (Port 5000 hat sie immer). Zonen/Masken zeichnen und Kameras anlegen bleiben in Frigate.',
         ];
     }
 

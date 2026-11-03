@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0 (Build 34) — 03.11.2026
+
+- **In Frigate einstellen** (Panel in den Aktionen der Kamera, Trait `libs/FrigateHubKameraEinstellungen.php`, Logik rein in `libs/FrigateHubEinstellungen.php`): liest beim Öffnen `/api/config`, zeigt Aufbewahrung (record.alerts/detections.retain.days, continuous/motion.days), `objects.track`, `review.alerts.labels`/`required_zones`, Zonen (`objects`, `loitering_time`), Schnappschüsse (`enabled`, `retain.default`), Stillstand (`detect.stationary.threshold`, in Sekunden über detect.fps), `lpr`/`face_recognition`/`audio.enabled`, `audio.listen`.
+  - Schreiben wie Frigates eigene Oberfläche (`web/src/components/config-form/sections/BaseSection.tsx`, 0.18.2): `PUT /api/config/set` je Bereich mit `requires_restart: 0`, `update_topic: config/cameras/<kamera>/<bereich>`, nur geänderte Felder; vor dem Schreiben frisch gegen Frigate verglichen. Frigate prüft und stellt bei Fehler die alte Datei wieder her; dessen Meldung erscheint im Formular. 403 → Hinweis auf die Rolle admin.
+  - Zonen anlegen/zeichnen und Kameras anlegen bewusst nicht (Polygone, Stream-Adressen mit Passwort).
+  - Kennzeichen/Gesichter nur, wenn in Frigate global an; Geräusche-Schalter ohne Stream mit Rolle „audio" gesperrt.
+- **Formular-Aufbau** steuert jetzt auch Panels im `actions`-Bereich (SUITE.md 3a, Eingabefelder ohne Property), Kennzeichnung „(unten bei den Aktionen)".
+- Prüfstand `.tools/test-einstellungen.php` (29 Prüfungen, führt den Speichern-Knopf wie Symcon aus, Mutationsgegenprobe).
+- Nicht gebaut: Frigate-Profile anlegen — deren Inhalt sind Abweichungen je Kamera, die in Frigates Oberfläche gepflegt werden; schalten geht seit 0.16.0.
+
 ## 0.16.0 (Build 33) — 03.11.2026
 
 - **Kamera als Sensor** (Trait `libs/FrigateHubKameraSensor.php`, Bewertung rein in `libs/FrigateHubSensor.php`, Felder laut Frigate 0.18.2 `docs/integrations/mqtt.md`):

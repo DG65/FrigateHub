@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.17.0' => [
+            '• ⚙️ Neu: Frigate-Einstellungen der Kamera direkt in Symcon ändern (Panel „In Frigate einstellen" unten bei den Aktionen): Aufbewahrung, erkannte Objekte, was als Alarm zählt, Zonen (welche Objekte, Verweildauer), Schnappschüsse, Stillstand, Kennzeichen, Gesichter, Geräusche. Frigate übernimmt die Änderungen sofort.',
+        ],
         '0.16.0' => [
             '• 🧠 Neu: Kamera als Sensor (Panel „Kamera als Sensor"): Zustände aus Frigates Klassifizierung (Tor offen/zu …), „Auto steht seit" je Zone, „verweilt" je Zone, Paket entfernt, erkannte und unbekannte Gesichter und Kennzeichen, Geschwindigkeit, Auslöser, gesprochener Text, Tageszähler.',
             '• 🔧 Neu: Bildprüfung — meldet eine abgedeckte, verdreckte oder verstellte Kamera und Dauerbewegung.',
@@ -282,10 +285,24 @@ trait FrigateHubFormular
      */
     protected function formAufbau(array $fach): array
     {
+        return $this->formAufbauTeilen($fach)['elements'];
+    }
+
+    /**
+     * Wie formAufbau(), aber Fachpanels mit '_aktionen' => true (Eingabefelder ohne Property, SUITE.md
+     * 3a) landen in `actions`. Das Aufbau-Panel steuert beide; die Position gilt je Bereich.
+     *
+     * @return array{elements:array,actions:array}
+     */
+    protected function formAufbauTeilen(array $fach): array
+    {
         $aufbau = $this->formAufbauLesen(array_keys($fach));
-        $out = [];
+        $elements = [];
+        $actions = [];
         foreach ($aufbau as $k => $a) {
             $panel = $fach[$k];
+            $unten = !empty($panel['_aktionen']);
+            unset($panel['_aktionen']);
             if ($a['open'] === 'open') {
                 $panel['expanded'] = true;
             } elseif ($a['open'] === 'closed') {
@@ -293,16 +310,21 @@ trait FrigateHubFormular
             } elseif ($a['open'] === 'hidden') {
                 $panel['visible'] = false;
             }
-            $out[] = $panel;
+            if ($unten) {
+                $actions[] = $panel;
+            } else {
+                $elements[] = $panel;
+            }
         }
-        $out[] = $this->formAufbauPanel($aufbau, $fach);
-        return $out;
+        $elements[] = $this->formAufbauPanel($aufbau, $fach);
+        return ['elements' => $elements, 'actions' => $actions];
     }
 
     /** Name eines Fachpanels für die Liste: Caption ohne Klammerzusatz. */
     protected static function formAufbauName(array $panel, string $k): string
     {
-        return trim((string)preg_replace('/\s*\(.*$/u', '', (string)($panel['caption'] ?? $k)));
+        $name = trim((string)preg_replace('/\s*\(.*$/u', '', (string)($panel['caption'] ?? $k)));
+        return !empty($panel['_aktionen']) ? $name . ' (unten bei den Aktionen)' : $name;
     }
 
     private function formAufbauPanel(array $aufbau, array $fach): array

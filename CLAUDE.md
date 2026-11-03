@@ -81,7 +81,9 @@
   Dietmars Frigate 03.11.: LPR und Gesichter an, Zonen Eingangsbereich/Carport nur `person`, keine Profile,
   `ui.unit_system` metric, `detect.stationary.threshold` 50 bei 5 fps. Symcon-Darstellungen Datum/Uhrzeit (0 = „-")
   und Aufzählung (OPTIONS) live geprüft. Frigate-Konfiguration schreiben ginge über `PUT /api/config/set`
-  (admin, `config_data` + `update_topic` `config/cameras/<cam>/<bereich>`, `requires_restart: 0`) — noch nicht gebaut.
+  (admin, `config_data` + `update_topic` `config/cameras/<cam>/<bereich>`, `requires_restart: 0`) — seit 0.17.0 gebaut
+  (`FrigateHubEinstellungen`), Listen ersetzt Frigate als Ganzes, `""` löscht einen Schlüssel. Felder ohne Property
+  stehen in `actions` (SUITE.md 3a), Formular-Aufbau steuert sie mit (`'_aktionen' => true`).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

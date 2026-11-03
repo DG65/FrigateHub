@@ -200,6 +200,23 @@ Ansicht derselben Tagesstunde. Helligkeit zählt dabei nicht (Sonne, Licht), nur
 drei auffällige Prüfungen in Folge melden. Nachts ohne Licht ist ein dunkles Bild normal.
 Nach einem gewollten Umbau „Ansicht neu lernen".
 
+## In Frigate einstellen
+
+Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: Panel
+**⚙️ In Frigate einstellen** in der Kamera (unten bei den Aktionen). Es zeigt beim Öffnen den
+Stand aus Frigate; gespeichert wird nur, was geändert wurde.
+
+- Aufnahme an/aus, wie lange Alarme, Erkennungen, Daueraufnahme und Bewegungsaufnahmen bleiben
+- welche Objektarten Frigate erkennt, welche als Alarm zählen und in welchen Zonen
+- je Zone: welche Objekte zählen (z. B. `car` im Carport) und die Verweildauer
+- Schnappschüsse und wie lange sie bleiben, ab wann ein Objekt als stehend gilt
+- Kennzeichen- und Gesichtserkennung je Kamera (wenn in Frigate global an), Geräusche und welche
+
+Frigate schreibt die Werte in seine `config.yml` (Kommentare bleiben), prüft sie und übernimmt sie
+sofort; ungültige Werte nimmt Frigate selbst zurück, der Grund steht dann im Formular. Das braucht
+die Frigate-Rolle „admin" (Port 5000 hat sie immer). Zonen und Masken zeichnen sowie Kameras
+anlegen bleiben in Frigates Oberfläche.
+
 ## Voraussetzungen
 
 - IP-Symcon 9.0 oder neuer
