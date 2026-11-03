@@ -2,8 +2,10 @@
 
 ## 0.17.1 (Build 35) — 03.11.2026
 
-- **Store-Richtlinie (Instanzeigenschaften gehören dem Nutzer):** Das Frigate-Passwort ist keine Property mehr. Bisher schrieb das Modul ein per „Übernehmen" gespeichertes Passwort mit `IPS_SetProperty`/`IPS_ApplyChanges` wieder leer. Jetzt steht das Passwortfeld ohne Property im Aktionsbereich (Panel „🔑 Anmeldung an Frigate", Kamera, Server und Konfigurator) und geht nur an `Anmelden()`; gespeichert wird weiterhin nur Frigates Zugangsschlüssel (Attribut). Der Benutzer bleibt oben im Formular. Die Property `ApiPasswort` entfällt; sie war nach jeder Anmeldung leer.
+- **Store-Richtlinie (Instanzeigenschaften gehören dem Nutzer):** Das Frigate-Passwort ist keine Property mehr. Bisher schrieb das Modul ein per „Übernehmen" gespeichertes Passwort mit `IPS_SetProperty`/`IPS_ApplyChanges` wieder leer. Jetzt steht das Passwortfeld ohne Property im Panel „🔑 Anmeldung an Frigate" (Kamera, Server und Konfigurator) und geht nur an `Anmelden()`; gespeichert wird weiterhin nur Frigates Zugangsschlüssel (Attribut). Der Benutzer bleibt oben im Formular. Die Property `ApiPasswort` entfällt; sie war nach jeder Anmeldung leer.
 - Live geprüft 03.11.2026: „In Frigate einstellen" hat bei Dietmar `car` in der Zone Carport ergänzt — sofort in `/api/config`, in der config.yaml nur diese Stelle geändert, Frigate lief ohne Neustart weiter.
+- **„In Frigate einstellen" und „Anmeldung an Frigate" stehen wieder in `elements`** bei den übrigen Fachpanels (Standard: vor „Formular: Aufbau"), nicht mehr ganz unten in `actions` (Dietmar 03.11.: Panel nicht gefunden). Belegt am Konsolen-Code (Symcon 9.0, `console-app.js`): „Übernehmen" übernimmt nur Formularfelder, deren Name eine Property ist (`for (e in configuration) if (werte.has(e))`), und Änderungen an anderen Feldern zählen nicht als ungespeichert. Knöpfe in `elements` lesen die Felder ihres Bereichs (`$FE_…`, `$ApiPasswort`). `IPS_SetConfiguration` mit unbekanntem Schlüssel meldet dagegen „Eigenschaft … nicht gefunden" (live geprüft) — das betrifft die Konsole nicht. Der Benutzer muss vor dem Anmelden nicht mehr übernommen werden.
+- Neu-Texte nennen die Kamera-Instanz als Ort von „In Frigate einstellen" und „Kamera als Sensor".
 - README: Abschnitt „Hinweise zur Store-Prüfung" (Temp-Dateien für Clips, WebHook-Eintrag).
 
 ## 0.17.0 (Build 34) — 03.11.2026

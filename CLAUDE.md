@@ -83,7 +83,9 @@
   und Aufzählung (OPTIONS) live geprüft. Frigate-Konfiguration schreiben ginge über `PUT /api/config/set`
   (admin, `config_data` + `update_topic` `config/cameras/<cam>/<bereich>`, `requires_restart: 0`) — seit 0.17.0 gebaut
   (`FrigateHubEinstellungen`), Listen ersetzt Frigate als Ganzes, `""` löscht einen Schlüssel. Felder ohne Property
-  stehen in `actions` (SUITE.md 3a), Formular-Aufbau steuert sie mit (`'_aktionen' => true`).
+  stehen seit 0.17.1 in `elements`: Symcons Konsole (9.0, `console-app.js`) übernimmt beim „Übernehmen“ nur Felder,
+  deren Name eine Property ist, und zählt Änderungen an anderen nicht als ungespeichert (SUITE.md 3a „nicht in elements“
+  ist damit überholt). `'_aktionen' => true` in `formAufbauTeilen` bleibt als Möglichkeit, wird aber nicht genutzt.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

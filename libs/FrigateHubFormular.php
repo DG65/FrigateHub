@@ -16,11 +16,14 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.17.1' => [
+            '• 🪟 „In Frigate einstellen" und „Anmeldung an Frigate" stehen jetzt bei den übrigen Einstellungen (über „Formular: Aufbau") statt ganz unten; Position und Aufklappen wie bei jedem anderen Panel.',
+        ],
         '0.17.0' => [
-            '• ⚙️ Neu: Frigate-Einstellungen der Kamera direkt in Symcon ändern (Panel „In Frigate einstellen" unten bei den Aktionen): Aufbewahrung, erkannte Objekte, was als Alarm zählt, Zonen (welche Objekte, Verweildauer), Schnappschüsse, Stillstand, Kennzeichen, Gesichter, Geräusche. Frigate übernimmt die Änderungen sofort.',
+            '• ⚙️ Neu: Frigate-Einstellungen der Kamera direkt in Symcon ändern (im Formular jeder Kamera-Instanz, Panel „In Frigate einstellen"): Aufbewahrung, erkannte Objekte, was als Alarm zählt, Zonen (welche Objekte, Verweildauer), Schnappschüsse, Stillstand, Kennzeichen, Gesichter, Geräusche. Frigate übernimmt die Änderungen sofort.',
         ],
         '0.16.0' => [
-            '• 🧠 Neu: Kamera als Sensor (Panel „Kamera als Sensor"): Zustände aus Frigates Klassifizierung (Tor offen/zu …), „Auto steht seit" je Zone, „verweilt" je Zone, Paket entfernt, erkannte und unbekannte Gesichter und Kennzeichen, Geschwindigkeit, Auslöser, gesprochener Text, Tageszähler.',
+            '• 🧠 Neu: Kamera als Sensor (im Formular jeder Kamera-Instanz, Panel „Kamera als Sensor"): Zustände aus Frigates Klassifizierung (Tor offen/zu …), „Auto steht seit" je Zone, „verweilt" je Zone, Paket entfernt, erkannte und unbekannte Gesichter und Kennzeichen, Geschwindigkeit, Auslöser, gesprochener Text, Tageszähler.',
             '• 🔧 Neu: Bildprüfung — meldet eine abgedeckte, verdreckte oder verstellte Kamera und Dauerbewegung.',
             '• Frigate-Server: Frigate-Profile anzeigen und schalten; FRIGS_GetCameras() liefert für Alarmanlagen jetzt auch Verweilen, Sabotage und Störungen (Vertrag 1.1).',
         ],

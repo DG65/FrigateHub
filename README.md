@@ -203,7 +203,7 @@ Nach einem gewollten Umbau „Ansicht neu lernen".
 ## In Frigate einstellen
 
 Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: Panel
-**⚙️ In Frigate einstellen** in der Kamera (unten bei den Aktionen). Es zeigt beim Öffnen den
+**⚙️ In Frigate einstellen** im Formular jeder Kamera-Instanz (über „🪟 Formular: Aufbau“). Es zeigt beim Öffnen den
 Stand aus Frigate; gespeichert wird nur, was geändert wurde.
 
 - Aufnahme an/aus, wie lange Alarme, Erkennungen, Daueraufnahme und Bewegungsaufnahmen bleiben

@@ -71,10 +71,14 @@ trait FrigateHubKameraEinstellungen
         return $text;
     }
 
-    /** Panel für den actions-Bereich; liest beim Öffnen frisch aus Frigate. */
+    /**
+     * Fachpanel; liest beim Öffnen frisch aus Frigate. Die FE_*-Felder haben keine Property: Symcons Konsole
+     * übernimmt beim „Übernehmen“ nur Felder, die Properties sind, und zählt Änderungen an anderen nicht
+     * als ungespeichert (console-app.js, Symcon 9.0) — sie dürfen daher in `elements` stehen.
+     */
     protected function einstellungenPanel(): array
     {
-        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '⚙️  In Frigate einstellen', '_aktionen' => true, 'items' => []];
+        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '⚙️  In Frigate einstellen', 'items' => []];
         $hinweis = fn (string $t) => array_merge($panel, ['items' => [['type' => 'Label', 'caption' => $t]]]);
         $kamera = $this->kamera();
         if ($kamera === '' || $this->apiUrl() === '') {

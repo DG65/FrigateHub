@@ -495,7 +495,7 @@ $liste = null;
 foreach ($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'] as $it) { if (($it['name'] ?? '') === 'FormLayout') { $liste = $it; } }
 check('Liste: alle Fachpanels, unbekannter Schlüssel fällt weg, Schlüssel gespeichert', [count($liste['values']), in_array('gibtsnicht', array_column($liste['values'], 'Key'), true),
     array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [10, false, true]);
-check('Panel „In Frigate einstellen" steht in der Liste mit Hinweis auf den Aktionsbereich', in_array('⚙️  In Frigate einstellen (unten bei den Aktionen)', array_column($liste['values'], 'Panel'), true), true);
+check('Panel „In Frigate einstellen" steht in der Liste wie jedes Fachpanel', in_array('⚙️  In Frigate einstellen', array_column($liste['values'], 'Panel'), true), true);
 check('Hinweiszeile nennt den ausgeblendeten Bereich', strpos($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'][0]['caption'], 'Ausgeblendet: Empfangene Nachrichten') !== false, true);
 $k->formFieldUpdates = [];
 $text = $k->ResetFormLayout();

@@ -194,7 +194,7 @@ $a->ApplyChanges();
 check('Übernehmen schreibt keine Property und löst kein zweites ApplyChanges aus', [IPSTestState::$setProperties, IPSTestState::$appliedChanges], [[], []]);
 $form = (string)json_encode(json_decode((string)$a->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE);
 $teile = json_decode((string)$a->GetConfigurationForm(), true);
-check('Passwortfeld nur in den Aktionen, nicht in den Elementen', [strpos(json_encode($teile['elements']), '"ApiPasswort"') === false, strpos(json_encode($teile['actions']), '"ApiPasswort"') !== false], [true, true]);
+check('Passwortfeld im Anmelde-Panel bei den Fachpanels, keine Property (Übernehmen übergeht es)', [strpos(json_encode($teile['elements']), '"ApiPasswort"') !== false, strpos(json_encode($teile['actions'] ?? []), '"ApiPasswort"') === false, preg_match('/RegisterPropertyString\\(\'ApiPasswort\'/', (string)file_get_contents(__DIR__ . '/../libs/FrigateHubApi.php') . file_get_contents(__DIR__ . '/../FrigateHubKamera/module.php') . file_get_contents(__DIR__ . '/../FrigateHubServer/module.php') . file_get_contents(__DIR__ . '/../FrigateHubKonfigurator/module.php'))], [true, true, 0]);
 check('Modulcode ruft nirgends IPS_SetProperty für sich selbst', preg_match('/IPS_SetProperty\(\$this->InstanceID/', (string)file_get_contents(__DIR__ . '/../libs/FrigateHubApi.php')), 0);
 
 /* ------------------------------------------------------------- Sonderfälle */

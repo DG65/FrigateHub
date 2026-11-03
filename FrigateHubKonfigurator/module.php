@@ -82,10 +82,9 @@ class FrigateHubKonfigurator extends IPSModule
             ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
             ['code' => 104, 'icon' => 'inactive', 'caption' => 'Bitte die Frigate-Adresse eintragen'],
         ];
-        // Ein einziges Fachpanel, kein Formular-Aufbau: Anmeldung direkt in den Aktionsbereich
-        $anmeldung = $this->apiAnmeldePanel();
-        unset($anmeldung['_aktionen']);
-        return $this->frigatehubFormular($fach, [$anmeldung], $status);
+        // Zwei Fachpanels, kein Formular-Aufbau (SUITE.md 3a erst ab drei)
+        $fach[] = $this->apiAnmeldePanel();
+        return $this->frigatehubFormular($fach, [], $status);
     }
 
     protected function frigatehubPrefix(): string

@@ -746,7 +746,7 @@ class FrigateHubKamera extends IPSModule
             'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
             '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
             ...$this->sensorDoku(),
-            'In Frigate einstellen (unten bei den Aktionen): zeigt beim Öffnen Frigates Einstellungen dieser Kamera und schreibt nur Geändertes über Frigates API zurück (PUT /api/config/set, wie Frigates eigene Oberfläche, sofort wirksam). Frigate prüft die Werte und nimmt ungültige zurück; der Grund erscheint im Formular. Braucht die Rolle „admin" (Port 5000 hat sie immer). Zonen/Masken zeichnen und Kameras anlegen bleiben in Frigate.',
+            'In Frigate einstellen: zeigt beim Öffnen Frigates Einstellungen dieser Kamera und schreibt nur Geändertes über Frigates API zurück (PUT /api/config/set, wie Frigates eigene Oberfläche, sofort wirksam). Frigate prüft die Werte und nimmt ungültige zurück; der Grund erscheint im Formular. Braucht die Rolle „admin" (Port 5000 hat sie immer). Zonen/Masken zeichnen und Kameras anlegen bleiben in Frigate.',
         ];
     }
 

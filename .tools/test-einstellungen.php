@@ -118,9 +118,12 @@ $k->Create();
 $k->props(['Camera' => 'Door-Cam']);
 $k->ApplyChanges();
 
-$panel = fn () => array_values(array_filter(json_decode((string)$k->GetConfigurationForm(), true)['actions'], fn ($e) => strpos((string)($e['caption'] ?? ''), 'In Frigate einstellen') !== false))[0] ?? null;
+$panel = fn () => array_values(array_filter(json_decode((string)$k->GetConfigurationForm(), true)['elements'], fn ($e) => strpos((string)($e['caption'] ?? ''), 'In Frigate einstellen') !== false))[0] ?? null;
 check('ohne Adresse: Hinweis statt Feldern', strpos(json_encode($panel()['items'], JSON_UNESCAPED_UNICODE), 'braucht es Kamera-ID und Frigate-Adresse') !== false, true);
-check('Panel steht in actions, nicht in elements', strpos(json_encode(json_decode((string)$k->GetConfigurationForm(), true)['elements'], JSON_UNESCAPED_UNICODE), '⚙️  In Frigate einstellen"') === false, true);
+$form = json_decode((string)$k->GetConfigurationForm(), true);
+$titel = array_map(fn ($e) => (string)($e['caption'] ?? ''), $form['elements']);
+$pos = fn (string $t) => array_key_first(array_filter($titel, fn ($c) => strpos($c, $t) !== false));
+check('Panel steht bei den Fachpanels vor „Formular: Aufbau", nicht in actions', [$pos('In Frigate einstellen') !== null && $pos('In Frigate einstellen') < $pos('Formular: Aufbau'), strpos(json_encode($form['actions'], JSON_UNESCAPED_UNICODE), 'In Frigate einstellen') === false], [true, true]);
 
 $k->props(['ApiUrl' => 'http://127.0.0.1:5000']);
 $k->ApplyChanges();
