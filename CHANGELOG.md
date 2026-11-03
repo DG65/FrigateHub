@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.1 (Build 31) — 03.11.2026
+
+- **Kachel der Kamera:** Uhrzeit des Livebilds (18 px) und „📅 Archiv“ (farbiger Knopf) stehen oben rechts in der Kopfzeile, statt 11 px klein unten rechts im Bild bzw. unauffällig in der Schalterzeile (Wunsch Dietmar). Bei Livevideo bleibt die Uhrzeit wie bisher ausgeblendet. 8 px Abstand zum Vergrößern-Knopf von Symcon, damit der frei bleibt.
+- **Aufnahme-Wächter:** Erste Prüfung 3 s nach dem Übernehmen statt nach einer Minute. Vorher stand „Aufnahme in Ordnung“ nach dem Update bis zu einer Minute fälschlich auf „gestört“ (live bemerkt).
+- CI: PHP 8.2 statt 8.1 (Konstanten in Traits, seit 0.12 genutzt; die CI war seitdem rot), Prüfstand Kachel liest die Dateizeit nach `touch()` neu.
+
 ## 0.15.0 (Build 30) — 02.11.2026
 
 - **Aufnahme-Wächter** in der Instanz Frigate-Server (neues Panel „🎥 Aufnahme-Wächter“, Bewertung rein in `libs/FrigateHubWaechter.php`): prüft jede Minute über die API, ob Frigate aufzeichnet. Anlass: Abriss der Aufnahme-SSD bei Dietmar am 31.10.2026, Frigate meldete weiter „healthy“, 75 min ohne Aufnahme.

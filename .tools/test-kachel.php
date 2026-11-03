@@ -563,5 +563,12 @@ check('KR_READY: Hook eingetragen', count(IPSTestState::$setProperties), 1);
 
 foreach (glob(sys_get_temp_dir() . '/frigatehub_*.mp4') ?: [] as $f) { unlink($f); }
 
+// Uhrzeit und Archiv oben rechts in der Kopfzeile, nicht klein im Bild (Wunsch Dietmar 03.11.2026)
+$html = (string)file_get_contents(__DIR__ . '/../FrigateHubKamera/module.html');
+preg_match('#<div class="rechts">(.*?)</div>#s', $html, $rechts);
+check('Kopfzeile rechts: Uhrzeit und Archiv', [strpos($rechts[1] ?? '', 'id="zeit"') !== false, strpos($rechts[1] ?? '', 'id="archiv"') !== false], [true, true]);
+preg_match('#<div class="bild" id="bild">(.*?)\n        </div>#s', $html, $bild);
+check('Uhrzeit nicht mehr im Livebild', isset($bild[1]) && strpos($bild[1], 'id="zeit"') === false, true);
+
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

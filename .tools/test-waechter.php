@@ -289,9 +289,10 @@ check('ohne Adresse: Hinweis', strpos($s->AufnahmePruefen(), 'ℹ️ Der Aufnahm
 
 $s->props(['ApiUrl' => 'http://127.0.0.1:5000']);
 $s->ApplyChanges();
-check('mit Adresse: Timer jede Minute, zwei Variablen', [$s->timers['Waechter']['interval'], isset($s->variables['AufnahmeOk']), isset($s->variables['Aufnahmezustand'])], [60000, true, true]);
+check('mit Adresse: erste Prüfung nach 3 s, zwei Variablen', [$s->timers['Waechter']['interval'], isset($s->variables['AufnahmeOk']), isset($s->variables['Aufnahmezustand'])], [3000, true, true]);
 
 $text = $s->AufnahmePruefen();
+check('danach jede Minute', $s->timers['Waechter']['interval'], 60000);
 check('erste Prüfung: in Ordnung', [$s->GetValue('AufnahmeOk'), $s->GetValue('Aufnahmezustand'), strpos($text, '✅') === 0], [true, 'Frigate zeichnet auf, keine Störung erkannt.', true]);
 check('Protokoll mit negativem Start', in_array('/api/logs/frigate?start=-300', $aufrufe, true), true);
 check('Garten liefert keine Bilder: Daueraufnahme nicht abgefragt', count(preg_grep('#^/api/Garten/recordings#', $aufrufe)), 0);

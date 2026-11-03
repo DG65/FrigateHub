@@ -30,7 +30,17 @@
         .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
 
         /* Statuszeile */
-        .kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; }
+        /* 8 px Abstand nach unten zum Vergrößern-Knopf von Symcon (oben rechts), damit er frei bleibt */
+        .oben { display: flex; align-items: center; gap: 10px; min-height: 30px; margin-top: 8px; }
+        .kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; flex: 1 1 auto; min-width: 0; }
+        .rechts { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+        /* Stand des Livebilds und Archiv gut sichtbar oben rechts (Wunsch Dietmar 03.11.2026) */
+        .zeit { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .zeit[hidden] { display: none; }
+        .wrap:has(.bild.video) .zeit { display: none; }
+        .archivknopf { border: none; background: var(--accent); color: #062b30; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .archivknopf:hover { filter: brightness(1.1); }
+        .archivknopf[hidden] { display: none; }
         .chip { display: inline-flex; align-items: center; gap: 5px; background: var(--box); border-radius: 999px; padding: 2px 9px; font-size: 12px; white-space: nowrap; }
         .chip .punkt { width: 8px; height: 8px; border-radius: 50%; background: var(--textmuted); }
         .chip.ok .punkt { background: var(--ok); }
@@ -57,10 +67,8 @@
         .bild.video .ton { display: block; }
         .ton.ohne { opacity: .7; font-size: 11px; }
         .meldung { position: absolute; left: 8px; right: 8px; bottom: 6px; font-size: 11px; line-height: 1.35; color: #fff; background: rgba(0, 0, 0, .7); border-radius: 6px; padding: 4px 8px; }
-        .bild.video .zeit { display: none; }
         .bild.offline img { filter: grayscale(1) brightness(.5); }
         .hinweis { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-size: 13px; color: #d6dde4; pointer-events: none; }
-        .zeit { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: #fff; background: rgba(0, 0, 0, .45); border-radius: 6px; padding: 1px 6px; }
         .knopf-neu { position: absolute; left: 8px; bottom: 6px; border: none; background: rgba(0, 0, 0, .45); color: #fff; border-radius: 6px; padding: 1px 7px; font-size: 13px; cursor: pointer; }
 
         /* Schalter */
@@ -73,7 +81,6 @@
         .sw[hidden] { display: none; }
         .sw.gesperrt { cursor: default; }
         .sw-titel { font-size: 11px; color: var(--textmuted); align-self: center; }
-        #archiv { margin-left: auto; }
 
         /* Eigenständige Seite (IPSView/Browser): kein Symcon-Titel darüber, eigener Hintergrund */
         body.eigen { background: #15191e; }
@@ -124,7 +131,13 @@
 
 <body>
     <div class="wrap">
-        <div class="kopf" id="kopf"></div>
+        <div class="oben">
+            <div class="kopf" id="kopf"></div>
+            <div class="rechts">
+                <span class="zeit" id="zeit" title="Stand des Livebilds" hidden></span>
+                <button class="archivknopf" id="archiv" hidden>📅 Archiv</button>
+            </div>
+        </div>
         <div class="bild" id="bild">
             <img id="live" alt="">
             <video id="video" autoplay muted playsinline></video>
@@ -133,7 +146,6 @@
             <div class="hinweis" id="hinweis">Lade …</div>
             <div class="meldung" id="meldung" hidden></div>
             <button class="knopf-neu" id="neu" title="Neu laden" hidden>↻</button>
-            <div class="zeit" id="zeit" hidden></div>
         </div>
         <div class="schalter" id="schalter">
             <span class="sw-titel" title="Diese Schalter ändern die Einstellung in Frigate selbst">Frigate:</span>
@@ -141,7 +153,6 @@
             <button class="sw" data-ident="Schalter_recordings" data-key="recordings"><span class="dot"></span>Aufnahme</button>
             <button class="sw" data-ident="Schalter_snapshots" data-key="snapshots"><span class="dot"></span>Schnappschüsse</button>
             <button class="sw" id="rahmen" title="Erkannte Objekte im Livebild einrahmen (nur in dieser Ansicht)"><span class="dot"></span>Rahmen</button>
-            <button class="sw" id="archiv" hidden>📅 Archiv</button>
         </div>
         <div class="leiste" id="leiste"></div>
     </div>

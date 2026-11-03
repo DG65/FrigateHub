@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.15.1' => [
+            '• Kachel: Uhrzeit des Livebilds und der Archiv-Knopf stehen jetzt groß oben rechts statt klein im Bild bzw. unten.',
+        ],
         '0.15.0' => [
             '• 🎥 Neu: Aufnahme-Wächter in der Instanz „Frigate-Server" — meldet, wenn Frigate nicht mehr aufzeichnet, obwohl es „läuft": Schreibfehler (z. B. abgerissene USB-Platte), gewechselter Aufnahmespeicher, Alarm ohne Aufnahme, stehende Daueraufnahme, Frigate antwortet nicht. Braucht die Frigate-Adresse; Meldeziele im neuen Panel eintragen.',
         ],

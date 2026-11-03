@@ -126,7 +126,8 @@ class FrigateHubServer extends IPSModule
             ], 60);
             $this->variableAnlegen('Aufnahmezustand', 'Aufnahmezustand', VARIABLETYPE_STRING, ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION], 61);
         }
-        $this->SetTimerInterval('Waechter', $this->waechterAn() ? self::WAECHTER_TAKT : 0);
+        // Erste Prüfung gleich nach dem Übernehmen — sonst stünde „Aufnahme in Ordnung" bis zu einer Minute auf „gestört"
+        $this->SetTimerInterval('Waechter', $this->waechterAn() ? self::ABGLEICH_VERZOEGERUNG + 1000 : 0);
     }
 
     public function Destroy()
@@ -467,6 +468,7 @@ class FrigateHubServer extends IPSModule
             $this->SetTimerInterval('Waechter', 0);
             return 'ℹ️ Der Aufnahme-Wächter ist aus: ' . ($this->apiUrl() === '' ? 'er braucht die Frigate-Adresse.' : 'Häkchen „Aufnahme überwachen" ist nicht gesetzt.');
         }
+        $this->SetTimerInterval('Waechter', self::WAECHTER_TAKT);
         $jetzt = time();
         $z = json_decode($this->ReadAttributeString('Waechter'), true);
         $z = is_array($z) ? $z : [];
