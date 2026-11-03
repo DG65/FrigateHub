@@ -343,6 +343,18 @@ Vertragsversion, kein Muss):
 Fragen zu OpenHomeAlarm selbst gehören in dessen Forum-Thread, Fragen zu Kameras und Frigate in
 den von FrigateHub.
 
+## Hinweise zur Store-Prüfung
+
+- **Dateien:** Clips für die Kachel legt FrigateHub kurz im Temp-Ordner des Systems ab
+  (`frigatehub_<Instanz>_<Hash>.mp4`) und liefert sie stückweise aus — Symcon gibt große Antworten
+  über einen WebHook sonst leer aus, und Frigates `clip.mp4` kennt keine Teilabrufe. Die Dateien
+  werden nach 10 Minuten und beim Löschen der Instanz entfernt. Bilder liegen als Medienobjekte
+  der eigenen Instanz im Symcon-Medienordner.
+- **WebHook:** Kamera und Frigate-Server tragen ihren eigenen Hook (`/hook/frigatehub<ID>`,
+  `/hook/frigatehubserver<ID>`) in Symcons WebHook-Steuerung ein und beim Löschen wieder aus;
+  andere Einträge bleiben unberührt. Der Hook verlangt einen Schlüssel je Instanz.
+- **Frigate-Passwort:** keine Property; nur Frigates Zugangsschlüssel wird gespeichert (Attribut).
+
 ## Abgrenzung
 
 Kameraeigene Ereignisse liefern im Symcon-Store die Module für Reolink, UniFi Protect

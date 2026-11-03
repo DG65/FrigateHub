@@ -663,6 +663,7 @@ class FrigateHubKamera extends IPSModule
             ],
             'sensor' => $this->sensorPanel(),
             'einstellungen' => $this->einstellungenPanel(),
+            'anmeldung' => $this->apiAnmeldePanel(),
             'meldungen' => [
                 'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
                 'items' => [

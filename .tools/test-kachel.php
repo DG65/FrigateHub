@@ -494,7 +494,7 @@ check('Ausgeblendet = visible:false, Felder bleiben, Vorrang vor Aufgeklappt', [
 $liste = null;
 foreach ($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'] as $it) { if (($it['name'] ?? '') === 'FormLayout') { $liste = $it; } }
 check('Liste: alle Fachpanels, unbekannter Schlüssel fällt weg, Schlüssel gespeichert', [count($liste['values']), in_array('gibtsnicht', array_column($liste['values'], 'Key'), true),
-    array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [9, false, true]);
+    array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [10, false, true]);
 check('Panel „In Frigate einstellen" steht in der Liste mit Hinweis auf den Aktionsbereich', in_array('⚙️  In Frigate einstellen (unten bei den Aktionen)', array_column($liste['values'], 'Panel'), true), true);
 check('Hinweiszeile nennt den ausgeblendeten Bereich', strpos($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'][0]['caption'], 'Ausgeblendet: Empfangene Nachrichten') !== false, true);
 $k->formFieldUpdates = [];
@@ -502,7 +502,7 @@ $text = $k->ResetFormLayout();
 $r = end($k->formFieldUpdates);
 $werte = json_decode((string)$r[2], true);
 check('Zurücksetzen: Liste auf Standard im offenen Formular, Hinweis zum Übernehmen', [$r[0], $r[1], array_column($werte, 'Pos'), array_sum(array_map(fn ($w) => (int)$w['Opened'] + (int)$w['Closed'] + (int)$w['Hidden'], $werte)), strpos($text, 'Übernehmen') !== false],
-    ['FormLayout', 'values', [1, 2, 3, 4, 5, 6, 7, 8, 9], 0, true]);
+    ['FormLayout', 'values', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0, true]);
 check('Zurücksetzen speichert nicht selbst', json_decode((string)$k->ReadPropertyString('FormLayout'), true)[0]['Key'] ?? null, 'zonen');
 check('Neu-Panel kennt 0.14.0', strpos((string)file_get_contents(__DIR__ . '/../libs/FrigateHubFormular.php'), "'0.14.0' =>") !== false, true);
 $k->props(['FormLayout' => '[]']);

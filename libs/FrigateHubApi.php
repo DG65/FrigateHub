@@ -38,8 +38,8 @@ trait FrigateHubApi
     {
         $this->RegisterPropertyString('ApiUrl', '');
         $this->RegisterPropertyString('ApiBenutzer', '');
-        // Nur Durchreiche fürs Formular: wird nach der Anmeldung sofort geleert (Muster MeterHub/Inexogy).
-        $this->RegisterPropertyString('ApiPasswort', '');
+        // Das Passwort ist bewusst KEINE Property (Store-Review: Module schreiben keine Properties):
+        // Feld ohne Property im Aktionsbereich, geht nur an Anmelden() und wird nie gespeichert.
         $this->RegisterPropertyBoolean('ZertifikatPruefen', false);
         $this->RegisterAttributeString('ApiZugang', '');
         $this->RegisterAttributeString('Anmeldefehler', '');
@@ -47,21 +47,11 @@ trait FrigateHubApi
     }
 
     /**
-     * In ApplyChanges() aufrufen. Ein per „Übernehmen" gespeichertes Passwort wird zur Anmeldung
-     * benutzt und gleich wieder geleert. Rückgabe true: ApplyChanges läuft dadurch erneut, der
-     * Aufrufer soll abbrechen.
+     * In ApplyChanges() aufrufen: Auffrisch-Timer der Anmeldung. Rückgabe immer false (früher: true,
+     * wenn ein gespeichertes Passwort ein erneutes ApplyChanges auslöste — das gibt es nicht mehr).
      */
     protected function apiUebernehmen(): bool
     {
-        $passwort = (string)$this->ReadPropertyString('ApiPasswort');
-        if ($passwort !== '') {
-            if ($this->apiUrl() !== '') {
-                $this->Anmelden((string)$this->ReadPropertyString('ApiBenutzer'), $passwort);
-            }
-            IPS_SetProperty($this->InstanceID, 'ApiPasswort', '');
-            IPS_ApplyChanges($this->InstanceID);
-            return true;
-        }
         $this->SetTimerInterval('Anmeldung', $this->apiZugang() !== null ? self::$FRIGATEHUB_AUFFRISCHEN : 0);
         return false;
     }
@@ -73,15 +63,30 @@ trait FrigateHubApi
         return [
             ['type' => 'Label', 'caption' => 'Frigate-Adresse: entweder Frigates API ohne Anmeldung (Port 5000, z. B. http://192.168.1.20:5000 — muss im Docker-Aufruf freigegeben sein) oder die Weboberfläche mit Anmeldung (Port 8971, z. B. https://192.168.1.20:8971). ' . $hinweis],
             ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000 oder https://…:8971)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
-            ['type' => 'Label', 'caption' => 'Nur für Port 8971: Frigate-Benutzer und Passwort eintragen, dann „Anmelden". Das Passwort wird nicht gespeichert, nur der Zugangsschlüssel von Frigate; der wird automatisch verlängert. Andere Frigate-Instanzen mit derselben Adresse nutzen die Anmeldung mit.'],
+            ['type' => 'Label', 'caption' => 'Nur für Port 8971: Frigate-Benutzer hier eintragen, angemeldet wird unten bei den Aktionen („🔑 Anmeldung an Frigate").'],
             ['type' => 'ValidationTextBox', 'name' => 'ApiBenutzer', 'caption' => 'Frigate-Benutzer'],
-            ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => 'Passwort (wird nicht gespeichert)'],
             ['type' => 'CheckBox', 'name' => 'ZertifikatPruefen', 'caption' => 'Zertifikat prüfen (aus lassen bei Frigates eigenem Zertifikat)'],
-            ['type' => 'RowLayout', 'items' => [
-                ['type' => 'Button', 'caption' => 'Anmelden', 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
-                ['type' => 'Button', 'caption' => 'Abmelden', 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
-            ]],
             ['type' => 'Label', 'name' => 'Anmeldestatus', 'caption' => $this->anmeldestatus()],
+        ];
+    }
+
+    /**
+     * Anmeldung für den Aktionsbereich: Passwortfeld ohne Property (wird nie gespeichert), Anmelden/Abmelden.
+     * '_aktionen' => true lässt „🪟 Formular: Aufbau" es mitführen; ohne Aufbau den Schlüssel entfernen.
+     */
+    protected function apiAnmeldePanel(): array
+    {
+        $p = $this->frigatehubPrefix();
+        return [
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔑  Anmeldung an Frigate (nur Port 8971)', '_aktionen' => true,
+            'items' => [
+                ['type' => 'Label', 'caption' => 'Benutzer oben im Formular eintragen (und übernehmen), hier das Passwort, dann „Anmelden". Das Passwort wird nicht gespeichert, nur der Zugangsschlüssel von Frigate; der wird automatisch verlängert. Andere FrigateHub-Instanzen mit derselben Adresse nutzen die Anmeldung mit.'],
+                ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => 'Passwort (wird nicht gespeichert)'],
+                ['type' => 'RowLayout', 'items' => [
+                    ['type' => 'Button', 'caption' => 'Anmelden', 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
+                    ['type' => 'Button', 'caption' => 'Abmelden', 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
+                ]],
+            ],
         ];
     }
 

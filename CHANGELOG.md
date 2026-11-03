@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.1 (Build 35) — 03.11.2026
+
+- **Store-Richtlinie (Instanzeigenschaften gehören dem Nutzer):** Das Frigate-Passwort ist keine Property mehr. Bisher schrieb das Modul ein per „Übernehmen" gespeichertes Passwort mit `IPS_SetProperty`/`IPS_ApplyChanges` wieder leer. Jetzt steht das Passwortfeld ohne Property im Aktionsbereich (Panel „🔑 Anmeldung an Frigate", Kamera, Server und Konfigurator) und geht nur an `Anmelden()`; gespeichert wird weiterhin nur Frigates Zugangsschlüssel (Attribut). Der Benutzer bleibt oben im Formular. Die Property `ApiPasswort` entfällt; sie war nach jeder Anmeldung leer.
+- Live geprüft 03.11.2026: „In Frigate einstellen" hat bei Dietmar `car` in der Zone Carport ergänzt — sofort in `/api/config`, in der config.yaml nur diese Stelle geändert, Frigate lief ohne Neustart weiter.
+- README: Abschnitt „Hinweise zur Store-Prüfung" (Temp-Dateien für Clips, WebHook-Eintrag).
+
 ## 0.17.0 (Build 34) — 03.11.2026
 
 - **In Frigate einstellen** (Panel in den Aktionen der Kamera, Trait `libs/FrigateHubKameraEinstellungen.php`, Logik rein in `libs/FrigateHubEinstellungen.php`): liest beim Öffnen `/api/config`, zeigt Aufbewahrung (record.alerts/detections.retain.days, continuous/motion.days), `objects.track`, `review.alerts.labels`/`required_zones`, Zonen (`objects`, `loitering_time`), Schnappschüsse (`enabled`, `retain.default`), Stillstand (`detect.stationary.threshold`, in Sekunden über detect.fps), `lpr`/`face_recognition`/`audio.enabled`, `audio.listen`.

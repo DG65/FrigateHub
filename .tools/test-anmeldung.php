@@ -187,14 +187,15 @@ check('Geschwister verwirft ungültige Kopie', $b->ReadAttributeString('ApiZugan
 $a->WriteAttributeString('ApiZugang', (string)json_encode(['cookie' => 'frigate_token', 'token' => jwt(time() - 10), 'benutzer' => 'admin', 'ablauf' => time() - 10]));
 check('zeitlich abgelaufen = kein Zugang', $a->AnmeldungTeilen(), '');
 
-/* ------------------------------------------------------------- Übernehmen mit Passwort */
+/* ------------------------------------------------------------- Passwort nie als Property (Store-Review) */
 IPSTestState::$setProperties = [];
 IPSTestState::$appliedChanges = [];
-$a->props(['ApiBenutzer' => 'admin', 'ApiPasswort' => TestAnmeldung::$passwort]);
 $a->ApplyChanges();
-check('Übernehmen meldet an', $a->AnmeldungTeilen() !== '', true);
-check('Übernehmen leert Passwort-Property', IPSTestState::$setProperties, [[1, 'ApiPasswort', '']]);
-check('und übernimmt erneut', IPSTestState::$appliedChanges, [1]);
+check('Übernehmen schreibt keine Property und löst kein zweites ApplyChanges aus', [IPSTestState::$setProperties, IPSTestState::$appliedChanges], [[], []]);
+$form = (string)json_encode(json_decode((string)$a->GetConfigurationForm(), true), JSON_UNESCAPED_UNICODE);
+$teile = json_decode((string)$a->GetConfigurationForm(), true);
+check('Passwortfeld nur in den Aktionen, nicht in den Elementen', [strpos(json_encode($teile['elements']), '"ApiPasswort"') === false, strpos(json_encode($teile['actions']), '"ApiPasswort"') !== false], [true, true]);
+check('Modulcode ruft nirgends IPS_SetProperty für sich selbst', preg_match('/IPS_SetProperty\(\$this->InstanceID/', (string)file_get_contents(__DIR__ . '/../libs/FrigateHubApi.php')), 0);
 
 /* ------------------------------------------------------------- Sonderfälle */
 TestAnmeldung::$cookieName = 'mein_token';

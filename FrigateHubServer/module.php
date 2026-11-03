@@ -723,6 +723,7 @@ class FrigateHubServer extends IPSModule
                     ]],
                 ],
             ],
+            'anmeldung' => $this->apiAnmeldePanel(),
             'server' => [
                 'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🖥️  Frigate-Server',
                 'items' => [
@@ -767,7 +768,8 @@ class FrigateHubServer extends IPSModule
         $status = [
             ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
         ];
-        return $this->frigatehubFormular($this->formAufbau($this->frigatehubFachpanels()), [], $status);
+        $teile = $this->formAufbauTeilen($this->frigatehubFachpanels());
+        return $this->frigatehubFormular($teile['elements'], $teile['actions'], $status);
     }
 
     protected function frigatehubPrefix(): string
