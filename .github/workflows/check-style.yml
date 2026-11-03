@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.2'
           extensions: mbstring
       - name: PHP Lint
         run: find . -name "*.php" -print0 | xargs -0 -n1 php -l
