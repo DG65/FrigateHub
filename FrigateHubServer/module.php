@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../libs/FrigateHubText.php';
 require_once __DIR__ . '/../libs/FrigateHubTopics.php';
 require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
@@ -31,6 +32,7 @@ class FrigateHubServer extends IPSModule
     use FrigateHubWebhook;
     use FrigateHubPush;
 
+
     private const KAMERA_GUID = '{6BB54171-2F24-4653-9061-F2BC352A9D3B}';
 
     /** Variablen der Kamera-Instanzen, die die Übersichtskachel zeigt (Änderung → neu senden). */
@@ -56,6 +58,13 @@ class FrigateHubServer extends IPSModule
     /** Töne laut Symcon-Doku, für WebFront und Kachel-Visualisierung gleich. */
     private const PUSH_TOENE = ['alarm', 'bell', 'boom', 'buzzer', 'connected', 'dark', 'digital', 'drums', 'duck', 'full',
         'happy', 'horn', 'inception', 'kazoo', 'roll', 'siren', 'space', 'trickling', 'turn'];
+
+    public function __construct($InstanceID)
+    {
+        parent::__construct($InstanceID);
+        // Reine Klassen (libs) übersetzen über diesen Übersetzer, siehe FrigateHubText
+        FrigateHubText::setzen(fn (string $text): string => $this->Translate($text));
+    }
 
     public function Create()
     {

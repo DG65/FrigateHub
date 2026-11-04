@@ -750,3 +750,12 @@ abstract class IPSModule
         IPSTestState::$logMessages[] = $message;
     }
 }
+
+/*
+ * Sprache der Prüfstände: Deutsch wie Dietmars Symcon (seit 0.18.0 stehen die Quelltexte englisch im Code,
+ * Deutsch kommt aus libs/locale.json). Umschaltbar per FRIGATEHUB_SPRACHE=en für die englischen Prüfungen.
+ * Reine Klassen übersetzen auch ohne Modulinstanz über denselben Weg.
+ */
+require_once __DIR__ . '/../libs/FrigateHubText.php';
+IPSTestState::useLocale(dirname(__DIR__) . '/libs', getenv('FRIGATEHUB_SPRACHE') ?: 'de');
+FrigateHubText::setzen(fn (string $t): string => IPSTestState::$locale[$t] ?? $t);

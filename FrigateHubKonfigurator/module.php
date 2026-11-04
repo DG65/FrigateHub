@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../libs/FrigateHubText.php';
 require_once __DIR__ . '/../libs/FrigateHubTopics.php';
 require_once __DIR__ . '/../libs/FrigateHubFormular.php';
 require_once __DIR__ . '/../libs/FrigateHubApi.php';
@@ -19,8 +20,16 @@ class FrigateHubKonfigurator extends IPSModule
     use FrigateHubFormular;
     use FrigateHubApi;
 
+
     private const KAMERA_GUID = '{6BB54171-2F24-4653-9061-F2BC352A9D3B}';
     private const SERVER_GUID = '{114A19E4-4933-4DA4-97DE-AFD2D4AE8D53}';
+
+    public function __construct($InstanceID)
+    {
+        parent::__construct($InstanceID);
+        // Reine Klassen (libs) übersetzen über diesen Übersetzer, siehe FrigateHubText
+        FrigateHubText::setzen(fn (string $text): string => $this->Translate($text));
+    }
 
     public function Create()
     {
