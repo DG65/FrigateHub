@@ -221,7 +221,7 @@ trait FrigateHubApi
             if ($zugang !== null) {
                 $this->WriteAttributeString('ApiZugang', '');
                 $this->SetTimerInterval('Anmeldung', 0);
-                $this->WriteAttributeString('Anmeldefehler', FrigateHubText::t('⛔ Sign-in expired on %s — please sign in again.', date('d.m.Y H:i')));
+                $this->WriteAttributeString('Anmeldefehler', FrigateHubText::t('⛔ Sign-in expired on %s — please sign in again.', date(FrigateHubText::t('Y-m-d H:i'))));
                 $this->LogMessage(FrigateHubText::t('Frigate sign-in expired, please sign in again in the instance'), KL_WARNING);
                 $this->apiFehler = 'HTTP 401, ' . FrigateHubText::t('sign-in expired — please sign in again');
                 $this->apiFehlerArt = 'abgelaufen';
@@ -460,7 +460,7 @@ trait FrigateHubApi
         }
         $zugang = $this->apiZugang();
         if ($zugang !== null) {
-            return FrigateHubText::t('✅ Signed in as %s, access valid until %s (renewed automatically).', $zugang['benutzer'], date('d.m.Y H:i', $zugang['ablauf']));
+            return FrigateHubText::t('✅ Signed in as %s, access valid until %s (renewed automatically).', $zugang['benutzer'], date(FrigateHubText::t('Y-m-d H:i'), $zugang['ablauf']));
         }
         $fehler = $this->ReadAttributeString('Anmeldefehler');
         if ($fehler !== '') {

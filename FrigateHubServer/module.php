@@ -454,7 +454,7 @@ class FrigateHubServer extends IPSModule
         }
         $stats = $this->apiHolen('/api/stats');
         if ($stats === null) {
-            $text = '⛔ ' . date('d.m.Y H:i:s') . ': ' . $this->apiFehlerText();
+            $text = '⛔ ' . date(FrigateHubText::t('Y-m-d H:i:s')) . ': ' . $this->apiFehlerText();
             $this->WriteAttributeString('Abgleichstatus', $text);
             $this->UpdateFormField('Abgleichstatus', 'caption', $text);
             return $text;
@@ -480,7 +480,7 @@ class FrigateHubServer extends IPSModule
         $this->WriteAttributeBoolean('Birdseye', $this->apiDurchreichen('/api/birdseye/latest.jpg?height=120&h=120', '', 5)['code'] === 200);
         $this->kamerasBeobachten();
         $this->kachelSenden();
-        $text = FrigateHubText::t('✅ %s: Values fetched via Frigate\'s API.', date('d.m.Y H:i:s'));
+        $text = FrigateHubText::t('✅ %s: Values fetched via Frigate\'s API.', date(FrigateHubText::t('Y-m-d H:i:s')));
         $this->WriteAttributeString('Abgleichstatus', $text);
         $this->UpdateFormField('Abgleichstatus', 'caption', $text);
         return $text;
@@ -592,7 +592,7 @@ class FrigateHubServer extends IPSModule
                 $this->pushSenden($m['titel'], $m['text']);
             }
         }
-        $text = ($e['probleme'] === [] ? '✅ ' : '⛔ ') . date('d.m.Y H:i:s') . ': ' . $zustand . ($hinweise === [] ? '' : ' ⚠️ ' . implode(' ', $hinweise));
+        $text = ($e['probleme'] === [] ? '✅ ' : '⛔ ') . date(FrigateHubText::t('Y-m-d H:i:s')) . ': ' . $zustand . ($hinweise === [] ? '' : ' ⚠️ ' . implode(' ', $hinweise));
         $this->WriteAttributeString('Waechterstatus', $text);
         $this->UpdateFormField('Waechterstatus', 'caption', $text);
         $this->UpdateFormField('Speicherstand', 'caption', $this->speicherstand());
@@ -875,7 +875,7 @@ class FrigateHubServer extends IPSModule
             $ts = $this->ReadAttributeInteger('LetzteStatistik');
             if (is_array($gepuffert) && $gepuffert !== []) {
                 $stats = $gepuffert;
-                $quelle = FrigateHubText::t('As of the last statistics from %s.', date('d.m.Y H:i:s', $ts));
+                $quelle = FrigateHubText::t('As of the last statistics from %s.', date(FrigateHubText::t('Y-m-d H:i:s'), $ts));
             }
         }
         if ($stats === null) {
@@ -914,7 +914,7 @@ class FrigateHubServer extends IPSModule
         $ts = $this->ReadAttributeInteger('LetzteStatistik');
         return $ts === 0
             ? FrigateHubText::t('ℹ️ No statistics from Frigate yet. They arrive every minute by default; are MQTT server and prefix correct?')
-            : FrigateHubText::t('✅ Last statistics on %s.', date('d.m.Y H:i:s', $ts));
+            : FrigateHubText::t('✅ Last statistics on %s.', date(FrigateHubText::t('Y-m-d H:i:s'), $ts));
     }
 
     private function abgleichstatus(): string

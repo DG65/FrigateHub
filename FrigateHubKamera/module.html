@@ -290,9 +290,10 @@
             var zwei = function (n) { return ('0' + n).slice(-2); };
             z.textContent = '';
             if (art) { var a = document.createElement('span'); a.className = 'art'; a.textContent = T(art); z.appendChild(a); }
-            var trenner = deutsch() ? '.' : '/';
-            z.appendChild(document.createTextNode(zwei(d.getDate()) + trenner + zwei(d.getMonth() + 1) + trenner + d.getFullYear() + ' '
-                + zwei(d.getHours()) + ':' + zwei(d.getMinutes()) + ':' + zwei(d.getSeconds())));
+            // Deutsch TT.MM.JJJJ, sonst eindeutig JJJJ-MM-TT (wie die PHP-Seite über FrigateHubText::t('Y-m-d H:i:s'))
+            var datum = deutsch() ? zwei(d.getDate()) + '.' + zwei(d.getMonth() + 1) + '.' + d.getFullYear()
+                : d.getFullYear() + '-' + zwei(d.getMonth() + 1) + '-' + zwei(d.getDate());
+            z.appendChild(document.createTextNode(datum + ' ' + zwei(d.getHours()) + ':' + zwei(d.getMinutes()) + ':' + zwei(d.getSeconds())));
             z.title = art ? T('Live video, current time') : T('Time of the live image');
             z.hidden = false;
         }
@@ -725,7 +726,7 @@
                     var o = document.createElement('option');
                     var teile = t.tag.split('-');
                     o.value = t.tag;
-                    o.textContent = teile[2] + '.' + teile[1] + '. · ' + T(t.alarme === 1 ? '%s alert' : '%s alerts', t.alarme) + (t.erkennungen ? ', ' + T('%s det.', t.erkennungen) : '') + (t.offen ? ' · ' + T('%s unseen', t.offen) : '');
+                    o.textContent = (deutsch() ? teile[2] + '.' + teile[1] + '.' : teile[1] + '-' + teile[2]) + ' · ' + T(t.alarme === 1 ? '%s alert' : '%s alerts', t.alarme) + (t.erkennungen ? ', ' + T('%s det.', t.erkennungen) : '') + (t.offen ? ' · ' + T('%s unseen', t.offen) : '');
                     tage.appendChild(o);
                 });
                 tage.value = a.tag;

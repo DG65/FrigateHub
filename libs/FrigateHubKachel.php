@@ -218,7 +218,7 @@ trait FrigateHubKachel
                 if ($z === null) {
                     throw new Exception(FrigateHubText::t('Invalid period.'));
                 }
-                $name = IPS_GetName($this->InstanceID) . ' ' . date('d.m.Y H:i', $z[0]);
+                $name = IPS_GetName($this->InstanceID) . ' ' . date(FrigateHubText::t('Y-m-d H:i'), $z[0]);
                 $a = $this->apiSchreiben('POST', '/api/export/' . rawurlencode($this->kamera()) . '/start/' . $z[0] . '/end/' . $z[1],
                     ['playback' => 'realtime', 'name' => $name]);
                 if ($a['code'] !== 200) {
@@ -621,7 +621,7 @@ trait FrigateHubKachel
     private function eintragAnzeige(array $e): array
     {
         return $e + [
-            'zeit'  => date(date('Ymd', (int)$e['start']) === date('Ymd') ? 'H:i' : 'd.m. H:i', (int)$e['start']),
+            'zeit'  => date(date('Ymd', (int)$e['start']) === date('Ymd') ? 'H:i' : FrigateHubText::t('m-d H:i'), (int)$e['start']),
             'dauer' => ($e['ende'] ?? null) !== null ? max(1, (int)$e['ende'] - (int)$e['start']) : null,
         ];
     }

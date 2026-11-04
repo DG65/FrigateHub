@@ -79,7 +79,7 @@ trait FrigateHubPush
                 $fehler[] = $name;
             }
         }
-        $zeit = date('d.m.Y H:i:s');
+        $zeit = date(FrigateHubText::t('Y-m-d H:i:s'));
         if ($fehler === []) {
             $status = FrigateHubText::t('✅ %s sent to %s.', $zeit, implode(', ', $ok));
         } else {

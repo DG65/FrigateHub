@@ -498,7 +498,7 @@ class FrigateHubTopics
     /** „28.10.2026 18:05:12" aus Frigates Unix-Zeit (Sekunden mit Nachkommastellen). */
     public static function zeit($sekunden): string
     {
-        return is_numeric($sekunden) ? date('d.m.Y H:i:s', (int)floor((float)$sekunden)) : '';
+        return is_numeric($sekunden) ? date(FrigateHubText::t('Y-m-d H:i:s'), (int)floor((float)$sekunden)) : '';
     }
 
     /**

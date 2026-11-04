@@ -112,7 +112,7 @@ trait FrigateHubKameraSensor
                 $this->pushSenden('🔧 ' . IPS_GetName($this->InstanceID), $text, true);
             }
         }
-        return ($auffaellig ? '⚠️ ' : '✅ ') . date('d.m.Y H:i:s') . ': ' . $text;
+        return ($auffaellig ? '⚠️ ' : '✅ ') . date(FrigateHubText::t('Y-m-d H:i:s')) . ': ' . $text;
     }
 
     /** FRIG_BildNeuLernen($id): gelernte Ansichten verwerfen (nach gewolltem Umbau/Neuausrichtung). */
@@ -154,7 +154,7 @@ trait FrigateHubKameraSensor
             return;
         }
         $this->variableAnlegen('Gesprochen', FrigateHubText::t('Spoken text'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 60);
-        $this->SetValue('Gesprochen', FrigateHubTopics::kuerzenBytes(date('d.m.Y H:i:s') . ' – ' . $text, 1000));
+        $this->SetValue('Gesprochen', FrigateHubTopics::kuerzenBytes(date(FrigateHubText::t('Y-m-d H:i:s')) . ' – ' . $text, 1000));
     }
 
     /** frigate/triggers (semantische Suche): Zeitpunkt je Auslöser dieser Kamera. */
@@ -267,7 +267,7 @@ trait FrigateHubKameraSensor
                 ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => $this->ReadAttributeString('Einheit'), 'DIGITS' => 1], self::POS_SENSOR + 55);
             $this->SetValue('Geschwindigkeit', (float)$tempo);
             $this->variableAnlegen('GeschwindigkeitObjekt', FrigateHubText::t('Last speed: object'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 56);
-            $this->SetValue('GeschwindigkeitObjekt', FrigateHubTopics::objektEinzahl($label) . ', ' . date('d.m.Y H:i:s'));
+            $this->SetValue('GeschwindigkeitObjekt', FrigateHubTopics::objektEinzahl($label) . ', ' . date(FrigateHubText::t('Y-m-d H:i:s')));
         }
     }
 

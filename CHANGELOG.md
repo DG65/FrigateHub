@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.1 (Build 37) — 04.11.2026
+
+- **Datum im Englischen eindeutig:** Datum und Uhrzeit erscheinen auf Englisch als `2026-11-04 20:22:41` statt `04.11.2026` (las sich dort als 11. April). Die Formate laufen über die Übersetzung (`FrigateHubText::t('Y-m-d H:i:s')` → Deutsch `d.m.Y H:i:s`, ebenso `Y-m-d H:i` und `m-d H:i`); die Kachel zeigt auf Englisch `JJJJ-MM-TT`, im Archiv `MM-TT`. Auf Deutsch unverändert. Anlass: Live-Prüfung auf Englisch bei Dietmar.
+
 ## 0.18.0 (Build 36) — 04.11.2026
 
 - **Englisch:** FrigateHub spricht die Sprache der Symcon-Installation. Quelltexte stehen englisch im Code, die deutsche Fassung in `locale.json` (Muster RoboHub 0.35): Formulare, Statuszeilen, Variablennamen, Darstellungsoptionen, Meldungen und Push-Texte, Wächter, Konfigurator, beide Kacheln (Konstante `KACHEL_TEXTE`, Funktion `T()` in `module.html`).

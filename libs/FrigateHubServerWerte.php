@@ -54,7 +54,7 @@ class FrigateHubServerWerte
         }
         if (is_numeric($dienst['uptime'] ?? null)) {
             $stand = is_numeric($dienst['last_updated'] ?? null) ? (int)$dienst['last_updated'] : time();
-            $out[] = self::wert('LaeuftSeit', FrigateHubText::t('Running since'), 'string', date('d.m.Y H:i', $stand - (int)$dienst['uptime']), '', 0, 4);
+            $out[] = self::wert('LaeuftSeit', FrigateHubText::t('Running since'), 'string', date(FrigateHubText::t('Y-m-d H:i'), $stand - (int)$dienst['uptime']), '', 0, 4);
         }
 
         $system = $s['cpu_usages']['frigate.full_system'] ?? null;

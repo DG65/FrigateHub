@@ -357,6 +357,6 @@ class FrigateHubWaechter
     /** „19:13" am selben Tag, sonst „31.10. 19:13". */
     public static function zeit(int $t, int $jetzt): string
     {
-        return date('Y-m-d', $t) === date('Y-m-d', $jetzt) ? date('H:i', $t) : date('d.m. H:i', $t);
+        return date('Y-m-d', $t) === date('Y-m-d', $jetzt) ? date('H:i', $t) : date(FrigateHubText::t('m-d H:i'), $t);
     }
 }

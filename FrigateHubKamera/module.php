@@ -516,7 +516,7 @@ class FrigateHubKamera extends IPSModule
         }
         $ereignis = FrigateHubOha::ereignis($quelle, $reviewId, time());
         if ($ereignis === null) {
-            $this->WriteAttributeString('OhaMeldestatus', FrigateHubText::t('⛔ %s: source ID invalid.', date('d.m.Y H:i:s')));
+            $this->WriteAttributeString('OhaMeldestatus', FrigateHubText::t('⛔ %s: source ID invalid.', date(FrigateHubText::t('Y-m-d H:i:s'))));
             return;
         }
         $this->WriteAttributeString('OhaGemeldet', $reviewId);
@@ -525,7 +525,7 @@ class FrigateHubKamera extends IPSModule
         } catch (Throwable $e) {
             $text = FrigateHubText::t('⛔ rejected: %s', $e->getMessage());
         }
-        $this->WriteAttributeString('OhaMeldestatus', date('d.m.Y H:i:s') . ' ' . $text);
+        $this->WriteAttributeString('OhaMeldestatus', date(FrigateHubText::t('Y-m-d H:i:s')) . ' ' . $text);
         $this->SendDebug('OpenHomeAlarm', $ereignis . ' → ' . $text, 0);
     }
 
@@ -776,7 +776,7 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
-            $text = '⛔ ' . date('d.m.Y H:i:s') . ': ' . $this->apiFehlerText();
+            $text = '⛔ ' . date(FrigateHubText::t('Y-m-d H:i:s')) . ': ' . $this->apiFehlerText();
             $this->LogMessage(FrigateHubText::t('Sync with Frigate failed: %s', $this->apiFehler), KL_WARNING);
             return $text;
         }
@@ -830,7 +830,7 @@ class FrigateHubKamera extends IPSModule
         if (is_numeric($fps)) {
             $teile[] = (float)$fps > 0 ? FrigateHubText::t('camera delivers images') : FrigateHubText::t('camera delivers no images');
         }
-        return FrigateHubText::t('✅ Synced on %s: %s.', date('d.m.Y H:i:s'), implode(', ', $teile));
+        return FrigateHubText::t('✅ Synced on %s: %s.', date(FrigateHubText::t('Y-m-d H:i:s')), implode(', ', $teile));
     }
 
     /** Merkt, dass ein Schalter gerade per MQTT bestätigt oder von hier geschaltet wurde. */
@@ -884,7 +884,7 @@ class FrigateHubKamera extends IPSModule
         if ($this->mediumSchreiben('Schnappschuss', FrigateHubText::t('Snapshot'), 9, '', $jpeg) === 0) {
             return;
         }
-        $this->WriteAttributeString('Bildstatus', FrigateHubText::t('%s from %s (%s KB)', $quelle, date('d.m.Y H:i:s'), round(strlen($jpeg) / 1024)));
+        $this->WriteAttributeString('Bildstatus', FrigateHubText::t('%s from %s (%s KB)', $quelle, date(FrigateHubText::t('Y-m-d H:i:s')), round(strlen($jpeg) / 1024)));
     }
 
     /** Bild-Medienobjekt anlegen (falls nötig, gecacht) und beschreiben. Rückgabe: Medien-ID, 0 bei Fehler. */
@@ -1122,7 +1122,7 @@ class FrigateHubKamera extends IPSModule
             'klassifizierung' => ['Klassifizierung', FrigateHubText::t('Classification'), 11],
             'beschreibung'    => ['KIBeschreibung', FrigateHubText::t('AI description'), 12],
         ][$d['art']];
-        $zeit = $d['zeit'] !== '' ? $d['zeit'] : date('d.m.Y H:i:s');
+        $zeit = $d['zeit'] !== '' ? $d['zeit'] : date(FrigateHubText::t('Y-m-d H:i:s'));
         $this->variableAnlegen($ziel[0], $ziel[1], VARIABLETYPE_STRING, self::anzeigeText(), $ziel[2]);
         $this->SetValue($ziel[0], FrigateHubTopics::kuerzenBytes($zeit . ' – ' . $d['text'], 1000));
     }
@@ -1146,7 +1146,7 @@ class FrigateHubKamera extends IPSModule
     private function kiVerarbeiten(string $id, array $ki, string $zeit): void
     {
         $this->variableAnlegen('KIBeschreibung', FrigateHubText::t('AI description'), VARIABLETYPE_STRING, self::anzeigeText(), 12);
-        $this->SetValue('KIBeschreibung', FrigateHubTopics::kuerzenBytes(($zeit !== '' ? $zeit : date('d.m.Y H:i:s')) . ' – '
+        $this->SetValue('KIBeschreibung', FrigateHubTopics::kuerzenBytes(($zeit !== '' ? $zeit : date(FrigateHubText::t('Y-m-d H:i:s'))) . ' – '
             . ($ki['titel'] !== '' && $ki['titel'] !== $ki['zusammenfassung'] ? $ki['titel'] . ': ' : '') . $ki['zusammenfassung'], 1000));
         if ($ki['stufe'] !== null) {
             $this->variableAnlegen('KIStufe', FrigateHubText::t('AI assessment'), VARIABLETYPE_INTEGER, self::anzeigeStufen(FrigateHubTopics::kiStufen()), 13);
@@ -1242,7 +1242,7 @@ class FrigateHubKamera extends IPSModule
             return FrigateHubText::t('ℹ️ No message from Frigate for "%s" yet. Are the camera ID and prefix correct, and does Frigate send to this MQTT server? Without a Frigate address, states only arrive on changes.', $this->kamera());
         }
         $anzahl = count((array)json_decode($this->GetBuffer('Topics'), true));
-        return FrigateHubText::t('✅ Last message from Frigate on %s (%d different topics since the last restart).', date('d.m.Y H:i:s', $ts), $anzahl);
+        return FrigateHubText::t('✅ Last message from Frigate on %s (%d different topics since the last restart).', date(FrigateHubText::t('Y-m-d H:i:s'), $ts), $anzahl);
     }
 
     private function abgleichstatus(): string
