@@ -23,6 +23,9 @@ trait FrigateHubApi
     /** Grund des letzten fehlgeschlagenen API-Aufrufs. */
     private string $apiFehler = '';
 
+    /** Art des letzten Fehlschlags, sprachneutral: '', 'https' (http auf https-Port), 'abgelaufen', 'anmeldung' (401). */
+    private string $apiFehlerArt = '';
+
     /** Takt, in dem das Token aufgefrischt wird (ms). Muss unter Frigates refresh_time liegen. */
     private static int $FRIGATEHUB_AUFFRISCHEN = 600000;
 
@@ -61,11 +64,11 @@ trait FrigateHubApi
     {
         $p = $this->frigatehubPrefix();
         return [
-            ['type' => 'Label', 'caption' => 'Frigate-Adresse: entweder Frigates API ohne Anmeldung (Port 5000, z. B. http://192.168.1.20:5000 — muss im Docker-Aufruf freigegeben sein) oder die Weboberfläche mit Anmeldung (Port 8971, z. B. https://192.168.1.20:8971). ' . $hinweis],
-            ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate-Adresse (http://…:5000 oder https://…:8971)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
-            ['type' => 'Label', 'caption' => 'Nur für Port 8971: Frigate-Benutzer hier eintragen, angemeldet wird im Panel „🔑 Anmeldung an Frigate".'],
-            ['type' => 'ValidationTextBox', 'name' => 'ApiBenutzer', 'caption' => 'Frigate-Benutzer'],
-            ['type' => 'CheckBox', 'name' => 'ZertifikatPruefen', 'caption' => 'Zertifikat prüfen (aus lassen bei Frigates eigenem Zertifikat)'],
+            ['type' => 'Label', 'caption' => FrigateHubText::t('Frigate address: either Frigate\'s API without sign-in (port 5000, e.g. http://192.168.1.20:5000 — must be exposed in the Docker command) or the web interface with sign-in (port 8971, e.g. https://192.168.1.20:8971). %s', $hinweis)],
+            ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => FrigateHubText::t('Frigate address (http://…:5000 or https://…:8971)'), 'validate' => '^$|^https?://[^\\s/]+/?$'],
+            ['type' => 'Label', 'caption' => FrigateHubText::t('Port 8971 only: enter the Frigate user here; signing in happens in the panel “🔑 Sign in to Frigate”.')],
+            ['type' => 'ValidationTextBox', 'name' => 'ApiBenutzer', 'caption' => FrigateHubText::t('Frigate user')],
+            ['type' => 'CheckBox', 'name' => 'ZertifikatPruefen', 'caption' => FrigateHubText::t('Verify certificate (leave off for Frigate\'s own certificate)')],
             ['type' => 'Label', 'name' => 'Anmeldestatus', 'caption' => $this->anmeldestatus()],
         ];
     }
@@ -77,13 +80,13 @@ trait FrigateHubApi
     {
         $p = $this->frigatehubPrefix();
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔑  Anmeldung an Frigate (nur Port 8971)',
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🔑  Sign in to Frigate (port 8971 only)'),
             'items' => [
-                ['type' => 'Label', 'caption' => 'Benutzer im Feld „Frigate-Benutzer" eintragen, hier das Passwort, dann „Anmelden". Das Passwort wird nicht gespeichert, nur der Zugangsschlüssel von Frigate; der wird automatisch verlängert. Andere FrigateHub-Instanzen mit derselben Adresse nutzen die Anmeldung mit.'],
-                ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => 'Passwort (wird nicht gespeichert)'],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Enter the user in the field “Frigate user”, the password here, then “Sign in”. The password is not stored, only Frigate\'s access token, which is renewed automatically. Other FrigateHub instances with the same address share the sign-in.')],
+                ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => FrigateHubText::t('Password (not stored)')],
                 ['type' => 'RowLayout', 'items' => [
-                    ['type' => 'Button', 'caption' => 'Anmelden', 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
-                    ['type' => 'Button', 'caption' => 'Abmelden', 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Sign in'), 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Sign out'), 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
                 ]],
             ],
         ];
@@ -95,31 +98,31 @@ trait FrigateHubApi
         $this->UpdateFormField('ApiPasswort', 'value', '');
         $benutzer = trim($Benutzer);
         if ($this->apiUrl() === '') {
-            return $this->anmeldungMelden('⚠️ Erst eine gültige Frigate-Adresse eintragen und übernehmen.');
+            return $this->anmeldungMelden(FrigateHubText::t('⚠️ First enter a valid Frigate address and apply.'));
         }
         if ($benutzer === '' || $Passwort === '') {
-            return $this->anmeldungMelden('⚠️ Bitte Benutzer und Passwort eintragen.');
+            return $this->anmeldungMelden(FrigateHubText::t('⚠️ Please enter user and password.'));
         }
         $a = $this->apiAnfrage('POST', '/api/login', ['Content-Type: application/json', 'Accept: application/json'],
             (string)json_encode(['user' => $benutzer, 'password' => $Passwort]));
         if ($a['code'] === 404) {
-            return $this->anmeldungMelden('ℹ️ Frigate hat die Anmeldung unter dieser Adresse abgeschaltet — es geht ohne Benutzer und Passwort.');
+            return $this->anmeldungMelden(FrigateHubText::t('ℹ️ Frigate has disabled authentication at this address — it works without user and password.'));
         }
         if ($a['code'] === 401) {
-            return $this->anmeldungMelden('⛔ Frigate lehnt Benutzer oder Passwort ab.');
+            return $this->anmeldungMelden(FrigateHubText::t('⛔ Frigate rejects the user or password.'));
         }
         if (self::httpAufHttps($a)) {
-            return $this->anmeldungMelden('⛔ Dieser Port erwartet https:// — Adresse auf ' . $this->httpsVorschlag() . ' ändern, übernehmen und neu anmelden.');
+            return $this->anmeldungMelden(FrigateHubText::t('⛔ This port expects https:// — change the address to %s, apply and sign in again.', $this->httpsVorschlag()));
         }
         if ($a['code'] === 429) {
-            return $this->anmeldungMelden('⛔ Zu viele Anmeldeversuche — Frigate sperrt kurz, bitte etwas warten.');
+            return $this->anmeldungMelden(FrigateHubText::t('⛔ Too many sign-in attempts — Frigate is blocking briefly, please wait a moment.'));
         }
         if ($a['code'] !== 200) {
-            return $this->anmeldungMelden('⛔ Anmeldung fehlgeschlagen (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : $a['fehler']) . ').');
+            return $this->anmeldungMelden(FrigateHubText::t('⛔ Sign-in failed (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : $a['fehler']));
         }
         $zugang = self::zugangAusCookies($a['cookies'], $benutzer);
         if ($zugang === null) {
-            return $this->anmeldungMelden('⛔ Frigate hat angemeldet, aber keinen Zugangsschlüssel geschickt.');
+            return $this->anmeldungMelden(FrigateHubText::t('⛔ Frigate signed in but did not send an access token.'));
         }
         $this->zugangSpeichern($zugang);
         $this->WriteAttributeString('Anmeldefehler', '');
@@ -166,15 +169,16 @@ trait FrigateHubApi
     /** Satz fürs Formular zum letzten Fehlschlag: Anmeldung fehlt/abgelaufen oder nicht erreichbar. */
     private function apiFehlerText(): string
     {
-        if ($this->apiFehler === 'HTTP 400, Port erwartet https') {
-            return 'Frigate unter ' . $this->apiUrl() . ' erwartet https:// — bitte die Adresse auf ' . $this->httpsVorschlag() . ' ändern und übernehmen.';
+        if ($this->apiFehlerArt === 'https') {
+            return FrigateHubText::t('Frigate at %s expects https:// — please change the address to %s and apply.', $this->apiUrl(), $this->httpsVorschlag());
         }
-        if (strpos($this->apiFehler, 'HTTP 401') === 0) {
-            return 'Frigate unter ' . $this->apiUrl() . ' antwortet, ' . (strpos($this->apiFehler, 'abgelaufen') !== false
-                ? 'aber die Anmeldung ist abgelaufen — bitte neu anmelden.'
-                : 'verlangt aber eine Anmeldung — Benutzer und Passwort eintragen und „Anmelden".');
+        if ($this->apiFehlerArt === 'abgelaufen') {
+            return FrigateHubText::t('Frigate at %s responds, but the sign-in has expired — please sign in again.', $this->apiUrl());
         }
-        return 'Frigate unter ' . $this->apiUrl() . ' nicht erreichbar (' . $this->apiFehler . '). Stimmt die Adresse, und ist der Port im Docker-Aufruf freigegeben?';
+        if ($this->apiFehlerArt === 'anmeldung') {
+            return FrigateHubText::t('Frigate at %s responds, but requires a sign-in — enter user and password and click “Sign in”.', $this->apiUrl());
+        }
+        return FrigateHubText::t('Frigate at %s not reachable (%s). Is the address correct, and is the port exposed in the Docker command?', $this->apiUrl(), $this->apiFehler);
     }
 
     /** GET auf Frigates API, JSON-Antwort als Array oder null (Grund in $apiFehler). */
@@ -186,7 +190,8 @@ trait FrigateHubApi
         }
         $json = json_decode($antwort, true);
         if (!is_array($json)) {
-            $this->apiFehler = 'Antwort ist kein JSON';
+            $this->apiFehler = FrigateHubText::t('Response is not JSON');
+            $this->apiFehlerArt = '';
             return null;
         }
         return $json;
@@ -208,27 +213,32 @@ trait FrigateHubApi
             }
         }
         if ($a['code'] === 0) {
-            $this->apiFehler = $a['fehler'] !== '' ? $a['fehler'] : 'keine Antwort';
+            $this->apiFehler = $a['fehler'] !== '' ? $a['fehler'] : FrigateHubText::t('no response');
+            $this->apiFehlerArt = '';
             return null;
         }
         if ($a['code'] === 401) {
             if ($zugang !== null) {
                 $this->WriteAttributeString('ApiZugang', '');
                 $this->SetTimerInterval('Anmeldung', 0);
-                $this->WriteAttributeString('Anmeldefehler', '⛔ Anmeldung am ' . date('d.m.Y H:i') . ' abgelaufen — bitte neu anmelden.');
-                $this->LogMessage('Frigate-Anmeldung abgelaufen, bitte in der Instanz neu anmelden', KL_WARNING);
-                $this->apiFehler = 'HTTP 401, Anmeldung abgelaufen — bitte neu anmelden';
+                $this->WriteAttributeString('Anmeldefehler', FrigateHubText::t('⛔ Sign-in expired on %s — please sign in again.', date('d.m.Y H:i')));
+                $this->LogMessage(FrigateHubText::t('Frigate sign-in expired, please sign in again in the instance'), KL_WARNING);
+                $this->apiFehler = 'HTTP 401, ' . FrigateHubText::t('sign-in expired — please sign in again');
+                $this->apiFehlerArt = 'abgelaufen';
             } else {
-                $this->apiFehler = 'HTTP 401, Frigate verlangt eine Anmeldung — Benutzer und Passwort eintragen und „Anmelden"';
+                $this->apiFehler = 'HTTP 401, ' . FrigateHubText::t('Frigate requires a sign-in — enter user and password and click “Sign in”');
+                $this->apiFehlerArt = 'anmeldung';
             }
             return null;
         }
         if (self::httpAufHttps($a)) {
-            $this->apiFehler = 'HTTP 400, Port erwartet https';
+            $this->apiFehler = 'HTTP 400, ' . FrigateHubText::t('port expects https');
+            $this->apiFehlerArt = 'https';
             return null;
         }
         if ($a['code'] !== 200) {
             $this->apiFehler = 'HTTP ' . $a['code'];
+            $this->apiFehlerArt = '';
             return null;
         }
         return (string)$a['body'];
@@ -446,17 +456,17 @@ trait FrigateHubApi
     private function anmeldestatus(): string
     {
         if (strpos($this->apiUrl(), 'http://') === 0 && substr($this->apiUrl(), -5) === ':8971') {
-            return '⚠️ Port 8971 braucht https:// — Adresse auf ' . $this->httpsVorschlag() . ' ändern und übernehmen.';
+            return FrigateHubText::t('⚠️ Port 8971 needs https:// — change the address to %s and apply.', $this->httpsVorschlag());
         }
         $zugang = $this->apiZugang();
         if ($zugang !== null) {
-            return '✅ Angemeldet als ' . $zugang['benutzer'] . ', Zugang gültig bis ' . date('d.m.Y H:i', $zugang['ablauf']) . ' (wird automatisch verlängert).';
+            return FrigateHubText::t('✅ Signed in as %s, access valid until %s (renewed automatically).', $zugang['benutzer'], date('d.m.Y H:i', $zugang['ablauf']));
         }
         $fehler = $this->ReadAttributeString('Anmeldefehler');
         if ($fehler !== '') {
             return $fehler;
         }
-        return strpos($this->apiUrl(), 'https://') === 0 ? 'Nicht angemeldet.' : 'Keine Anmeldung nötig (Port 5000).';
+        return strpos($this->apiUrl(), 'https://') === 0 ? FrigateHubText::t('Not signed in.') : FrigateHubText::t('No sign-in needed (port 5000).');
     }
 
     /** Host und Port der Frigate-Adresse, ohne Schema. */

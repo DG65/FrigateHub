@@ -131,36 +131,36 @@
         <div class="oben">
             <div class="kopf" id="kopf"></div>
             <div class="rechts">
-                <span class="zeit" id="zeit" title="Stand des Livebilds" hidden></span>
-                <button class="archivknopf" id="archiv" hidden>📅 Archiv</button>
+                <span class="zeit" id="zeit" title="Time of the live image" hidden></span>
+                <button class="archivknopf" id="archiv" hidden>📅 Archive</button>
             </div>
         </div>
         <div class="bild" id="bild">
             <img id="live" alt="">
             <video id="video" autoplay muted playsinline></video>
-            <button class="ton" id="ton" title="Ton">🔇</button>
-            <div class="hinweis" id="hinweis">Lade …</div>
+            <button class="ton" id="ton" title="Sound">🔇</button>
+            <div class="hinweis" id="hinweis">Loading …</div>
             <div class="meldung" id="meldung" hidden></div>
-            <button class="knopf-neu" id="neu" title="Neu laden" hidden>↻</button>
+            <button class="knopf-neu" id="neu" title="Reload" hidden>↻</button>
         </div>
         <div class="schalter" id="schalter">
-            <span class="sw-titel" title="Diese Schalter ändern die Einstellung in Frigate selbst">Frigate:</span>
-            <button class="sw" data-ident="Schalter_detect" data-key="detect"><span class="dot"></span>Erkennung</button>
-            <button class="sw" data-ident="Schalter_recordings" data-key="recordings"><span class="dot"></span>Aufnahme</button>
-            <button class="sw" data-ident="Schalter_snapshots" data-key="snapshots"><span class="dot"></span>Schnappschüsse</button>
-            <button class="sw" id="rahmen" title="Erkannte Objekte im Livebild einrahmen (nur in dieser Ansicht)"><span class="dot"></span>Rahmen</button>
+            <span class="sw-titel" id="swTitel" title="These switches change the setting in Frigate itself">Frigate:</span>
+            <button class="sw" data-ident="Schalter_detect" data-key="detect"><span class="dot"></span>Detection</button>
+            <button class="sw" data-ident="Schalter_recordings" data-key="recordings"><span class="dot"></span>Recording</button>
+            <button class="sw" data-ident="Schalter_snapshots" data-key="snapshots"><span class="dot"></span>Snapshots</button>
+            <button class="sw" id="rahmen" title="Draw boxes around detected objects in the live image (this view only)"><span class="dot"></span>Boxes</button>
         </div>
         <div class="leiste" id="leiste"></div>
     </div>
 
     <div class="gross" id="gross" hidden>
         <div class="leiste-oben">
-            <button id="grossZurueck" hidden>◀ Archiv</button>
+            <button id="grossZurueck" hidden>◀ Archive</button>
             <span class="titel" id="grossTitel"></span>
-            <button id="grossBild" hidden>Bild</button>
+            <button id="grossBild" hidden>Image</button>
             <button id="grossClip" hidden>▶ Clip</button>
-            <button id="grossFav" hidden title="Dauerhaft behalten (Frigate löscht es dann nicht)">☆</button>
-            <button id="grossExport" hidden title="Als Export in Frigate speichern">💾</button>
+            <button id="grossFav" hidden title="Keep permanently (Frigate will then not delete it)">☆</button>
+            <button id="grossExport" hidden title="Save as an export in Frigate">💾</button>
             <button id="grossZu">✕</button>
         </div>
         <div class="info" id="grossInfo" hidden></div>
@@ -190,6 +190,30 @@
 
         function el(id) { return document.getElementById(id); }
 
+        /** Text in der Sprache der Visualisierung (Tabelle aus PHP: daten.texte), sonst der englische Quelltext. */
+        function T(s, a) { var t = (daten && daten.texte && daten.texte[s]) || s; return a == null ? t : t.replace('%s', a); }
+        function deutsch() { return T('language code: en') === 'de'; }
+
+        /** Feste Texte des HTML-Gerüsts übersetzen; den Ladehinweis nur beim ersten Start (danach gehört er liveLaden). */
+        function texteSetzen(erster) {
+            document.documentElement.lang = deutsch() ? 'de' : 'en';
+            var knopfText = function (id, text) { var b = el(id); b.lastChild.nodeValue = text; };
+            if (erster) { el('hinweis').textContent = T('Loading …'); el('zeit').title = T('Time of the live image'); }
+            el('archiv').textContent = T('📅 Archive');
+            if (tonZustand === '') { el('ton').title = T('Sound'); }
+            el('neu').title = T('Reload');
+            el('swTitel').title = T('These switches change the setting in Frigate itself');
+            document.querySelectorAll('.sw[data-key]').forEach(function (b) {
+                b.lastChild.nodeValue = T({ detect: 'Detection', recordings: 'Recording', snapshots: 'Snapshots' }[b.dataset.key]);
+            });
+            knopfText('rahmen', T('Boxes'));
+            el('rahmen').title = T('Draw boxes around detected objects in the live image (this view only)');
+            el('grossZurueck').textContent = T('◀ Archive');
+            el('grossBild').textContent = T('Image');
+            el('grossFav').title = T('Keep permanently (Frigate will then not delete it)');
+            el('grossExport').title = T('Save as an export in Frigate');
+        }
+
         function url(param) {
             var q = 'k=' + encodeURIComponent(daten.k);
             for (var n in param) { q += '&' + n + '=' + encodeURIComponent(param[n]); }
@@ -213,7 +237,7 @@
                 if (daten.schnappschuss) {
                     bildSetzen(url({ bild: 'schnappschuss', t: Date.now() }), daten.schnappschuss);
                 } else {
-                    hinweis('Noch kein Bild. Für das Livebild die Frigate-Adresse in der Instanz eintragen.');
+                    hinweis(T('No image yet. Enter the Frigate address in the instance for the live image.'));
                 }
                 return;
             }
@@ -239,7 +263,7 @@
             neu.onerror = function () {
                 liveLaeuft = false;
                 liveFehler++;
-                if (!grossLive) { hinweis(daten.verfuegbar === false ? 'Frigate nicht erreichbar.' : 'Livebild gerade nicht verfügbar.'); }
+                if (!grossLive) { hinweis(daten.verfuegbar === false ? T('Frigate not reachable.') : T('Live image currently unavailable.')); }
                 liveTimer = setTimeout(liveLaden, Math.min(30, 5 * liveFehler) * 1000);
             };
             neu.src = url({ bild: 'live', h: hoehe(ziel, 1080), rahmen: rahmenAn() ? 1 : 0, t: Date.now() });
@@ -254,7 +278,7 @@
 
         function bildSetzen(quelle, text) {
             el('live').onload = function () { hinweis(''); };
-            el('live').onerror = function () { hinweis('Bild nicht verfügbar.'); };
+            el('live').onerror = function () { hinweis(T('Image not available.')); };
             el('live').src = quelle;
             el('zeit').textContent = text || '';
             el('zeit').hidden = !text;
@@ -265,10 +289,11 @@
             var z = el('zeit');
             var zwei = function (n) { return ('0' + n).slice(-2); };
             z.textContent = '';
-            if (art) { var a = document.createElement('span'); a.className = 'art'; a.textContent = art; z.appendChild(a); }
-            z.appendChild(document.createTextNode(zwei(d.getDate()) + '.' + zwei(d.getMonth() + 1) + '.' + d.getFullYear() + ' '
+            if (art) { var a = document.createElement('span'); a.className = 'art'; a.textContent = T(art); z.appendChild(a); }
+            var trenner = deutsch() ? '.' : '/';
+            z.appendChild(document.createTextNode(zwei(d.getDate()) + trenner + zwei(d.getMonth() + 1) + trenner + d.getFullYear() + ' '
                 + zwei(d.getHours()) + ':' + zwei(d.getMinutes()) + ':' + zwei(d.getSeconds())));
-            z.title = art ? 'Livevideo, aktuelle Uhrzeit' : 'Stand des Livebilds';
+            z.title = art ? T('Live video, current time') : T('Time of the live image');
             z.hidden = false;
         }
 
@@ -372,7 +397,7 @@
 
         el('ton').onclick = function (ev) {
             ev.stopPropagation();
-            if (tonZustand === 'keineSpur' || tonZustand === 'stille') { meldung(TON_TEXT[tonZustand]); return; }
+            if (tonZustand === 'keineSpur' || tonZustand === 'stille') { meldung(tonText(tonZustand)); return; }
             var v = el('video');
             v.muted = !v.muted;
             el('ton').textContent = v.muted ? '🔇' : '🔊';
@@ -381,19 +406,18 @@
 
         /* ---------------------------------------------------------------- Ton prüfen */
 
-        var TON_TEXT = {
-            keineSpur: 'Kein Ton: Der Stream enthält keine Tonspur, die der Browser abspielen kann. Entweder liefert die Kamera keinen Ton, '
-                + 'oder er kommt z. B. als AAC – dann in Frigates go2rtc beim Stream eine zweite Quelle „ffmpeg:<Stream>#audio=opus“ ergänzen.',
-            stille: 'Kein Ton: Die Kamera schickt nur Stille. Meist ist kein Mikrofon angeschlossen (viele Kameras haben nur einen '
-                + 'Line-Eingang) oder der Audioeingang ist in der Kamera ausgeschaltet.'
-        };
+        function tonText(art) {
+            return art === 'stille'
+                ? T('No sound: the camera only sends silence. Usually no microphone is connected (many cameras only have a line input) or the audio input is switched off in the camera.')
+                : T('No sound: the stream has no audio track the browser can play. Either the camera delivers no sound, or it comes e.g. as AAC – then add a second source “ffmpeg:<Stream>#audio=opus” to the stream in Frigate’s go2rtc.');
+        }
 
         function tonZuruecksetzen() {
             clearTimeout(tonTimer);
             tonZustand = '';
             el('ton').classList.remove('ohne');
             el('ton').textContent = '🔇';
-            el('ton').title = 'Ton';
+            el('ton').title = T('Sound');
             meldung('');
         }
 
@@ -401,9 +425,9 @@
             tonZustand = art;
             el('video').muted = true;
             el('ton').classList.add('ohne');
-            el('ton').textContent = '🔇 kein Ton';
-            el('ton').title = TON_TEXT[art];
-            meldung(TON_TEXT[art]);
+            el('ton').textContent = T('🔇 no sound');
+            el('ton').title = tonText(art);
+            meldung(tonText(art));
         }
 
         /** Empfangene Tonpakete der Verbindung, -1 wenn sich das nicht feststellen lässt. */
@@ -476,15 +500,15 @@
                 document.title = daten.name;
             }
             if (daten.verfuegbar === false) {
-                kopf.appendChild(chip('Frigate nicht erreichbar', 'aus', true));
+                kopf.appendChild(chip(T('Frigate not reachable'), 'aus', true));
             } else if (daten.online === false) {
-                kopf.appendChild(chip('Kamera offline', 'aus', true));
+                kopf.appendChild(chip(T('Camera offline'), 'aus', true));
             }
             // „online" zeigt die Kachel nicht eigens: laufende Uhrzeit bzw. frisches Bild sagen das schon.
             (daten.warnungen || []).forEach(function (w) { kopf.appendChild(chip('⚠️ ' + w, 'warn')); });
-            if (daten.alarm) { kopf.appendChild(chip('🚨 Alarm', 'alarm')); }
-            else if (daten.erkennung) { kopf.appendChild(chip('Erkennung', 'bewegung', true)); }
-            if (daten.bewegung) { kopf.appendChild(chip('Bewegung', 'bewegung', true)); }
+            if (daten.alarm) { kopf.appendChild(chip(T('🚨 Alert'), 'alarm')); }
+            else if (daten.erkennung) { kopf.appendChild(chip(T('Detection'), 'bewegung', true)); }
+            if (daten.bewegung) { kopf.appendChild(chip(T('Motion'), 'bewegung', true)); }
             (daten.zaehler || []).forEach(function (z) { kopf.appendChild(chip(z.anzahl + ' ' + z.name, 'zahl')); });
 
             var bild = el('bild');
@@ -499,7 +523,7 @@
                 if (wartet[b.dataset.ident] !== undefined && wartet[b.dataset.ident] === wert) { delete wartet[b.dataset.ident]; }
                 b.classList.toggle('wartet', wartet[b.dataset.ident] !== undefined);
                 b.classList.toggle('gesperrt', daten.bedienung === false);
-                b.title = daten.bedienung === false ? 'Bedienen über diese Seite ist im Formular der Instanz nicht freigegeben.' : '';
+                b.title = daten.bedienung === false ? T('Control via this page is not enabled in the configuration form of the instance.') : '';
             });
             el('rahmen').hidden = !daten.api;
             el('rahmen').classList.toggle('an', rahmenAn());
@@ -524,7 +548,7 @@
                 if (e.ki && e.ki.stufe >= 1) {
                     var m = document.createElement('span');
                     m.className = 'ki';
-                    m.textContent = e.ki.stufe >= 2 ? '🛑 kritisch' : '⚠️ verdächtig';
+                    m.textContent = e.ki.stufe >= 2 ? T('🛑 critical') : T('⚠️ suspicious');
                     k.appendChild(m);
                 }
                 if (daten.api) {
@@ -546,7 +570,7 @@
                 b.textContent = e.ki && e.ki.titel ? e.ki.titel : e.text;
                 b.title = e.ki ? e.ki.zusammenfassung : e.text;
                 var s = document.createElement('span');
-                s.textContent = e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : '') + (e.dauer === null ? ' · läuft' : '');
+                s.textContent = e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : '') + (e.dauer === null ? ' · ' + T('in progress') : '');
                 t.appendChild(b);
                 t.appendChild(s);
                 k.appendChild(t);
@@ -575,7 +599,7 @@
             v.autoplay = true;
             v.playsInline = true;
             v.src = quelle;
-            v.onerror = function () { inhalt.textContent = ''; var d = document.createElement('div'); d.className = 'leer'; d.style.color = '#d6dde4'; d.style.padding = '12px'; d.textContent = 'Frigate hat für diesen Zeitraum keine Aufnahme.'; inhalt.appendChild(d); };
+            v.onerror = function () { inhalt.textContent = ''; var d = document.createElement('div'); d.className = 'leer'; d.style.color = '#d6dde4'; d.style.padding = '12px'; d.textContent = T('Frigate has no recording for this period.'); inhalt.appendChild(d); };
             inhalt.appendChild(v);
         }
 
@@ -598,7 +622,7 @@
                 el('grossZurueck').onclick = function () { archivOeffnen(archivStand ? archivStand.tag : ''); };
             }
             if (e.ki) {
-                el('grossInfo').textContent = '🤖 ' + e.ki.zusammenfassung + (e.ki.stufe >= 1 ? ' (' + (e.ki.stufe >= 2 ? 'kritisch' : 'verdächtig') + ')' : '');
+                el('grossInfo').textContent = '🤖 ' + e.ki.zusammenfassung + (e.ki.stufe >= 1 ? ' (' + (e.ki.stufe >= 2 ? T('critical') : T('suspicious')) + ')' : '');
                 el('grossInfo').hidden = false;
             }
             if (!daten.api) { return; }
@@ -611,7 +635,7 @@
                 var start = Math.max(0, e.start - 5), ende = (e.ende || Math.floor(Date.now() / 1000)) + 5;
                 el('grossExport').hidden = false;
                 el('grossExport').onclick = function () {
-                    if (confirm('Ereignis (' + Math.round((ende - start) / 60 * 10) / 10 + ' min) als Export in Frigate speichern?')) {
+                    if (confirm(T('Save event (%s min) as an export in Frigate?', Math.round((ende - start) / 60 * 10) / 10))) {
                         requestAction('Kachel_Export', start + '-' + ende);
                     }
                 };
@@ -653,24 +677,24 @@
 
         function archivOeffnen(tag) {
             grossLive = false;
-            grossOeffnen('📅 Archiv');
+            grossOeffnen(T('📅 Archive'));
             var w = el('grossWerkzeug');
             w.hidden = false;
             var tage = document.createElement('select');
             var filter = document.createElement('select');
             var von = document.createElement('input');
             von.type = 'time';
-            von.title = 'Aufnahme ab Uhrzeit abspielen';
+            von.title = T('Play recording from a time of day');
             var dauer = document.createElement('select');
             [1, 5, 10, 30].forEach(function (m) { var o = document.createElement('option'); o.value = m; o.textContent = m + ' min'; dauer.appendChild(o); });
             var los = document.createElement('button');
-            los.textContent = '🎞 Aufnahme';
-            los.title = 'Aufnahme des gewählten Tages ab Uhrzeit abspielen';
+            los.textContent = T('🎞 Recording');
+            los.title = T('Play the recording of the selected day from a time of day');
             w.appendChild(tage); w.appendChild(filter); w.appendChild(von); w.appendChild(dauer); w.appendChild(los);
             var raster = document.createElement('div');
             raster.className = 'archiv';
             el('grossInhalt').appendChild(raster);
-            raster.textContent = 'Lade …';
+            raster.textContent = T('Loading …');
 
             function zeigen() {
                 raster.textContent = '';
@@ -685,7 +709,7 @@
                 if (!liste.length) {
                     var d = document.createElement('div');
                     d.className = 'leer';
-                    d.textContent = 'Keine Ereignisse für diese Auswahl.';
+                    d.textContent = T('No events for this selection.');
                     raster.appendChild(d);
                 }
                 liste.forEach(function (e) { raster.appendChild(karteBauen(e, true)); });
@@ -701,18 +725,18 @@
                     var o = document.createElement('option');
                     var teile = t.tag.split('-');
                     o.value = t.tag;
-                    o.textContent = teile[2] + '.' + teile[1] + '. · ' + t.alarme + ' Alarm' + (t.alarme === 1 ? '' : 'e') + (t.erkennungen ? ', ' + t.erkennungen + ' Erk.' : '') + (t.offen ? ' · ' + t.offen + ' neu' : '');
+                    o.textContent = teile[2] + '.' + teile[1] + '. · ' + T(t.alarme === 1 ? '%s alert' : '%s alerts', t.alarme) + (t.erkennungen ? ', ' + T('%s det.', t.erkennungen) : '') + (t.offen ? ' · ' + T('%s unseen', t.offen) : '');
                     tage.appendChild(o);
                 });
                 tage.value = a.tag;
-                var optionen = [['', 'Alle'], ['alarm', 'Nur Alarme'], ['erkennung', 'Nur Erkennungen'], ['neu', 'Noch nicht gesehen'], ['ki', 'KI: verdächtig']];
+                var optionen = [['', T('All')], ['alarm', T('Alerts only')], ['erkennung', T('Detections only')], ['neu', T('Not seen yet')], ['ki', T('AI: suspicious')]];
                 var labels = {};
                 archivStand.eintraege.forEach(function (e) { (e.labels || []).forEach(function (l) { labels[l] = true; }); });
-                Object.keys(labels).sort().forEach(function (l) { optionen.push(['l:' + l, 'Nur: ' + ((a.objekte || {})[l] || l)]); });
+                Object.keys(labels).sort().forEach(function (l) { optionen.push(['l:' + l, T('Only: %s', (a.objekte || {})[l] || l)]); });
                 optionen.forEach(function (x) { var o = document.createElement('option'); o.value = x[0]; o.textContent = x[1]; filter.appendChild(o); });
                 filter.value = archivStand.filter;
                 zeigen();
-            }).catch(function () { raster.textContent = '⛔ Archiv nicht erreichbar.'; });
+            }).catch(function () { raster.textContent = T('⛔ Archive not reachable.'); });
 
             tage.onchange = function () { archivOeffnen(tage.value); };
             filter.onchange = zeigen;
@@ -756,7 +780,7 @@
             if ((daten.ptz.presets || []).length) {
                 var sel = document.createElement('select');
                 var o0 = document.createElement('option');
-                o0.textContent = 'Position …';
+                o0.textContent = T('Position …');
                 o0.value = '';
                 sel.appendChild(o0);
                 daten.ptz.presets.forEach(function (p) { var o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
@@ -769,11 +793,11 @@
         el('bild').onclick = function () {
             if (!daten) { return; }
             if (!daten.api) {
-                if (daten.schnappschuss) { grossOeffnen('Letzter Schnappschuss · ' + daten.schnappschuss); grossBild(url({ bild: 'schnappschuss', t: Date.now() })); }
+                if (daten.schnappschuss) { grossOeffnen(T('Last snapshot · %s', daten.schnappschuss)); grossBild(url({ bild: 'schnappschuss', t: Date.now() })); }
                 return;
             }
             if (videoLaeuft) {
-                grossOeffnen('Livevideo');
+                grossOeffnen(T('Live video'));
                 var v = document.createElement('video');
                 v.autoplay = true;
                 v.playsInline = true;
@@ -784,7 +808,7 @@
                 ptzZeigen();
                 return;
             }
-            grossOeffnen('Livebild');
+            grossOeffnen(T('Live image'));
             grossBild('');
             ptzZeigen();
             grossLive = true;
@@ -834,6 +858,7 @@
             var ersterStart = daten === null;
             var taktGeaendert = daten && (daten.live !== neu.live || daten.api !== neu.api || daten.k !== neu.k || daten.video !== neu.video);
             daten = neu;
+            texteSetzen(ersterStart);
             zeichnen();
             if (!daten.video) { videoStoppen(); }
             if (taktGeaendert) { videoStoppen(); videoVersuche = 0; }

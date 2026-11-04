@@ -19,16 +19,16 @@ trait FrigateHubKameraEinstellungen
     {
         $kamera = $this->kamera();
         if ($kamera === '' || $this->apiUrl() === '') {
-            return 'ℹ️ Dafür braucht es Kamera-ID und Frigate-Adresse.';
+            return FrigateHubText::t('ℹ️ This needs the camera ID and the Frigate address.');
         }
         $roh = json_decode($Werte, true);
         if (!is_array($roh)) {
-            return '⛔ Formularwerte nicht lesbar.';
+            return FrigateHubText::t('⛔ The form values could not be read.');
         }
         // Immer gegen den frischen Stand vergleichen: jemand kann inzwischen in Frigate geändert haben
         $config = $this->apiHolen('/api/config');
         if ($config === null || !is_array($config['cameras'][$kamera] ?? null)) {
-            return '⛔ ' . ($config === null ? $this->apiFehlerText() : 'Frigate kennt die Kamera „' . $kamera . '" nicht.');
+            return '⛔ ' . ($config === null ? $this->apiFehlerText() : FrigateHubText::t('Frigate does not know the camera "%s".', $kamera));
         }
         $alt = FrigateHubEinstellungen::lesen($config['cameras'][$kamera], $config);
         $neu = $roh;
@@ -40,7 +40,7 @@ trait FrigateHubKameraEinstellungen
         }
         $aenderungen = FrigateHubEinstellungen::aenderungen($alt, $neu);
         if ($aenderungen === []) {
-            return 'ℹ️ Nichts geändert — die Werte entsprechen dem Stand in Frigate.';
+            return FrigateHubText::t('ℹ️ Nothing changed — the values match the current state in Frigate.');
         }
         $ok = [];
         $fehler = [];
@@ -53,20 +53,20 @@ trait FrigateHubKameraEinstellungen
                 continue;
             }
             $grund = is_array($antwort) && (string)($antwort['message'] ?? '') !== '' ? (string)$antwort['message']
-                : ($a['code'] === 403 ? 'keine Berechtigung — der Frigate-Benutzer braucht die Rolle „admin"' : ($a['code'] === 0 ? 'Frigate nicht erreichbar' : 'HTTP ' . $a['code']));
+                : ($a['code'] === 403 ? FrigateHubText::t('no permission — the Frigate user needs the role "admin"') : ($a['code'] === 0 ? FrigateHubText::t('Frigate not reachable') : 'HTTP ' . $a['code']));
             $fehler[] = $name . ': ' . $grund;
         }
         if ($ok !== []) {
-            $this->LogMessage('Frigate-Einstellungen geändert (' . $kamera . '): ' . implode(', ', $ok), KL_NOTIFY);
+            $this->LogMessage(FrigateHubText::t('Frigate settings changed (%s): %s', $kamera, implode(', ', $ok)), KL_NOTIFY);
             // Schalter, Zonen und Zähler sofort nachziehen
             $this->SetTimerInterval('Abgleich', self::ABGLEICH_VERZOEGERUNG);
         }
         if ($fehler !== []) {
-            $this->LogMessage('Frigate-Einstellungen abgelehnt (' . $kamera . '): ' . implode('; ', $fehler), KL_WARNING);
+            $this->LogMessage(FrigateHubText::t('Frigate settings rejected (%s): %s', $kamera, implode('; ', $fehler)), KL_WARNING);
         }
         $text = ($fehler === [] ? '✅ ' : ($ok === [] ? '⛔ ' : '⚠️ ')) . date('H:i:s') . ': '
-            . ($ok === [] ? '' : 'In Frigate gespeichert: ' . implode(', ', $ok) . '. ')
-            . ($fehler === [] ? '' : 'Abgelehnt (Frigate hat nichts verändert): ' . implode('; ', $fehler) . '.');
+            . ($ok === [] ? '' : FrigateHubText::t('Saved in Frigate: %s.', implode(', ', $ok)) . ' ')
+            . ($fehler === [] ? '' : FrigateHubText::t('Rejected (Frigate changed nothing): %s.', implode('; ', $fehler)));
         $this->UpdateFormField('EinstellungenStatus', 'caption', $text);
         return $text;
     }
@@ -78,15 +78,15 @@ trait FrigateHubKameraEinstellungen
      */
     protected function einstellungenPanel(): array
     {
-        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '⚙️  In Frigate einstellen', 'items' => []];
+        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('⚙️  Configure in Frigate'), 'items' => []];
         $hinweis = fn (string $t) => array_merge($panel, ['items' => [['type' => 'Label', 'caption' => $t]]]);
         $kamera = $this->kamera();
         if ($kamera === '' || $this->apiUrl() === '') {
-            return $hinweis('ℹ️ Hier lassen sich Frigates Einstellungen dieser Kamera ändern, ohne in Frigates Oberfläche zu wechseln. Dafür braucht es Kamera-ID und Frigate-Adresse.');
+            return $hinweis(FrigateHubText::t('ℹ️ Here you can change Frigate\'s settings for this camera without switching to Frigate\'s interface. This needs the camera ID and the Frigate address.'));
         }
         $config = $this->apiHolen('/api/config');
         if ($config === null || !is_array($config['cameras'][$kamera] ?? null)) {
-            return $hinweis('⛔ Einstellungen nicht lesbar: ' . ($config === null ? $this->apiFehlerText() : 'Frigate kennt die Kamera „' . $kamera . '" nicht.'));
+            return $hinweis(FrigateHubText::t('⛔ Settings not readable: %s', $config === null ? $this->apiFehlerText() : FrigateHubText::t('Frigate does not know the camera "%s".', $kamera)));
         }
         $w = FrigateHubEinstellungen::lesen($config['cameras'][$kamera], $config);
         $liste = fn (array $l) => implode(', ', $l);
@@ -94,57 +94,57 @@ trait FrigateHubKameraEinstellungen
         foreach ($w['zonen'] as $name => $z) {
             $zonen[] = ['Zone' => $name, 'Objekte' => $liste($z['objekte']), 'Verweilen' => $z['verweilen']];
         }
-        $tage = fn (string $name, string $caption, float $wert) => ['type' => 'NumberSpinner', 'name' => $name, 'caption' => $caption, 'suffix' => 'Tage', 'digits' => 1, 'minimum' => 0, 'maximum' => 3650, 'value' => $wert];
+        $tage = fn (string $name, string $caption, float $wert) => ['type' => 'NumberSpinner', 'name' => $name, 'caption' => $caption, 'suffix' => FrigateHubText::t('days'), 'digits' => 1, 'minimum' => 0, 'maximum' => 3650, 'value' => $wert];
         $items = [
-            ['type' => 'Label', 'caption' => 'Ändert die Einstellungen dieser Kamera direkt in Frigate (dessen config.yml) — wie Frigates eigene Oberfläche, ohne Neustart. Angezeigt wird der Stand beim Öffnen. Gespeichert wird nur, was du geändert hast; Frigate prüft die Werte und nimmt ungültige selbst zurück. Zonen und Masken zeichnen sowie Kameras anlegen bleiben in Frigates Oberfläche.'],
-            ['type' => 'Label', 'caption' => 'Objektarten in Frigate-Schreibweise, mit Komma getrennt, z. B. ' . implode(', ', array_slice(FrigateHubEinstellungen::OBJEKTE, 0, 9)) . ' (package nur mit Frigate+).', 'italic' => true],
-            ['type' => 'CheckBox', 'name' => 'FE_Aufnahme', 'caption' => 'Aufnahme an (record.enabled)', 'value' => $w['aufnahme']],
+            ['type' => 'Label', 'caption' => FrigateHubText::t('Changes this camera\'s settings directly in Frigate (its config.yml) — like Frigate\'s own interface, without a restart. Shown is the state when the form was opened. Only what you changed is saved; Frigate checks the values and reverts invalid ones itself. Drawing zones and masks as well as adding cameras stay in Frigate\'s interface.')],
+            ['type' => 'Label', 'caption' => FrigateHubText::t('Object types as Frigate spells them, separated by commas, e.g. %s (package only with Frigate+).', implode(', ', array_slice(FrigateHubEinstellungen::OBJEKTE, 0, 9))), 'italic' => true],
+            ['type' => 'CheckBox', 'name' => 'FE_Aufnahme', 'caption' => FrigateHubText::t('Recording on (record.enabled)'), 'value' => $w['aufnahme']],
             ['type' => 'RowLayout', 'items' => [
-                $tage('FE_Alarme', 'Alarme behalten', $w['alarme']),
-                $tage('FE_Erkennungen', 'Erkennungen behalten', $w['erkennungen']),
+                $tage('FE_Alarme', FrigateHubText::t('Keep alerts'), $w['alarme']),
+                $tage('FE_Erkennungen', FrigateHubText::t('Keep detections'), $w['erkennungen']),
             ]],
             ['type' => 'RowLayout', 'items' => [
-                $tage('FE_Dauer', 'Daueraufnahme behalten (0 = keine)', $w['dauer']),
-                $tage('FE_Bewegung', 'Aufnahmen mit Bewegung behalten', $w['bewegung']),
+                $tage('FE_Dauer', FrigateHubText::t('Keep continuous recording (0 = none)'), $w['dauer']),
+                $tage('FE_Bewegung', FrigateHubText::t('Keep recordings with motion'), $w['bewegung']),
             ]],
-            ['type' => 'ValidationTextBox', 'name' => 'FE_Verfolgen', 'caption' => 'Erkennen und verfolgen (objects.track)', 'value' => $liste($w['verfolgen'])],
-            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmObjekte', 'caption' => 'Als Alarm statt nur Erkennung (review.alerts.labels)', 'value' => $liste($w['alarmObjekte'])],
-            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmZonen', 'caption' => 'Alarm nur in diesen Zonen (leer = überall; ' . ($zonen === [] ? 'keine Zonen' : 'Zonen: ' . implode(', ', array_keys($w['zonen']))) . ')', 'value' => $liste($w['alarmZonen'])],
-            ['type' => 'List', 'name' => 'FE_Zonen', 'caption' => 'Zonen: welche Objekte zählen (leer = alle), Verweildauer in Sekunden (loitering_time, 0 = sofort)', 'rowCount' => max(1, min(6, count($zonen))),
+            ['type' => 'ValidationTextBox', 'name' => 'FE_Verfolgen', 'caption' => FrigateHubText::t('Detect and track (objects.track)'), 'value' => $liste($w['verfolgen'])],
+            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmObjekte', 'caption' => FrigateHubText::t('As alert instead of just detection (review.alerts.labels)'), 'value' => $liste($w['alarmObjekte'])],
+            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmZonen', 'caption' => $zonen === [] ? FrigateHubText::t('Alert only in these zones (empty = everywhere; no zones)') : FrigateHubText::t('Alert only in these zones (empty = everywhere; zones: %s)', implode(', ', array_keys($w['zonen']))), 'value' => $liste($w['alarmZonen'])],
+            ['type' => 'List', 'name' => 'FE_Zonen', 'caption' => FrigateHubText::t('Zones: which objects count (empty = all), dwell time in seconds (loitering_time, 0 = immediately)'), 'rowCount' => max(1, min(6, count($zonen))),
                 'add' => false, 'delete' => false, 'values' => $zonen,
                 'columns' => [
-                    ['caption' => 'Zone', 'name' => 'Zone', 'width' => '200px', 'add' => ''],
-                    ['caption' => 'Objekte', 'name' => 'Objekte', 'width' => 'auto', 'add' => '', 'edit' => ['type' => 'ValidationTextBox']],
-                    ['caption' => 'Verweilen (s)', 'name' => 'Verweilen', 'width' => '140px', 'add' => 0, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 0, 'maximum' => 3600]],
+                    ['caption' => FrigateHubText::t('Zone'), 'name' => 'Zone', 'width' => '200px', 'add' => ''],
+                    ['caption' => FrigateHubText::t('Objects'), 'name' => 'Objekte', 'width' => 'auto', 'add' => '', 'edit' => ['type' => 'ValidationTextBox']],
+                    ['caption' => FrigateHubText::t('Dwell (s)'), 'name' => 'Verweilen', 'width' => '140px', 'add' => 0, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 0, 'maximum' => 3600]],
                 ]],
             ['type' => 'RowLayout', 'items' => [
-                ['type' => 'CheckBox', 'name' => 'FE_Schnappschuss', 'caption' => 'Schnappschüsse speichern', 'value' => $w['schnappschuss']],
-                $tage('FE_SchnappTage', 'Schnappschüsse behalten', $w['schnappTage']),
+                ['type' => 'CheckBox', 'name' => 'FE_Schnappschuss', 'caption' => FrigateHubText::t('Save snapshots'), 'value' => $w['schnappschuss']],
+                $tage('FE_SchnappTage', FrigateHubText::t('Keep snapshots'), $w['schnappTage']),
             ]],
-            ['type' => 'NumberSpinner', 'name' => 'FE_Stillstand', 'caption' => 'Als stehend gilt ein Objekt nach (detect.stationary.threshold, bei ' . $w['fps'] . ' Bildern/s)', 'suffix' => 's', 'minimum' => 1, 'maximum' => 600, 'value' => $w['stillstand']],
+            ['type' => 'NumberSpinner', 'name' => 'FE_Stillstand', 'caption' => FrigateHubText::t('An object counts as stationary after (detect.stationary.threshold, at %s frames/s)', $w['fps']), 'suffix' => 's', 'minimum' => 1, 'maximum' => 600, 'value' => $w['stillstand']],
         ];
         $schalter = [];
         if ($w['kennzeichen'] !== null) {
-            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Kennzeichen', 'caption' => 'Kennzeichen erkennen', 'value' => $w['kennzeichen']];
+            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Kennzeichen', 'caption' => FrigateHubText::t('Recognize license plates'), 'value' => $w['kennzeichen']];
         }
         if ($w['gesichter'] !== null) {
-            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Gesichter', 'caption' => 'Gesichter erkennen', 'value' => $w['gesichter']];
+            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Gesichter', 'caption' => FrigateHubText::t('Recognize faces'), 'value' => $w['gesichter']];
         }
-        $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Audio', 'caption' => 'Geräusche erkennen' . ($w['audioRolle'] ? '' : ' (Kamera hat keinen Stream mit Rolle „audio" — in Frigate ergänzen)'),
+        $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Audio', 'caption' => $w['audioRolle'] ? FrigateHubText::t('Detect sounds') : FrigateHubText::t('Detect sounds (camera has no stream with role "audio" — add it in Frigate)'),
             'value' => $w['audio'], 'enabled' => $w['audioRolle'] || $w['audio']];
         $items[] = ['type' => 'RowLayout', 'items' => $schalter];
         if ($w['kennzeichen'] === null || $w['gesichter'] === null) {
-            $items[] = ['type' => 'Label', 'caption' => 'Kennzeichen- bzw. Gesichtserkennung ist in Frigate global aus; einschalten lässt sie sich nur dort (braucht mehr Rechenleistung und ein Modell).', 'italic' => true];
+            $items[] = ['type' => 'Label', 'caption' => FrigateHubText::t('License plate or face recognition is switched off globally in Frigate; it can only be switched on there (needs more computing power and a model).'), 'italic' => true];
         }
-        $items[] = ['type' => 'ValidationTextBox', 'name' => 'FE_Hoeren', 'caption' => 'Auf diese Geräusche hören (audio.listen), z. B. ' . implode(', ', array_slice(FrigateHubEinstellungen::GERAEUSCHE, 0, 8)), 'value' => $liste($w['hoeren'])];
+        $items[] = ['type' => 'ValidationTextBox', 'name' => 'FE_Hoeren', 'caption' => FrigateHubText::t('Listen for these sounds (audio.listen), e.g. %s', implode(', ', array_slice(FrigateHubEinstellungen::GERAEUSCHE, 0, 8))), 'value' => $liste($w['hoeren'])];
         $werte = '["aufnahme" => $FE_Aufnahme, "alarme" => $FE_Alarme, "erkennungen" => $FE_Erkennungen, "dauer" => $FE_Dauer, "bewegung" => $FE_Bewegung,'
             . ' "verfolgen" => $FE_Verfolgen, "alarmObjekte" => $FE_AlarmObjekte, "alarmZonen" => $FE_AlarmZonen, "schnappschuss" => $FE_Schnappschuss,'
             . ' "schnappTage" => $FE_SchnappTage, "stillstand" => $FE_Stillstand, "audio" => $FE_Audio, "hoeren" => $FE_Hoeren, "zonen" => $z'
             . ($w['kennzeichen'] !== null ? ', "kennzeichen" => $FE_Kennzeichen' : '') . ($w['gesichter'] !== null ? ', "gesichter" => $FE_Gesichter' : '') . ']';
         $items[] = ['type' => 'RowLayout', 'items' => [
-            ['type' => 'Button', 'caption' => '💾 In Frigate speichern', 'confirm' => 'Geänderte Einstellungen in Frigate speichern? Frigate schreibt sie in seine config.yml und übernimmt sie sofort.',
+            ['type' => 'Button', 'caption' => FrigateHubText::t('💾 Save in Frigate'), 'confirm' => FrigateHubText::t('Save the changed settings in Frigate? Frigate writes them to its config.yml and applies them immediately.'),
                 'onClick' => '$z = []; foreach ($FE_Zonen as $x) { $z[] = $x; } echo FRIG_EinstellungenSpeichern($id, json_encode(' . $werte . '));'],
-            ['type' => 'Label', 'name' => 'EinstellungenStatus', 'caption' => 'Stand aus Frigate: ' . date('H:i:s') . '. Zum Neuladen das Formular schließen und wieder öffnen.'],
+            ['type' => 'Label', 'name' => 'EinstellungenStatus', 'caption' => FrigateHubText::t('State from Frigate: %s. To reload, close and reopen the form.', date('H:i:s'))],
         ]];
         return ['items' => $items] + $panel;
     }

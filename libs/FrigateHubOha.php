@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
+
 /**
  * OpenHomeAlarm (Burki24, Präfix OHA) auswerten — reines PHP, vom Prüfstand direkt aufgerufen.
  *
@@ -36,10 +38,10 @@ class FrigateHubOha
     {
         $s = is_string($antwort) ? json_decode($antwort, true) : $antwort;
         if (!is_array($s) || !is_array($s['Partitions'] ?? null)) {
-            return ['ok' => false, 'grund' => 'unerwartete Antwort von OHA_GetControlState()', 'bereiche' => []];
+            return ['ok' => false, 'grund' => FrigateHubText::t('unexpected response from OHA_GetControlState()'), 'bereiche' => []];
         }
         if (isset($s['ApiVersion']) && (int)$s['ApiVersion'] !== self::API) {
-            return ['ok' => false, 'grund' => 'OpenHomeAlarm meldet Control-API ' . (int)$s['ApiVersion'] . ', FrigateHub ist mit ' . self::API . ' geprüft — FrigateHub bitte aktualisieren',
+            return ['ok' => false, 'grund' => FrigateHubText::t('OpenHomeAlarm reports control API %d, FrigateHub is tested against %d — please update FrigateHub', (int)$s['ApiVersion'], self::API),
                 'bereiche' => []];
         }
         $bereiche = [];
@@ -86,15 +88,16 @@ class FrigateHubOha
     {
         $a = json_decode($antwort, true);
         $status = is_array($a) ? (string)($a['Status'] ?? '') : '';
-        return [
-            'accepted'            => '✅ angenommen — OpenHomeAlarm löst Alarm aus',
-            'partition_not_armed' => 'ℹ️ verworfen: Bereich ist nicht scharf',
-            'mode_not_allowed'    => 'ℹ️ verworfen: Scharfmodus ist für diese Quelle nicht freigegeben',
-            'duplicate'           => 'ℹ️ verworfen: dieses Ereignis kam schon an',
-            'already_in_alarm'    => 'ℹ️ Bereich ist bereits im Alarm',
-            'source_disabled'     => '⚠️ Quelle ist in OpenHomeAlarm abgeschaltet',
-            'api_disabled'        => '⚠️ Externe Alarmereignis-Schnittstelle ist in OpenHomeAlarm ausgeschaltet',
-        ][$status] ?? ('⚠️ unerwartete Antwort: ' . substr($antwort, 0, 120));
+        $text = [
+            'accepted'            => '✅ accepted — OpenHomeAlarm triggers the alarm',
+            'partition_not_armed' => 'ℹ️ discarded: partition is not armed',
+            'mode_not_allowed'    => 'ℹ️ discarded: arming mode is not enabled for this source',
+            'duplicate'           => 'ℹ️ discarded: this event has already arrived',
+            'already_in_alarm'    => 'ℹ️ partition is already in alarm',
+            'source_disabled'     => '⚠️ source is disabled in OpenHomeAlarm',
+            'api_disabled'        => '⚠️ external alarm event interface is switched off in OpenHomeAlarm',
+        ][$status] ?? null;
+        return $text !== null ? FrigateHubText::t($text) : FrigateHubText::t('⚠️ unexpected response: %s', substr($antwort, 0, 120));
     }
 
     /**
@@ -106,30 +109,32 @@ class FrigateHubOha
     {
         $a = is_string($antwort) ? json_decode($antwort, true) : $antwort;
         if (!is_array($a)) {
-            return ['ok' => false, 'text' => '⚠️ Keine Antwort von OHA_GetExternalAlarmEventApi().'];
+            return ['ok' => false, 'text' => FrigateHubText::t('⚠️ No response from OHA_GetExternalAlarmEventApi().')];
         }
         if ((int)($a['ApiVersion'] ?? 0) !== self::EREIGNIS_API) {
-            return ['ok' => false, 'text' => '⚠️ OpenHomeAlarm meldet Alarmereignis-Schnittstelle ' . (int)($a['ApiVersion'] ?? 0) . ', FrigateHub ist mit ' . self::EREIGNIS_API . ' gebaut — FrigateHub bitte aktualisieren. Melden ist aus.'];
+            return ['ok' => false, 'text' => FrigateHubText::t('⚠️ OpenHomeAlarm reports alarm event interface %d, FrigateHub is built for %d — please update FrigateHub. Reporting is off.', (int)($a['ApiVersion'] ?? 0), self::EREIGNIS_API)];
         }
         if (empty($a['Enabled'])) {
-            return ['ok' => false, 'text' => '⚠️ In OpenHomeAlarm ist die „Externe Alarmereignis-Schnittstelle" ausgeschaltet.'];
+            return ['ok' => false, 'text' => FrigateHubText::t('⚠️ The "External alarm event interface" is switched off in OpenHomeAlarm.')];
         }
         foreach ((array)($a['Sources'] ?? []) as $q) {
             if (is_array($q) && ($q['SourceID'] ?? '') === $quelle) {
                 $modi = array_keys(array_filter((array)($q['Modes'] ?? [])));
-                $namen = ['home' => 'Zuhause', 'away' => 'Abwesend', 'night' => 'Nacht'];
-                return ['ok' => !empty($q['Enabled']), 'text' => (!empty($q['Enabled']) ? '✅' : '⚠️') . ' Quelle „' . $quelle . '" ist in OpenHomeAlarm '
-                    . (!empty($q['Enabled']) ? 'freigegeben' : 'eingetragen, aber abgeschaltet') . ': Bereich ' . ($q['PartitionID'] ?? '?') . ', '
-                    . (implode('/', array_map(fn ($m) => $namen[$m] ?? $m, $modi)) ?: 'kein Modus') . '.'];
+                $namen = ['home' => 'Home', 'away' => 'Away', 'night' => 'Night'];
+                $modusText = implode('/', array_map(fn ($m) => isset($namen[$m]) ? FrigateHubText::t($namen[$m]) : $m, $modi)) ?: FrigateHubText::t('no mode');
+                return ['ok' => !empty($q['Enabled']), 'text' => !empty($q['Enabled'])
+                    ? FrigateHubText::t('✅ Source "%s" is enabled in OpenHomeAlarm: partition %s, %s.', $quelle, $q['PartitionID'] ?? '?', $modusText)
+                    : FrigateHubText::t('⚠️ Source "%s" is registered in OpenHomeAlarm but disabled: partition %s, %s.', $quelle, $q['PartitionID'] ?? '?', $modusText)];
             }
         }
-        return ['ok' => false, 'text' => '⚠️ Quelle „' . $quelle . '" ist in OpenHomeAlarm noch nicht eingetragen — dort unter „Externe Alarmereignis-Schnittstelle" mit genau dieser Quellen-ID hinzufügen.'];
+        return ['ok' => false, 'text' => FrigateHubText::t('⚠️ Source "%s" is not yet registered in OpenHomeAlarm — add it there under "External alarm event interface" with exactly this source ID.', $quelle)];
     }
 
     /** Klartext eines Zustands für die Statuszeile. */
     public static function zustandText(string $zustand): string
     {
-        return ['disarmed' => 'unscharf', 'exit_delay' => 'Ausgangsverzögerung', 'armed' => 'scharf',
-            'entry_delay' => 'Eingangsverzögerung', 'alarm' => 'Alarm'][$zustand] ?? $zustand;
+        $text = ['disarmed' => 'disarmed', 'exit_delay' => 'exit delay', 'armed' => 'armed',
+            'entry_delay' => 'entry delay', 'alarm' => 'alarm'][$zustand] ?? null;
+        return $text !== null ? FrigateHubText::t($text) : $zustand;
     }
 }

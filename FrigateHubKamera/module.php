@@ -249,7 +249,7 @@ class FrigateHubKamera extends IPSModule
                 $wert = FrigateHubTopics::anAus($payload);
                 if ($wert !== null) {
                     $ident = FrigateHubTopics::ident('Geraeusch', $d['typ']);
-                    $this->variableAnlegen($ident, $d['name'], VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('erkannt', 'still'), self::POS_GERAEUSCH);
+                    $this->variableAnlegen($ident, $d['name'], VARIABLETYPE_BOOLEAN, self::anzeigeJaNein(FrigateHubText::t('detected'), FrigateHubText::t('silent')), self::POS_GERAEUSCH);
                     $this->SetValue($ident, $wert);
                 }
                 break;
@@ -324,7 +324,7 @@ class FrigateHubKamera extends IPSModule
         }
         $schluessel = $this->schalterSchluessel($ident);
         if ($schluessel === '') {
-            throw new Exception('Unbekannte Aktion ' . $ident);
+            throw new Exception(FrigateHubText::t('Unknown action %s', $ident));
         }
         // Bewusst KEIN SetValue: Die Variable folgt der Bestätigung (…/state) von Frigate.
         // Kommt keine, bleibt der alte Wert stehen — so zeigt Symcon nie einen Zustand, den
@@ -345,7 +345,7 @@ class FrigateHubKamera extends IPSModule
     {
         $this->SetTimerInterval('Abgleich', 0);
         if ($this->kamera() === '') {
-            return 'ℹ️ Erst eine Kamera eintragen und übernehmen.';
+            return FrigateHubText::t('ℹ️ First enter a camera and apply.');
         }
         if ($this->apiUrl() !== '') {
             $text = $this->abgleichen();
@@ -357,8 +357,8 @@ class FrigateHubKamera extends IPSModule
         }
         $ok = $this->senden(FrigateHubTopics::praefix($this->ReadPropertyString('TopicPrefix')) . '/onConnect', '');
         return $ok
-            ? '✅ Anfrage an Frigate gesendet. Frigate schickt darauf nicht alle Zustände neu — vollständig wird es mit eingetragener Frigate-Adresse (HTTP-Abgleich).'
-            : '⛔ Senden fehlgeschlagen — hängt die Instanz unter einem aktiven MQTT-Server oder MQTT-Client? Details im Meldungsprotokoll.';
+            ? FrigateHubText::t('✅ Request sent to Frigate. Frigate does not resend all states in response — it becomes complete with a Frigate address entered (HTTP sync).')
+            : FrigateHubText::t('⛔ Sending failed — is the instance below an active MQTT server or MQTT client? Details in the message log.');
     }
 
     /**
@@ -368,13 +368,13 @@ class FrigateHubKamera extends IPSModule
     public function BildHolen(): string
     {
         if ($this->kamera() === '' || $this->apiUrl() === '') {
-            return 'ℹ️ Dafür braucht es Kamera-ID und Frigate-Adresse. Schnappschüsse zu Erkennungen kommen auch ohne Adresse per MQTT.';
+            return FrigateHubText::t('ℹ️ This needs the camera ID and the Frigate address. Snapshots of detections also arrive via MQTT without an address.');
         }
         $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(self::LIVEBILD_HOEHE) . $this->zeitstempel(), 'image/jpeg');
         if ($bild === null || FrigateHubTopics::bildBytes($bild) === null) {
-            $text = '⛔ Kein Bild von Frigate (' . ($bild === null ? $this->apiFehler : 'Antwort ist kein JPEG') . ').';
+            $text = FrigateHubText::t('⛔ No image from Frigate (%s).', $bild === null ? $this->apiFehler : FrigateHubText::t('response is not a JPEG'));
         } else {
-            $this->bildSetzen($bild, 'Livebild');
+            $this->bildSetzen($bild, FrigateHubText::t('Live image'));
             $text = '✅ ' . $this->ReadAttributeString('Bildstatus');
         }
         $this->UpdateFormField('Bildstatus', 'caption', $text);
@@ -384,7 +384,7 @@ class FrigateHubKamera extends IPSModule
     /** Probemeldung an alle eingetragenen Ziele. Rückgabe: Text fürs Formular. */
     public function PushTesten(): string
     {
-        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), 'Probemeldung von FrigateHub – so sieht ein Alarm aus.', true);
+        $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), FrigateHubText::t('Test message from FrigateHub – this is what an alert looks like.'), true);
         $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
         return $text;
     }
@@ -398,7 +398,7 @@ class FrigateHubKamera extends IPSModule
     public function MeldungMitSchnappschuss(string $Text, bool $Livebild): string
     {
         $text = trim($Text) !== '' ? trim($Text) : (string)@$this->GetValue('LetztesObjekt');
-        $status = $this->pushSenden('📷 ' . IPS_GetName($this->InstanceID), $text !== '' ? $text : 'Meldung von FrigateHub', $Livebild);
+        $status = $this->pushSenden('📷 ' . IPS_GetName($this->InstanceID), $text !== '' ? $text : FrigateHubText::t('Message from FrigateHub'), $Livebild);
         $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
         return $status;
     }
@@ -489,8 +489,9 @@ class FrigateHubKamera extends IPSModule
             }
         }
         if ($idents !== []) {
-            $this->LogMessage('OpenHomeAlarm: Bereich „' . $bereich . '" ' . $lage . ' → ' . implode(', ', array_map(fn ($i) => $i === 'Schalter_recordings' ? 'Aufnahme' : 'Objekterkennung', $idents))
-                . ($an ? ' an' : ' aus'), KL_MESSAGE);
+            $schaltet = implode(', ', array_map(fn ($i) => $i === 'Schalter_recordings' ? FrigateHubText::t('Recording') : FrigateHubText::t('Object detection'), $idents));
+            $this->LogMessage($an ? FrigateHubText::t('OpenHomeAlarm: area "%s" armed → %s on', $bereich, $schaltet)
+                : FrigateHubText::t('OpenHomeAlarm: area "%s" disarmed → %s off', $bereich, $schaltet), KL_MESSAGE);
         }
     }
 
@@ -515,14 +516,14 @@ class FrigateHubKamera extends IPSModule
         }
         $ereignis = FrigateHubOha::ereignis($quelle, $reviewId, time());
         if ($ereignis === null) {
-            $this->WriteAttributeString('OhaMeldestatus', '⛔ ' . date('d.m.Y H:i:s') . ': Quellen-ID ungültig.');
+            $this->WriteAttributeString('OhaMeldestatus', FrigateHubText::t('⛔ %s: source ID invalid.', date('d.m.Y H:i:s')));
             return;
         }
         $this->WriteAttributeString('OhaGemeldet', $reviewId);
         try {
             $text = FrigateHubOha::ergebnisText((string)OHA_TriggerExternalAlarmEvent($id, $ereignis));
         } catch (Throwable $e) {
-            $text = '⛔ abgelehnt: ' . $e->getMessage();
+            $text = FrigateHubText::t('⛔ rejected: %s', $e->getMessage());
         }
         $this->WriteAttributeString('OhaMeldestatus', date('d.m.Y H:i:s') . ' ' . $text);
         $this->SendDebug('OpenHomeAlarm', $ereignis . ' → ' . $text, 0);
@@ -538,7 +539,7 @@ class FrigateHubKamera extends IPSModule
         $quelle = trim($this->ReadPropertyString('OhaQuelle'));
         $id = $this->ohaInstanz();
         if ($quelle === '' || $id === 0 || !function_exists('OHA_TriggerExternalAlarmEvent') || !function_exists('OHA_GetExternalAlarmEventApi')) {
-            return 'ℹ️ Dafür braucht es OpenHomeAlarm mit Alarmereignis-Schnittstelle und eine Quellen-ID.';
+            return FrigateHubText::t('ℹ️ This needs OpenHomeAlarm with the alarm event interface and a source ID.');
         }
         $api = json_decode((string)@OHA_GetExternalAlarmEventApi($id), true);
         $bereich = '';
@@ -552,15 +553,19 @@ class FrigateHubKamera extends IPSModule
             return '⚠️ ' . FrigateHubOha::quelleStatus($api, $quelle)['text'];
         }
         if (FrigateHubOha::lage($stand['bereiche'][$bereich] ?? null) !== 'unscharf') {
-            return '⛔ Bereich „' . $bereich . '" ist nicht unscharf — ein Probeereignis würde einen echten Alarm auslösen. Bitte erst unscharf schalten.';
+            return FrigateHubText::t('⛔ Area "%s" is not disarmed — a test event would trigger a real alarm. Please disarm first.', $bereich);
         }
         $ereignis = FrigateHubOha::ereignis($quelle, 'probe-' . time(), time());
+        // Erfolg am Status-Schlüssel erkennen, nicht am (übersetzten) Text
+        $verworfen = false;
         try {
-            $text = FrigateHubOha::ergebnisText((string)OHA_TriggerExternalAlarmEvent($id, (string)$ereignis));
+            $antwort = (string)OHA_TriggerExternalAlarmEvent($id, (string)$ereignis);
+            $verworfen = (string)(json_decode($antwort, true)['Status'] ?? '') === 'partition_not_armed';
+            $text = FrigateHubOha::ergebnisText($antwort);
         } catch (Throwable $e) {
-            $text = '⛔ abgelehnt: ' . $e->getMessage();
+            $text = FrigateHubText::t('⛔ rejected: %s', $e->getMessage());
         }
-        return 'Probeereignis an OpenHomeAlarm: ' . $text . (strpos($text, 'nicht scharf') !== false ? ' — der Weg funktioniert.' : '');
+        return $verworfen ? FrigateHubText::t('Test event to OpenHomeAlarm: %s — the path works.', $text) : FrigateHubText::t('Test event to OpenHomeAlarm: %s', $text);
     }
 
     private function ohaQuellenStatus(): string
@@ -568,10 +573,10 @@ class FrigateHubKamera extends IPSModule
         $quelle = trim($this->ReadPropertyString('OhaQuelle'));
         $id = $this->ohaInstanz();
         if ($quelle === '') {
-            return 'ℹ️ Melden ist aus (keine Quellen-ID).';
+            return FrigateHubText::t('ℹ️ Reporting is off (no source ID).');
         }
         if ($id === 0 || !function_exists('OHA_GetExternalAlarmEventApi')) {
-            return 'ℹ️ Dieses OpenHomeAlarm hat noch keine Externe Alarmereignis-Schnittstelle (ab 1.423).';
+            return FrigateHubText::t('ℹ️ This OpenHomeAlarm does not have the external alarm event interface yet (from 1.423).');
         }
         try {
             $text = FrigateHubOha::quelleStatus(@OHA_GetExternalAlarmEventApi($id), $quelle)['text'];
@@ -579,7 +584,7 @@ class FrigateHubKamera extends IPSModule
             $text = '⚠️ ' . $e->getMessage();
         }
         $letzte = $this->ReadAttributeString('OhaMeldestatus');
-        return $text . ($letzte !== '' ? ' Letzte Meldung: ' . $letzte : '');
+        return $letzte !== '' ? FrigateHubText::t('%s Last report: %s', $text, $letzte) : $text;
     }
 
     /** Statuszeile und Bereiche fürs Formular. */
@@ -588,45 +593,45 @@ class FrigateHubKamera extends IPSModule
         $id = $this->ohaInstanz();
         $stand = $this->ohaStand();
         $bereich = trim($this->ReadPropertyString('OhaBereich'));
-        $optionen = [['caption' => 'aus (keine Kopplung)', 'value' => '']];
+        $optionen = [['caption' => FrigateHubText::t('off (no coupling)'), 'value' => '']];
         if ($id === 0) {
-            $status = 'ℹ️ OpenHomeAlarm ist nicht installiert — dann gibt es hier nichts zu tun. FrigateHub arbeitet ohne es genauso.';
+            $status = FrigateHubText::t('ℹ️ OpenHomeAlarm is not installed — then there is nothing to do here. FrigateHub works just the same without it.');
         } elseif ($stand === null || !$stand['ok']) {
-            $status = '⚠️ OpenHomeAlarm #' . $id . ' gefunden, aber ' . ($stand['grund'] ?? 'OHA_GetControlState() fehlt') . '. Kopplung ist aus.';
+            $status = FrigateHubText::t('⚠️ OpenHomeAlarm #%s found, but %s. Coupling is off.', $id, $stand['grund'] ?? FrigateHubText::t('OHA_GetControlState() is missing'));
         } else {
             $teile = [];
             foreach ($stand['bereiche'] as $b => $z) {
                 $teile[] = $b . ' (' . FrigateHubOha::zustandText($z) . ')';
-                $optionen[] = ['caption' => 'Bereich ' . $b, 'value' => (string)$b];
+                $optionen[] = ['caption' => FrigateHubText::t('Area %s', $b), 'value' => (string)$b];
             }
-            $status = '✅ OpenHomeAlarm #' . $id . ' „' . IPS_GetName($id) . '" gefunden — Bereiche: ' . (implode(', ', $teile) ?: 'keine');
+            $status = FrigateHubText::t('✅ OpenHomeAlarm #%s "%s" found — areas: %s', $id, IPS_GetName($id), implode(', ', $teile) ?: FrigateHubText::t('none (areas)'));
         }
         if ($bereich !== '' && !in_array($bereich, array_column($optionen, 'value'), true)) {
-            $optionen[] = ['caption' => 'Bereich ' . $bereich . ' (derzeit nicht gemeldet)', 'value' => $bereich];
+            $optionen[] = ['caption' => FrigateHubText::t('Area %s (currently not reported)', $bereich), 'value' => $bereich];
         }
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🛡️  OpenHomeAlarm (optional)',
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🛡️  OpenHomeAlarm (optional)'),
             'items' => [
-                ['type' => 'Label', 'caption' => 'Optionale Zusammenarbeit mit der Alarmanlage OpenHomeAlarm (Burki24). Melder richtest du in OpenHomeAlarm ein (z. B. „Alarm" oder einen Zonen-Zähler dieser Kamera), Meldungen mit Bild über FRIG_MeldungMitSchnappschuss als Alarmaktion. Hier nur: was diese Kamera tut, wenn ein Bereich scharf oder unscharf wird.'],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Optional cooperation with the alarm system OpenHomeAlarm (Burki24). You set up sensors in OpenHomeAlarm (e.g. "Alert" or a zone counter of this camera), notifications with image via FRIG_MeldungMitSchnappschuss as alarm action. Here only: what this camera does when an area is armed or disarmed.')],
                 ['type' => 'Label', 'name' => 'OhaStatus', 'caption' => $status],
-                ['type' => 'Select', 'name' => 'OhaBereich', 'caption' => 'Bereich', 'options' => $optionen],
-                ['type' => 'Select', 'name' => 'OhaBeiScharf', 'caption' => 'Wenn scharf', 'options' => [
-                    ['caption' => 'nichts tun', 'value' => 0],
-                    ['caption' => 'Aufnahme einschalten', 'value' => 1],
-                    ['caption' => 'Objekterkennung einschalten', 'value' => 2],
-                    ['caption' => 'Aufnahme und Objekterkennung einschalten', 'value' => 3],
+                ['type' => 'Select', 'name' => 'OhaBereich', 'caption' => FrigateHubText::t('Area'), 'options' => $optionen],
+                ['type' => 'Select', 'name' => 'OhaBeiScharf', 'caption' => FrigateHubText::t('When armed'), 'options' => [
+                    ['caption' => FrigateHubText::t('do nothing'), 'value' => 0],
+                    ['caption' => FrigateHubText::t('switch on recording'), 'value' => 1],
+                    ['caption' => FrigateHubText::t('switch on object detection'), 'value' => 2],
+                    ['caption' => FrigateHubText::t('switch on recording and object detection'), 'value' => 3],
                 ]],
-                ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => 'Beim Unscharfschalten wieder ausschalten'],
-                ['type' => 'Label', 'caption' => 'Geschaltet wird nur beim tatsächlichen Wechsel (scharf erst nach der Ausgangsverzögerung), nicht beim Übernehmen. Frigate bestätigt den neuen Zustand, die Variablen folgen.'],
-                ['type' => 'Label', 'caption' => 'Alarme melden (Externe Alarmereignis-Schnittstelle von OpenHomeAlarm): FrigateHub meldet jeden neuen Frigate-Alarm dieser Kamera als bestätigtes Ereignis. Ob daraus ein Alarm wird, entscheidet OpenHomeAlarm — nur wenn der Bereich der Quelle in einem freigegebenen Modus scharf ist. In OpenHomeAlarm dieselbe Quellen-ID eintragen.'],
-                ['type' => 'ValidationTextBox', 'name' => 'OhaQuelle', 'caption' => 'Quellen-ID (leer = nicht melden), z. B. frigate-haustuer', 'validate' => '^$|^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$'],
-                ['type' => 'Select', 'name' => 'OhaMelden', 'caption' => 'Melden bei', 'options' => [
-                    ['caption' => 'nichts', 'value' => 0],
-                    ['caption' => 'Frigate-Alarm (Einstufung „Alarm")', 'value' => 1],
-                    ['caption' => 'Frigate-Alarm und Erkennung', 'value' => 2],
+                ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => FrigateHubText::t('Switch off again when disarming')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Switching happens only on an actual change (armed only after the exit delay), not when applying. Frigate confirms the new state, the variables follow.')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Report alerts (external alarm event interface of OpenHomeAlarm): FrigateHub reports every new Frigate alert of this camera as a confirmed event. Whether it becomes an alarm is decided by OpenHomeAlarm — only if the source\'s area is armed in an enabled mode. Enter the same source ID in OpenHomeAlarm.')],
+                ['type' => 'ValidationTextBox', 'name' => 'OhaQuelle', 'caption' => FrigateHubText::t('Source ID (empty = do not report), e.g. frigate-haustuer'), 'validate' => '^$|^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$'],
+                ['type' => 'Select', 'name' => 'OhaMelden', 'caption' => FrigateHubText::t('Report on'), 'options' => [
+                    ['caption' => FrigateHubText::t('nothing'), 'value' => 0],
+                    ['caption' => FrigateHubText::t('Frigate alert (severity "alert")'), 'value' => 1],
+                    ['caption' => FrigateHubText::t('Frigate alert and detection'), 'value' => 2],
                 ]],
                 ['type' => 'Label', 'name' => 'OhaQuellenStatus', 'caption' => $this->ohaQuellenStatus()],
-                ['type' => 'Button', 'caption' => 'Verbindung prüfen (nur wenn unscharf)', 'onClick' => 'echo FRIG_OhaVerbindungPruefen($id);'],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('Check connection (only when disarmed)'), 'onClick' => 'echo FRIG_OhaVerbindungPruefen($id);'],
             ],
         ];
     }
@@ -639,7 +644,7 @@ class FrigateHubKamera extends IPSModule
         if ($this->kamera() !== '') {
             $this->filterSetzen();
         }
-        return '✅ ' . $anzahl . ' Zone(n) vergessen. Sie werden beim nächsten Ereignis in der Zone neu gelernt; vorhandene Variablen bleiben (Archiv).';
+        return FrigateHubText::t('✅ %d zone(s) forgotten. They are learned again with the next event in the zone; existing variables remain (archive).', $anzahl);
     }
 
     /* ==================================================================== Formular */
@@ -650,69 +655,69 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         return [
             'kamera' => [
-                'type' => 'ExpansionPanel', 'expanded' => $kamera === '', 'caption' => '📷  Frigate-Kamera',
+                'type' => 'ExpansionPanel', 'expanded' => $kamera === '', 'caption' => FrigateHubText::t('📷  Frigate camera'),
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Die Kamera-ID aus der Frigate-Konfiguration (Abschnitt cameras:), nicht der Anzeigename. Groß-/Kleinschreibung zählt, z. B. „haustuer" oder „Door-Cam".'],
-                    ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => 'Kamera-ID'],
-                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT-Präfix (Frigate: mqtt.topic_prefix, Standard „frigate")'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('The camera ID from the Frigate configuration (section cameras:), not the display name. Case matters, e.g. "haustuer" or "Door-Cam".')],
+                    ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => FrigateHubText::t('Camera ID')],
+                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => FrigateHubText::t('MQTT prefix (Frigate: mqtt.topic_prefix, default "frigate")')],
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
-                    ...$this->apiFormular('Optional, aber empfohlen: Ohne Adresse kommen Schalter erst, wenn Frigate sie per MQTT meldet, und Schnappschüsse nur als Ausschnitt.'),
+                    ...$this->apiFormular(FrigateHubText::t('Optional, but recommended: without an address, switches only arrive when Frigate reports them via MQTT, and snapshots only as a crop.')),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
-                    ['type' => 'Button', 'caption' => 'Zustand jetzt abfragen', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Query state now'), 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
                 ],
             ],
             'schnappschuss' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖼️  Schnappschuss',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🖼️  Snapshot'),
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Das Medienobjekt „Schnappschuss" zeigt das Bild der letzten Erkennung (Frigate: snapshots aktiviert). Mit Frigate-Adresse kommt es in voller Größe, sonst als Ausschnitt per MQTT (Größe in Frigate unter mqtt: height/crop). Mit Adresse lässt sich auch das aktuelle Kamerabild holen.'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('The media object "Snapshot" shows the image of the last detection (Frigate: snapshots enabled). With a Frigate address it comes in full size, otherwise as a crop via MQTT (size in Frigate under mqtt: height/crop). With an address the current camera image can also be fetched.')],
                     ['type' => 'Label', 'name' => 'Bildstatus', 'caption' => $this->bildstatus()],
-                    ['type' => 'Button', 'caption' => 'Aktuelles Kamerabild holen', 'onClick' => 'echo FRIG_BildHolen($id);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Fetch current camera image'), 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
             ],
             'sensor' => $this->sensorPanel(),
             'einstellungen' => $this->einstellungenPanel(),
             'anmeldung' => $this->apiAnmeldePanel(),
             'meldungen' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push und Meldungen',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🔔  Push and notifications'),
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Meldet jeden neuen Alarm dieser Kamera an die Ziele, einmal je Alarm. Was ein Alarm ist, legst du in Frigate fest (review: alerts: labels / required_zones). Ohne Ziel bleibt der Push aus.'],
-                    ['type' => 'Label', 'caption' => 'Push-Nachrichten (Kachel-Visualisierung, WebFront) können kein Bild mitschicken; Antippen öffnet diese Kamera. Als SMTP-Instanz eingetragen, kommt die Meldung als E-Mail mit dem aktuellen Kamerabild (Rahmen um erkannte Objekte).'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('Reports every new alert of this camera to the targets, once per alert. What counts as an alert is set in Frigate (review: alerts: labels / required_zones). Without a target, push stays off.')],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('Push messages (tile visualization, WebFront) cannot include an image; tapping opens this camera. Entered as SMTP instance, the notification arrives as an e-mail with the current camera image (frames around detected objects).')],
                     $this->pushZielListe(),
-                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Ton', 'options' => $this->tonOptionen()],
-                    ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => 'Mindestabstand zwischen zwei Meldungen', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
-                    ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => 'KI-Einschätzung von Frigate (GenAI) zum Alarm nachreichen und verdächtige Erkennungen melden'],
+                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => FrigateHubText::t('Sound'), 'options' => $this->tonOptionen()],
+                    ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => FrigateHubText::t('Minimum interval between two notifications'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                    ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => FrigateHubText::t('Follow up the alert with Frigate\'s AI assessment (GenAI) and report suspicious detections')],
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
-                    ['type' => 'Button', 'caption' => 'Probemeldung senden', 'onClick' => 'echo FRIG_PushTesten($id);'],
-                    ['type' => 'Label', 'caption' => 'Für Alarmanlagen und Regeln (z. B. OpenHomeAlarm, DG65-Toolkit Automat, Skripte): FRIG_MeldungMitSchnappschuss($id, "Text", true) schickt eine Meldung mit dem aktuellen Kamerabild an dieselben Ziele — in Symcon-Aktionen als „Instanzfunktion ausführen". Leerer Text: „Letztes Objekt"; false statt true: letzter Schnappschuss statt Livebild.'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Send test message'), 'onClick' => 'echo FRIG_PushTesten($id);'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('For alarm systems and rules (e.g. OpenHomeAlarm, DG65-Toolkit Automat, scripts): FRIG_MeldungMitSchnappschuss($id, "Text", true) sends a notification with the current camera image to the same targets — in Symcon actions as "Run instance function". Empty text: "Last object"; false instead of true: last snapshot instead of live image.')],
                 ],
             ],
             'kachel' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Kachel und IPSView',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🖥️  Tile and IPSView'),
                 'items' => [
-                    ['type' => 'Label', 'caption' => 'Diese Instanz ist zugleich eine Kachel für die Kachel-Visualisierung: Livebild, Alarm, Zähler, die letzten Ereignisse mit Vorschaubild, Schnappschuss und Clip per Tipp sowie Schalter für Erkennung, Aufnahme und Schnappschüsse. Livebild, Vorschaubilder und Clips brauchen die Frigate-Adresse.'],
-                    ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => 'Livebild neu laden alle (0 = nur auf Tipp)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
-                    ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => 'Erkannte Objekte im Livebild einrahmen'],
-                    ['type' => 'CheckBox', 'name' => 'Zeitstempel', 'caption' => 'Frigates Zeitstempel ins Livebild (Kachel, Meldungsbild, „Aktuelles Kamerabild holen") — aus, wenn die Kamera selbst schon die Uhrzeit einblendet'],
-                    ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => 'Livevideo, wenn Frigates go2rtc einen Stream für die Kamera hat'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('This instance is also a tile for the tile visualization: live image, alert, counters, the latest events with preview image, snapshot and clip on tap as well as switches for detection, recording and snapshots. Live image, preview images and clips need the Frigate address.')],
+                    ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => FrigateHubText::t('Reload live image every (0 = only on tap)'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
+                    ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => FrigateHubText::t('Frame detected objects in the live image')],
+                    ['type' => 'CheckBox', 'name' => 'Zeitstempel', 'caption' => FrigateHubText::t('Frigate\'s timestamp in the live image (tile, notification image, "Fetch current camera image") — off if the camera already shows the time itself')],
+                    ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => FrigateHubText::t('Live video if Frigate\'s go2rtc has a stream for the camera')],
                     ['type' => 'Label', 'name' => 'Videostatus', 'caption' => $this->videostatus()],
-                    ['type' => 'Label', 'caption' => 'Die Bilder laufen über den WebHook ' . $this->hookPfad() . ' mit einem geheimen Schlüssel dieser Instanz. Wurde eine Bildadresse weitergegeben, macht ein neuer Schlüssel sie ungültig.'],
-                    ['type' => 'Label', 'caption' => 'IPSView oder Browser: Dieselbe Oberfläche gibt es als eigenständige Seite. In IPSView ein Webseiten-Element (WebView) anlegen und die Adresse von „Adresse für IPSView anzeigen" eintragen (<Symcon-IP> durch die Adresse des Symcon-Servers ersetzen, 3777 ist Symcons Standard-Port).'],
-                    ['type' => 'Button', 'caption' => 'Adresse für IPSView anzeigen', 'onClick' => 'echo FRIG_SeiteAdresse($id);'],
-                    ['type' => 'CheckBox', 'name' => 'SeiteBedienung', 'caption' => 'Schalter (Erkennung, Aufnahme, Schnappschüsse) auf der eigenständigen Seite bedienbar'],
-                    ['type' => 'Label', 'caption' => '⚠️ Die Seite ist ohne Symcon-Anmeldung erreichbar: Wer die Adresse mit Schlüssel kennt, sieht die Kamera. Adresse nicht weitergeben; im Zweifel den Schlüssel erneuern (danach in IPSView die neue Adresse eintragen). Alternativ die Variablen der Instanz direkt in IPSView verwenden, dann gilt die IPSView-Anmeldung.'],
-                    ['type' => 'Button', 'caption' => 'Kachel-Schlüssel erneuern', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('The images go through the WebHook %s with a secret key of this instance. If an image address was passed on, a new key invalidates it.', $this->hookPfad())],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('IPSView or browser: the same interface is available as a standalone page. In IPSView create a web page element (WebView) and enter the address from "Show address for IPSView" (replace <Symcon-IP> with the address of the Symcon server, 3777 is Symcon\'s default port).')],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Show address for IPSView'), 'onClick' => 'echo FRIG_SeiteAdresse($id);'],
+                    ['type' => 'CheckBox', 'name' => 'SeiteBedienung', 'caption' => FrigateHubText::t('Switches (detection, recording, snapshots) can be operated on the standalone page')],
+                    ['type' => 'Label', 'caption' => FrigateHubText::t('⚠️ The page is reachable without Symcon login: whoever knows the address with key sees the camera. Do not pass on the address; if in doubt, renew the key (then enter the new address in IPSView). Alternatively use the instance\'s variables directly in IPSView, then the IPSView login applies.')],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Renew tile key'), 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
                 ],
             ],
             'openhomealarm' => $this->ohaFormular(),
             'zonen' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🗺️  Zonen',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🗺️  Zones'),
                 'items' => [
                     ['type' => 'Label', 'caption' => $this->zonenstatus()],
-                    ['type' => 'Button', 'caption' => 'Gelernte Zonen vergessen', 'onClick' => 'echo FRIG_ZonenVergessen($id);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Forget learned zones'), 'onClick' => 'echo FRIG_ZonenVergessen($id);'],
                 ],
             ],
             'nachrichten' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '📨  Empfangene Nachrichten',
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('📨  Received messages'),
                 'items' => $this->nachrichtenLabels(),
             ],
         ];
@@ -721,8 +726,8 @@ class FrigateHubKamera extends IPSModule
     public function GetConfigurationForm()
     {
         $status = [
-            ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
-            ['code' => 104, 'icon' => 'inactive', 'caption' => 'Bitte die Kamera-ID aus Frigate eintragen'],
+            ['code' => 102, 'icon' => 'active', 'caption' => FrigateHubText::t('Ready')],
+            ['code' => 104, 'icon' => 'inactive', 'caption' => FrigateHubText::t('Please enter the camera ID from Frigate')],
         ];
         $teile = $this->formAufbauTeilen($this->frigatehubFachpanels());
         return $this->frigatehubFormular($teile['elements'], $teile['actions'], $status);
@@ -736,25 +741,25 @@ class FrigateHubKamera extends IPSModule
     protected function frigatehubZweck(): array
     {
         return [
-            'Bindet eine Kamera aus Frigate (Videoüberwachung mit KI-Objekterkennung) an Symcon an: Personen, Autos, Tiere und Pakete je Kamera und Zone, Bewegung, Alarm und die letzten Ereignisse als Variablen.',
-            'Damit lassen sich Abläufe auslösen, z. B. Licht bei einer Person in der Einfahrt oder eine Push-Nachricht bei einem Paket. Erkennung, Aufnahme und Zonen kannst du aus Symcon heraus schalten.',
+            FrigateHubText::t('Connects a camera from Frigate (video surveillance with AI object detection) to Symcon: persons, cars, animals and packages per camera and zone, motion, alert and the latest events as variables.'),
+            FrigateHubText::t('This lets you trigger automations, e.g. light for a person in the driveway or a push message for a package. Detection, recording and zones can be switched from within Symcon.'),
         ];
     }
 
     protected function frigatehubDoku(): array
     {
         return [
-            'Voraussetzung: Frigate sendet per MQTT an den MQTT-Server bzw. Broker, unter dem diese Instanz hängt (Frigate-Konfiguration mqtt: host/port/user/password).',
-            'Je Kamera eine Instanz. Zähler, Zonen, Geräusche und Schalter entstehen von selbst, sobald Frigate sie zum ersten Mal meldet.',
-            'Mit eingetragener Frigate-Adresse fragt die Instanz nach dem Übernehmen und nach jedem Symcon-Start Schalter und Zonen über Frigates API ab. Ohne Adresse schickt Frigate Schalterzustände per MQTT nur, wenn es sich neu verbindet oder etwas umgeschaltet wird.',
-            'Das Medienobjekt „Schnappschuss" entsteht mit dem ersten Bild: dem ersten Schnappschuss einer Erkennung oder, mit Frigate-Adresse, dem aktuellen Kamerabild beim ersten Abgleich. Es liegt im Arbeitsspeicher (schont SSD/SD-Karte) und wird beim Beenden von Symcon gesichert.',
-            'Push bei Alarm: je neuem Alarm eine Meldung an die eingetragenen Visualisierungen, Titel = Name dieser Instanz, Text = Zeit, Objekte und Zonen. Steigt eine Erkennung später zum Alarm auf, kommt die Meldung dann.',
-            'Kachel: Die Instanz lässt sich direkt in die Kachel-Visualisierung legen. Das Livebild lädt nur, solange die Kachel sichtbar ist. Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip, ein Tipp aufs Livebild vergrößert es.',
-            'Zonen kommen aus dem Abgleich oder aus den Ereignissen dieser Kamera. Zähler je Zone entstehen, sobald Frigate dort ein Objekt zählt.',
-            'Schalter (Erkennung, Aufnahme, Masken …) übernehmen einen Wert erst, wenn Frigate ihn bestätigt. Bleibt eine Bestätigung aus, steht der alte Wert weiter da.',
-            '„Alarm" und „Erkennung" folgen dem Prüfstatus von Frigate (review_status): Alarm = Frigate stuft das Ereignis als Alarm ein, Erkennung = Alarm oder Erkennung.',
+            FrigateHubText::t('Requirement: Frigate sends via MQTT to the MQTT server or broker this instance is attached to (Frigate configuration mqtt: host/port/user/password).'),
+            FrigateHubText::t('One instance per camera. Counters, zones, sounds and switches are created automatically as soon as Frigate reports them for the first time.'),
+            FrigateHubText::t('With a Frigate address entered, the instance queries switches and zones via Frigate\'s API after applying and after every Symcon start. Without an address, Frigate only sends switch states via MQTT when it reconnects or something is switched.'),
+            FrigateHubText::t('The media object "Snapshot" is created with the first image: the first snapshot of a detection or, with a Frigate address, the current camera image at the first sync. It is kept in memory (spares SSD/SD card) and saved when Symcon shuts down.'),
+            FrigateHubText::t('Push on alert: one notification per new alert to the entered visualizations, title = name of this instance, text = time, objects and zones. If a detection is later upgraded to an alert, the notification comes then.'),
+            FrigateHubText::t('Tile: the instance can be placed directly in the tile visualization. The live image only loads while the tile is visible. A tap on an event shows snapshot and clip, a tap on the live image enlarges it.'),
+            FrigateHubText::t('Zones come from the sync or from the events of this camera. Counters per zone are created as soon as Frigate counts an object there.'),
+            FrigateHubText::t('Switches (detection, recording, masks …) only take on a value once Frigate confirms it. If no confirmation arrives, the old value remains.'),
+            FrigateHubText::t('"Alert" and "Detection" follow Frigate\'s review status (review_status): alert = Frigate classifies the event as an alert, detection = alert or detection.'),
             ...$this->sensorDoku(),
-            'In Frigate einstellen: zeigt beim Öffnen Frigates Einstellungen dieser Kamera und schreibt nur Geändertes über Frigates API zurück (PUT /api/config/set, wie Frigates eigene Oberfläche, sofort wirksam). Frigate prüft die Werte und nimmt ungültige zurück; der Grund erscheint im Formular. Braucht die Rolle „admin" (Port 5000 hat sie immer). Zonen/Masken zeichnen und Kameras anlegen bleiben in Frigate.',
+            FrigateHubText::t('Configure in Frigate: shows Frigate\'s settings for this camera when opened and writes back only what changed via Frigate\'s API (PUT /api/config/set, like Frigate\'s own interface, effective immediately). Frigate checks the values and reverts invalid ones; the reason appears in the form. Needs the role "admin" (port 5000 always has it). Drawing zones/masks and adding cameras stay in Frigate.'),
         ];
     }
 
@@ -772,12 +777,12 @@ class FrigateHubKamera extends IPSModule
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
             $text = '⛔ ' . date('d.m.Y H:i:s') . ': ' . $this->apiFehlerText();
-            $this->LogMessage('Abgleich mit Frigate fehlgeschlagen: ' . $this->apiFehler, KL_WARNING);
+            $this->LogMessage(FrigateHubText::t('Sync with Frigate failed: %s', $this->apiFehler), KL_WARNING);
             return $text;
         }
         $kameras = (array)($config['cameras'] ?? []);
         if (!is_array($kameras[$kamera] ?? null)) {
-            return '⛔ Frigate kennt keine Kamera „' . $kamera . '". Vorhanden: ' . (implode(', ', array_keys($kameras)) ?: 'keine') . '.';
+            return FrigateHubText::t('⛔ Frigate has no camera "%s". Available: %s.', $kamera, implode(', ', array_keys($kameras)) ?: FrigateHubText::t('none (cameras)'));
         }
         $this->SetValue('Verfuegbar', true);
         $this->WriteAttributeString('Einheit', ($config['ui']['unit_system'] ?? 'metric') === 'imperial' ? ' mph' : ' km/h');
@@ -819,9 +824,13 @@ class FrigateHubKamera extends IPSModule
         $this->ereignisseLaden();
         $this->kachelSenden();
 
-        return '✅ Abgleich am ' . date('d.m.Y H:i:s') . ' Uhr: ' . count($schalter) . ' Schalter'
-            . ($geschont > 0 ? ' (davon ' . $geschont . ' gerade erst geschaltet, MQTT-Stand behalten)' : '') . ', '
-            . count($this->zonen()) . ' Zone(n)' . (is_numeric($fps) ? ', Kamera ' . ((float)$fps > 0 ? 'liefert Bilder' : 'liefert keine Bilder') : '') . '.';
+        $teile = [FrigateHubText::t('%d switches', count($schalter))
+            . ($geschont > 0 ? ' ' . FrigateHubText::t('(of which %d were just switched, MQTT state kept)', $geschont) : ''),
+            FrigateHubText::t('%d zone(s)', count($this->zonen()))];
+        if (is_numeric($fps)) {
+            $teile[] = (float)$fps > 0 ? FrigateHubText::t('camera delivers images') : FrigateHubText::t('camera delivers no images');
+        }
+        return FrigateHubText::t('✅ Synced on %s: %s.', date('d.m.Y H:i:s'), implode(', ', $teile));
     }
 
     /** Merkt, dass ein Schalter gerade per MQTT bestätigt oder von hier geschaltet wurde. */
@@ -848,7 +857,7 @@ class FrigateHubKamera extends IPSModule
      */
     private function schnappschussVerarbeiten(string $label, string $payload): void
     {
-        $name = 'Schnappschuss ' . FrigateHubTopics::objektEinzahl($label);
+        $name = FrigateHubText::t('Snapshot %s', FrigateHubTopics::objektEinzahl($label));
         if ($this->apiUrl() !== '') {
             $voll = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/' . rawurlencode($label) . '/snapshot.jpg', 'image/jpeg');
             if ($voll !== null && FrigateHubTopics::bildBytes($voll) !== null) {
@@ -862,7 +871,7 @@ class FrigateHubKamera extends IPSModule
             $this->SendDebug('Kein JPEG', $label . ' (' . strlen($payload) . ' Bytes)', 0);
             return;
         }
-        $this->bildSetzen($bild, $name . ($this->apiUrl() !== '' ? ' (Ausschnitt, Vollbild nicht erreichbar)' : ' (Ausschnitt)'));
+        $this->bildSetzen($bild, $this->apiUrl() !== '' ? FrigateHubText::t('%s (crop, full image not reachable)', $name) : FrigateHubText::t('%s (crop)', $name));
     }
 
     /**
@@ -872,10 +881,10 @@ class FrigateHubKamera extends IPSModule
      */
     private function bildSetzen(string $jpeg, string $quelle): void
     {
-        if ($this->mediumSchreiben('Schnappschuss', 'Schnappschuss', 9, '', $jpeg) === 0) {
+        if ($this->mediumSchreiben('Schnappschuss', FrigateHubText::t('Snapshot'), 9, '', $jpeg) === 0) {
             return;
         }
-        $this->WriteAttributeString('Bildstatus', $quelle . ' vom ' . date('d.m.Y H:i:s') . ' Uhr (' . round(strlen($jpeg) / 1024) . ' KB)');
+        $this->WriteAttributeString('Bildstatus', FrigateHubText::t('%s from %s (%s KB)', $quelle, date('d.m.Y H:i:s'), round(strlen($jpeg) / 1024)));
     }
 
     /** Bild-Medienobjekt anlegen (falls nötig, gecacht) und beschreiben. Rückgabe: Medien-ID, 0 bei Fehler. */
@@ -892,7 +901,7 @@ class FrigateHubKamera extends IPSModule
             IPS_SetMediaCached($id, true);
         }
         if (!IPS_SetMediaContent($id, base64_encode($jpeg))) {
-            $this->LogMessage($name . ' konnte nicht gespeichert werden (Medienobjekt ' . $id . ')', KL_ERROR);
+            $this->LogMessage(FrigateHubText::t('%s could not be saved (media object %s)', $name, $id), KL_ERROR);
             return 0;
         }
         return $id;
@@ -908,7 +917,7 @@ class FrigateHubKamera extends IPSModule
         if ($livebild && $this->kamera() !== '' && $this->apiUrl() !== '') {
             $bild = $this->apiRoh('/api/' . rawurlencode($this->kamera()) . '/latest.jpg?' . FrigateHubTopics::hoehe(1080) . '&bbox=1' . $this->zeitstempel(), 'image/jpeg');
             if ($bild !== null && FrigateHubTopics::bildBytes($bild) !== null) {
-                $id = $this->mediumSchreiben('Meldungsbild', 'Meldungsbild', 10, '_meldung', $bild);
+                $id = $this->mediumSchreiben('Meldungsbild', FrigateHubText::t('Notification image'), 10, '_meldung', $bild);
                 if ($id > 0) {
                     return $id;
                 }
@@ -947,14 +956,15 @@ class FrigateHubKamera extends IPSModule
 
     private function festeVariablen(): void
     {
-        $this->variableAnlegen('Verfuegbar', 'Frigate erreichbar', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('erreichbar', 'nicht erreichbar', true), 1);
-        $this->variableAnlegen('Online', 'Kamera online', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('online', 'offline', true), 2);
-        $this->variableAnlegen('Bewegung', 'Bewegung', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('Bewegung', 'ruhig'), 3);
-        $this->variableAnlegen('Alarm', 'Alarm', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('Alarm', 'kein Alarm'), 4);
-        $this->variableAnlegen('Erkennung', 'Erkennung', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('erkannt', 'nichts erkannt'), 5);
-        $this->variableAnlegen('LetzterAlarm', 'Letzter Alarm', VARIABLETYPE_STRING, self::anzeigeText(), 6);
-        $this->variableAnlegen('LetzteErkennung', 'Letzte Erkennung', VARIABLETYPE_STRING, self::anzeigeText(), 7);
-        $this->variableAnlegen('LetztesObjekt', 'Letztes Objekt', VARIABLETYPE_STRING, self::anzeigeText(), 8);
+        $t = fn (string $s): string => FrigateHubText::t($s);
+        $this->variableAnlegen('Verfuegbar', $t('Frigate reachable'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein($t('reachable'), $t('not reachable'), true), 1);
+        $this->variableAnlegen('Online', $t('Camera online'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein($t('online'), $t('offline'), true), 2);
+        $this->variableAnlegen('Bewegung', $t('Motion'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein($t('motion (value)'), $t('quiet')), 3);
+        $this->variableAnlegen('Alarm', $t('Alert'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein($t('Alert'), $t('no alert')), 4);
+        $this->variableAnlegen('Erkennung', $t('Detection'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein($t('detected'), $t('nothing detected')), 5);
+        $this->variableAnlegen('LetzterAlarm', $t('Last alert'), VARIABLETYPE_STRING, self::anzeigeText(), 6);
+        $this->variableAnlegen('LetzteErkennung', $t('Last detection'), VARIABLETYPE_STRING, self::anzeigeText(), 7);
+        $this->variableAnlegen('LetztesObjekt', $t('Last object'), VARIABLETYPE_STRING, self::anzeigeText(), 8);
     }
 
     /**
@@ -986,7 +996,7 @@ class FrigateHubKamera extends IPSModule
     /** Einstellbare Zahl (Bewegungsschwelle …) anlegen und setzen; Bedienung per Schieberegler. */
     private function zahlSetzen(string $schluessel, int $wert): void
     {
-        $z = FrigateHubTopics::ZAHLEN[$schluessel];
+        $z = FrigateHubTopics::zahlEintrag($schluessel);
         $this->variableAnlegen($z['ident'], $z['name'], VARIABLETYPE_INTEGER, ['PRESENTATION' => VARIABLE_PRESENTATION_SLIDER,
             'MIN' => $z['min'], 'MAX' => $z['max'], 'STEP_SIZE' => 1, 'DIGITS' => 0], self::POS_SCHALTER + 50, true);
         $this->SetValue($z['ident'], $wert);
@@ -997,7 +1007,7 @@ class FrigateHubKamera extends IPSModule
     {
         $topic = FrigateHubTopics::praefix($this->ReadPropertyString('TopicPrefix')) . '/' . $this->kamera() . '/ptz';
         if (!$this->senden($topic, $befehl)) {
-            throw new Exception('Keine aktive MQTT-Instanz — PTZ-Befehl nicht gesendet.');
+            throw new Exception(FrigateHubText::t('No active MQTT instance — PTZ command not sent.'));
         }
     }
 
@@ -1107,10 +1117,10 @@ class FrigateHubKamera extends IPSModule
             return;
         }
         $ziel = [
-            'gesicht'         => ['ErkanntePerson', 'Erkannte Person', 9],
-            'kennzeichen'     => ['Kennzeichen', 'Kennzeichen', 10],
-            'klassifizierung' => ['Klassifizierung', 'Klassifizierung', 11],
-            'beschreibung'    => ['KIBeschreibung', 'KI-Beschreibung', 12],
+            'gesicht'         => ['ErkanntePerson', FrigateHubText::t('Recognized person'), 9],
+            'kennzeichen'     => ['Kennzeichen', FrigateHubText::t('License plate'), 10],
+            'klassifizierung' => ['Klassifizierung', FrigateHubText::t('Classification'), 11],
+            'beschreibung'    => ['KIBeschreibung', FrigateHubText::t('AI description'), 12],
         ][$d['art']];
         $zeit = $d['zeit'] !== '' ? $d['zeit'] : date('d.m.Y H:i:s');
         $this->variableAnlegen($ziel[0], $ziel[1], VARIABLETYPE_STRING, self::anzeigeText(), $ziel[2]);
@@ -1135,11 +1145,11 @@ class FrigateHubKamera extends IPSModule
      */
     private function kiVerarbeiten(string $id, array $ki, string $zeit): void
     {
-        $this->variableAnlegen('KIBeschreibung', 'KI-Beschreibung', VARIABLETYPE_STRING, self::anzeigeText(), 12);
+        $this->variableAnlegen('KIBeschreibung', FrigateHubText::t('AI description'), VARIABLETYPE_STRING, self::anzeigeText(), 12);
         $this->SetValue('KIBeschreibung', FrigateHubTopics::kuerzenBytes(($zeit !== '' ? $zeit : date('d.m.Y H:i:s')) . ' – '
             . ($ki['titel'] !== '' && $ki['titel'] !== $ki['zusammenfassung'] ? $ki['titel'] . ': ' : '') . $ki['zusammenfassung'], 1000));
         if ($ki['stufe'] !== null) {
-            $this->variableAnlegen('KIStufe', 'KI-Einschätzung', VARIABLETYPE_INTEGER, self::anzeigeStufen(FrigateHubTopics::KI_STUFEN), 13);
+            $this->variableAnlegen('KIStufe', FrigateHubText::t('AI assessment'), VARIABLETYPE_INTEGER, self::anzeigeStufen(FrigateHubTopics::kiStufen()), 13);
             $this->SetValue('KIStufe', $ki['stufe']);
         }
         if (!$this->ReadPropertyBoolean('PushKI') || $id === '' || $this->ReadAttributeString('LetzterKiPush') === $id || $this->pushZiele() === []) {
@@ -1149,7 +1159,7 @@ class FrigateHubKamera extends IPSModule
         if ($gemeldet) {
             $titel = '🤖 ' . IPS_GetName($this->InstanceID);
         } elseif (($ki['stufe'] ?? 0) >= 1) {
-            $titel = '⚠️ ' . IPS_GetName($this->InstanceID) . ': ' . FrigateHubTopics::KI_STUFEN[$ki['stufe']];
+            $titel = '⚠️ ' . IPS_GetName($this->InstanceID) . ': ' . FrigateHubTopics::kiStufen()[$ki['stufe']];
         } else {
             return;
         }
@@ -1179,7 +1189,7 @@ class FrigateHubKamera extends IPSModule
     private function senden(string $topic, string $payload): bool
     {
         if (!$this->HasActiveParent()) {
-            $this->sendefehler($topic, 'keine aktive MQTT-Instanz darüber');
+            $this->sendefehler($topic, FrigateHubText::t('no active MQTT instance above'));
             return false;
         }
         // QoS 0 und nie retain: ein gespeicherter Set-Befehl würde Frigate bei jedem
@@ -1194,7 +1204,7 @@ class FrigateHubKamera extends IPSModule
         ], JSON_UNESCAPED_SLASHES);
         $this->SendDebug('Senden', $json, 0);
         if ($this->SendDataToParent($json) === false) {
-            $this->sendefehler($topic, 'die MQTT-Instanz hat das Paket abgelehnt');
+            $this->sendefehler($topic, FrigateHubText::t('the MQTT instance rejected the packet'));
             return false;
         }
         return true;
@@ -1202,7 +1212,7 @@ class FrigateHubKamera extends IPSModule
 
     private function sendefehler(string $topic, string $grund): void
     {
-        $this->LogMessage('Senden an Frigate fehlgeschlagen (' . $topic . '): ' . $grund, KL_ERROR);
+        $this->LogMessage(FrigateHubText::t('Sending to Frigate failed (%s): %s', $topic, $grund), KL_ERROR);
     }
 
     /** Merkt Zeitpunkt und die letzten Topics fürs Formular. */
@@ -1222,34 +1232,34 @@ class FrigateHubKamera extends IPSModule
     private function empfangsstatus(): string
     {
         if ($this->kamera() === '') {
-            return 'ℹ️ Noch keine Kamera eingetragen.';
+            return FrigateHubText::t('ℹ️ No camera entered yet.');
         }
         if (!$this->HasActiveParent()) {
-            return '⚠️ Keine aktive MQTT-Instanz darüber — die Instanz muss unter Symcons MQTT-Server oder einem MQTT-Client hängen, an den Frigate sendet.';
+            return FrigateHubText::t('⚠️ No active MQTT instance above — the instance must be attached below Symcon\'s MQTT server or an MQTT client that Frigate sends to.');
         }
         $ts = $this->ReadAttributeInteger('LetzteNachricht');
         if ($ts === 0) {
-            return 'ℹ️ Noch keine Nachricht von Frigate zu „' . $this->kamera() . '". Stimmen Kamera-ID und Präfix, und sendet Frigate an diesen MQTT-Server? Ohne Frigate-Adresse kommen Zustände erst bei Änderungen.';
+            return FrigateHubText::t('ℹ️ No message from Frigate for "%s" yet. Are the camera ID and prefix correct, and does Frigate send to this MQTT server? Without a Frigate address, states only arrive on changes.', $this->kamera());
         }
         $anzahl = count((array)json_decode($this->GetBuffer('Topics'), true));
-        return '✅ Zuletzt Nachricht von Frigate am ' . date('d.m.Y H:i:s', $ts) . ' Uhr (' . $anzahl . ' verschiedene Topics seit dem letzten Neustart).';
+        return FrigateHubText::t('✅ Last message from Frigate on %s (%d different topics since the last restart).', date('d.m.Y H:i:s', $ts), $anzahl);
     }
 
     private function abgleichstatus(): string
     {
         if ($this->apiUrl() === '') {
             return trim((string)$this->ReadPropertyString('ApiUrl')) === ''
-                ? 'ℹ️ Kein HTTP-Abgleich (keine Frigate-Adresse eingetragen).'
-                : '⚠️ Die Frigate-Adresse ist ungültig — erwartet z. B. http://192.168.1.20:5000.';
+                ? FrigateHubText::t('ℹ️ No HTTP sync (no Frigate address entered).')
+                : FrigateHubText::t('⚠️ The Frigate address is invalid — expected e.g. http://192.168.1.20:5000.');
         }
         $text = $this->ReadAttributeString('Abgleichstatus');
-        return $text !== '' ? $text : 'ℹ️ Noch nicht abgeglichen — geschieht kurz nach dem Übernehmen.';
+        return $text !== '' ? $text : FrigateHubText::t('ℹ️ Not synced yet — happens shortly after applying.');
     }
 
     private function bildstatus(): string
     {
         $text = $this->ReadAttributeString('Bildstatus');
-        return $text !== '' ? '✅ Zuletzt: ' . $text . '.' : 'ℹ️ Noch kein Bild empfangen.';
+        return $text !== '' ? FrigateHubText::t('✅ Last: %s.', $text) : FrigateHubText::t('ℹ️ No image received yet.');
     }
 
     private function zonenstatus(): string
@@ -1257,20 +1267,20 @@ class FrigateHubKamera extends IPSModule
         $z = $this->zonen();
         if ($z === []) {
             return $this->apiUrl() !== '' && $this->ReadAttributeString('Abgleichstatus') !== ''
-                ? 'ℹ️ Laut Abgleich hat diese Kamera in Frigate keine Zonen.'
-                : 'ℹ️ Noch keine Zone gelernt. Zonen erscheinen mit dem Abgleich oder sobald Frigate ein Objekt in einer Zone dieser Kamera meldet.';
+                ? FrigateHubText::t('ℹ️ According to the sync, this camera has no zones in Frigate.')
+                : FrigateHubText::t('ℹ️ No zone learned yet. Zones appear with the sync or as soon as Frigate reports an object in a zone of this camera.');
         }
-        return '✅ ' . count($z) . ' Zone(n) gelernt: ' . implode(', ', $z);
+        return FrigateHubText::t('✅ %d zone(s) learned: %s', count($z), implode(', ', $z));
     }
 
     private function nachrichtenLabels(): array
     {
         $liste = json_decode($this->GetBuffer('Topics'), true);
         if (!is_array($liste) || $liste === []) {
-            return [['type' => 'Label', 'caption' => 'ℹ️ Seit dem letzten Neustart noch nichts empfangen.']];
+            return [['type' => 'Label', 'caption' => FrigateHubText::t('ℹ️ Nothing received since the last restart.')]];
         }
         ksort($liste);
-        $out = [['type' => 'Label', 'caption' => count($liste) . ' Topics seit dem letzten Neustart (Uhrzeit, Topic, Inhalt):']];
+        $out = [['type' => 'Label', 'caption' => FrigateHubText::t('%d topics since the last restart (time, topic, content):', count($liste))]];
         foreach ($liste as $topic => [$ts, $kurz]) {
             $out[] = ['type' => 'Label', 'caption' => date('H:i:s', (int)$ts) . '  ' . $topic . '  =  ' . $kurz];
         }

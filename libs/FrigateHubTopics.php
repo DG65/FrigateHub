@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
+
 /**
  * Zerlegt Frigate-MQTT-Nachrichten — reines PHP ohne Symcon, damit der Prüfstand es direkt
  * aufrufen kann.
@@ -22,78 +24,79 @@ class FrigateHubTopics
         'classification', 'snapshot',
     ];
 
-    /** Schaltbare Funktionen (…/<key>/state + …/<key>/set) mit deutschem Namen. */
+    /** Schaltbare Funktionen (…/<key>/state + …/<key>/set); Namen englisch, übersetzt beim Ausgeben. */
     private const SCHALTER = [
-        'enabled'             => 'Kamera aktiv',
-        'detect'              => 'Objekterkennung',
-        'recordings'          => 'Aufnahme',
-        'snapshots'           => 'Schnappschüsse',
-        'motion'              => 'Bewegungserkennung',
-        'audio'               => 'Geräuscherkennung',
-        'audio_transcription' => 'Sprachtranskription',
-        'review_alerts'       => 'Alarme melden',
-        'review_detections'   => 'Erkennungen melden',
-        'improve_contrast'    => 'Kontrastverbesserung',
-        'ptz_autotracker'     => 'PTZ-Verfolgung',
+        'enabled'             => 'Camera enabled',
+        'detect'              => 'Object detection',
+        'recordings'          => 'Recording',
+        'snapshots'           => 'Snapshots',
+        'motion'              => 'Motion detection',
+        'audio'               => 'Audio detection',
+        'audio_transcription' => 'Audio transcription',
+        'review_alerts'       => 'Report alerts',
+        'review_detections'   => 'Report detections',
+        'improve_contrast'    => 'Improve contrast',
+        'ptz_autotracker'     => 'PTZ autotracking',
         'birdseye'            => 'Birdseye',
-        'object_descriptions' => 'KI-Objektbeschreibungen',
-        'review_descriptions' => 'KI-Ereignisbeschreibungen',
-        'notifications'       => 'Frigate-Benachrichtigungen',
+        'object_descriptions' => 'AI object descriptions',
+        'review_descriptions' => 'AI review descriptions',
+        'notifications'       => 'Frigate notifications',
     ];
 
     /** Unterpfade mit einem Namen dahinter (…/motion_mask/<name>/state). */
     private const SCHALTER_GRUPPEN = [
-        'motion_mask' => 'Bewegungsmaske',
-        'object_mask' => 'Objektmaske',
+        'motion_mask' => 'Motion mask',
+        'object_mask' => 'Object mask',
         'zone'        => 'Zone',
     ];
 
-    /** Deutsche Mehrzahl für die Zähler; unbekannte Klassen behalten ihren Frigate-Namen. */
+    /** Mehrzahl für die Zähler (übersetzt beim Ausgeben); unbekannte Klassen behalten ihren Frigate-Namen. */
     private const OBJEKTE = [
-        'all'           => 'Objekte gesamt',
-        'person'        => 'Personen',
-        'face'          => 'Gesichter',
-        'car'           => 'Autos',
-        'motorcycle'    => 'Motorräder',
-        'bicycle'       => 'Fahrräder',
-        'bus'           => 'Busse',
-        'truck'         => 'Lastwagen',
-        'boat'          => 'Boote',
-        'license_plate' => 'Kennzeichen',
-        'package'       => 'Pakete',
-        'dog'           => 'Hunde',
-        'cat'           => 'Katzen',
-        'bird'          => 'Vögel',
-        'horse'         => 'Pferde',
-        'deer'          => 'Rehe',
-        'fox'           => 'Füchse',
-        'bear'          => 'Bären',
-        'squirrel'      => 'Eichhörnchen',
-        'rabbit'        => 'Kaninchen',
-        'raccoon'       => 'Waschbären',
-        'umbrella'      => 'Regenschirme',
-        'waste_bin'     => 'Mülltonnen',
-        'on_demand'     => 'Manuelle Ereignisse',
+        'all'           => 'All objects',
+        'person'        => 'People',
+        'face'          => 'Faces',
+        'car'           => 'Cars',
+        'motorcycle'    => 'Motorcycles',
+        'bicycle'       => 'Bicycles',
+        'bus'           => 'Buses',
+        'truck'         => 'Trucks',
+        'boat'          => 'Boats',
+        'license_plate' => 'License plates',
+        'package'       => 'Packages',
+        'dog'           => 'Dogs',
+        'cat'           => 'Cats',
+        'bird'          => 'Birds',
+        'horse'         => 'Horses',
+        // „Deer" wäre Ein- und Mehrzahl zugleich — ein Schlüssel kann aber nur eine deutsche Fassung haben.
+        'deer'          => 'Roe deer',
+        'fox'           => 'Foxes',
+        'bear'          => 'Bears',
+        'squirrel'      => 'Squirrels',
+        'rabbit'        => 'Rabbits',
+        'raccoon'       => 'Raccoons',
+        'umbrella'      => 'Umbrellas',
+        'waste_bin'     => 'Waste bins',
+        'on_demand'     => 'Manual events',
     ];
 
     /** Einzahl für Ereignistexte. */
     private const OBJEKT_EINZAHL = [
-        'person' => 'Person', 'face' => 'Gesicht', 'car' => 'Auto', 'motorcycle' => 'Motorrad',
-        'bicycle' => 'Fahrrad', 'bus' => 'Bus', 'truck' => 'Lastwagen', 'boat' => 'Boot',
-        'license_plate' => 'Kennzeichen', 'package' => 'Paket', 'dog' => 'Hund', 'cat' => 'Katze',
-        'bird' => 'Vogel', 'horse' => 'Pferd', 'deer' => 'Reh', 'fox' => 'Fuchs', 'bear' => 'Bär',
-        'squirrel' => 'Eichhörnchen', 'rabbit' => 'Kaninchen', 'raccoon' => 'Waschbär',
-        'umbrella' => 'Regenschirm', 'waste_bin' => 'Mülltonne',
+        'person' => 'Person', 'face' => 'Face', 'car' => 'Car', 'motorcycle' => 'Motorcycle',
+        'bicycle' => 'Bicycle', 'bus' => 'Bus', 'truck' => 'Truck', 'boat' => 'Boat',
+        'license_plate' => 'License plate', 'package' => 'Package', 'dog' => 'Dog', 'cat' => 'Cat',
+        'bird' => 'Bird', 'horse' => 'Horse', 'deer' => 'Deer', 'fox' => 'Fox', 'bear' => 'Bear',
+        'squirrel' => 'Squirrel', 'rabbit' => 'Rabbit', 'raccoon' => 'Raccoon',
+        'umbrella' => 'Umbrella', 'waste_bin' => 'Waste bin',
         // Manuell in der Frigate-Oberfläche (oder per API) ausgelöstes Ereignis, kein Objekt.
-        'on_demand' => 'manuell ausgelöst',
+        'on_demand' => 'manually triggered',
     ];
 
     /** Häufige Geräuschklassen; der Rest behält seinen Frigate-Namen. */
     private const GERAEUSCHE = [
-        'all' => 'beliebig', 'speech' => 'Sprache', 'bark' => 'Bellen', 'yell' => 'Schreien',
-        'scream' => 'Kreischen', 'crying' => 'Weinen', 'doorbell' => 'Türklingel', 'knock' => 'Klopfen',
-        'fire_alarm' => 'Feueralarm', 'smoke_detector' => 'Rauchmelder', 'siren' => 'Sirene',
-        'glass' => 'Glas', 'shatter' => 'Splittern', 'car_alarm' => 'Autoalarm', 'music' => 'Musik',
+        'all' => 'any', 'speech' => 'Speech', 'bark' => 'Barking', 'yell' => 'Yelling',
+        'scream' => 'Screaming', 'crying' => 'Crying', 'doorbell' => 'Doorbell', 'knock' => 'Knocking',
+        'fire_alarm' => 'Fire alarm', 'smoke_detector' => 'Smoke detector', 'siren' => 'Siren',
+        'glass' => 'Glass', 'shatter' => 'Shattering', 'car_alarm' => 'Car alarm', 'music' => 'Music',
     ];
 
     /**
@@ -101,9 +104,17 @@ class FrigateHubTopics
      * min/max nach Frigates Konfigurationsprüfung (motion.threshold 1–255, contour_area ≥ 1).
      */
     public const ZAHLEN = [
-        'motion_threshold'    => ['ident' => 'Zahl_motion_threshold', 'name' => 'Bewegungsschwelle', 'min' => 1, 'max' => 255],
-        'motion_contour_area' => ['ident' => 'Zahl_motion_contour_area', 'name' => 'Bewegung: Mindestfläche', 'min' => 1, 'max' => 1000],
+        'motion_threshold'    => ['ident' => 'Zahl_motion_threshold', 'name' => 'Motion threshold', 'min' => 1, 'max' => 255],
+        'motion_contour_area' => ['ident' => 'Zahl_motion_contour_area', 'name' => 'Motion: minimum area', 'min' => 1, 'max' => 1000],
     ];
+
+    /** Eine Zeile aus ZAHLEN mit übersetztem Namen (ZAHLEN selbst enthält den englischen Quelltext). */
+    public static function zahlEintrag(string $schluessel): array
+    {
+        $z = self::ZAHLEN[$schluessel];
+        $z['name'] = FrigateHubText::t($z['name']);
+        return $z;
+    }
 
     /** Topic-Präfix normalisieren: ohne Schrägstriche am Rand, leer → „frigate". */
     public static function praefix(string $praefix): string
@@ -164,10 +175,10 @@ class FrigateHubTopics
 
         if ($n >= 3 && end($teile) === 'state') {
             if ($n === 3 && isset(self::ZAHLEN[$zweite])) {
-                return ['art' => 'zahl', 'schluessel' => $zweite] + self::ZAHLEN[$zweite];
+                return ['art' => 'zahl', 'schluessel' => $zweite] + self::zahlEintrag($zweite);
             }
             if ($n === 3 && isset(self::SCHALTER[$zweite])) {
-                return ['art' => 'schalter', 'schluessel' => $zweite, 'name' => self::SCHALTER[$zweite]];
+                return ['art' => 'schalter', 'schluessel' => $zweite, 'name' => FrigateHubText::t(self::SCHALTER[$zweite])];
             }
             if ($n === 4 && isset(self::SCHALTER_GRUPPEN[$zweite])) {
                 $schluessel = $zweite . '/' . $teile[2];
@@ -217,14 +228,14 @@ class FrigateHubTopics
         return ['art' => 'ignorieren', 'grund' => 'nicht ausgewertet'];
     }
 
-    /** Deutscher Name eines Schalters; Masken/Zonen ohne doppelten Gruppennamen („Bewegungsmaske 1"). */
+    /** Übersetzter Name eines Schalters; Masken/Zonen ohne doppelten Gruppennamen („Bewegungsmaske 1"). */
     public static function schalterName(string $schluessel): string
     {
         if (isset(self::SCHALTER[$schluessel])) {
-            return self::SCHALTER[$schluessel];
+            return FrigateHubText::t(self::SCHALTER[$schluessel]);
         }
         [$gruppe, $name] = array_pad(explode('/', $schluessel, 2), 2, '');
-        return (self::SCHALTER_GRUPPEN[$gruppe] ?? $gruppe) . ' ' . self::ohneGruppe($gruppe, $name);
+        return (isset(self::SCHALTER_GRUPPEN[$gruppe]) ? FrigateHubText::t(self::SCHALTER_GRUPPEN[$gruppe]) : $gruppe) . ' ' . self::ohneGruppe($gruppe, $name);
     }
 
     /**
@@ -355,18 +366,18 @@ class FrigateHubTopics
     public static function kurzInhalt(string $art, string $payload): string
     {
         if (in_array($art, ['events', 'reviews'], true)) {
-            return '(JSON, ' . strlen($payload) . ' Zeichen)';
+            return FrigateHubText::t('(JSON, %d characters)', strlen($payload));
         }
         if (strncmp($payload, "\xFF\xD8\xFF", 3) === 0) {
-            return '(Bild, ' . strlen($payload) . ' Bytes)';
+            return FrigateHubText::t('(image, %d bytes)', strlen($payload));
         }
         // So kommt es live an (28.10.2026): Symcons MQTT-Server reicht jedes Byte als Zeichen
         // U+0000–U+00FF in UTF-8 weiter („ÿØÿà…"). Zurück zu Bytes: mb_convert_encoding(…, 'ISO-8859-1', 'UTF-8').
         if (strncmp($payload, 'ÿØÿ', strlen('ÿØÿ')) === 0) {
-            return '(Bild, ' . mb_strlen($payload, 'UTF-8') . ' Bytes)';
+            return FrigateHubText::t('(image, %d bytes)', mb_strlen($payload, 'UTF-8'));
         }
         if (!mb_check_encoding($payload, 'UTF-8')) {
-            return '(Binärdaten, ' . strlen($payload) . ' Bytes)';
+            return FrigateHubText::t('(binary data, %d bytes)', strlen($payload));
         }
         return mb_substr($payload, 0, 40);
     }
@@ -413,18 +424,18 @@ class FrigateHubTopics
 
     public static function objektName(string $label): string
     {
-        return self::OBJEKTE[$label] ?? $label;
+        return isset(self::OBJEKTE[$label]) ? FrigateHubText::t(self::OBJEKTE[$label]) : $label;
     }
 
     public static function objektEinzahl(string $label): string
     {
         $label = self::ohneVerified($label);
-        return self::OBJEKT_EINZAHL[$label] ?? $label;
+        return isset(self::OBJEKT_EINZAHL[$label]) ? FrigateHubText::t(self::OBJEKT_EINZAHL[$label]) : $label;
     }
 
     public static function geraeuschName(string $typ): string
     {
-        return 'Geräusch ' . (self::GERAEUSCHE[$typ] ?? $typ);
+        return FrigateHubText::t('Sound: %s', isset(self::GERAEUSCHE[$typ]) ? FrigateHubText::t(self::GERAEUSCHE[$typ]) : $typ);
     }
 
     /** Review-Objekte heißen u. a. „person-verified" (Gesicht/Kennzeichen bestätigt). */
@@ -503,15 +514,15 @@ class FrigateHubTopics
             $sub = $sub[0] ?? null;
         }
         if (is_string($sub) && $sub !== '') {
-            $teil .= ' „' . $sub . '“';
+            $teil = FrigateHubText::t('%s “%s”', $teil, $sub);
         }
         $score = $after['top_score'] ?? ($after['score'] ?? null);
         if (is_numeric($score)) {
-            $teil .= ' (' . (int)round((float)$score * 100) . ' %)';
+            $teil = self::mitProzent($teil, $score);
         }
         $zonen = self::zonenAusEvent($after);
         if ($zonen !== []) {
-            $teil .= ' in ' . implode(', ', $zonen);
+            $teil = FrigateHubText::t('%s in %s', $teil, implode(', ', $zonen));
         }
         return ($text !== '' ? $text . ' – ' : '') . $teil;
     }
@@ -529,17 +540,17 @@ class FrigateHubTopics
         }
         foreach ((array)($after['data']['sub_labels'] ?? []) as $s) {
             if (is_string($s) && $s !== '') {
-                $objekte[] = '„' . $s . '“';
+                $objekte[] = FrigateHubText::t('“%s”', $s);
             }
         }
         foreach ((array)($after['data']['audio'] ?? []) as $a) {
             $objekte[] = self::geraeuschName((string)$a);
         }
         $objekte = array_values(array_unique($objekte));
-        $teil = $objekte === [] ? 'Ereignis' : implode(', ', $objekte);
+        $teil = $objekte === [] ? FrigateHubText::t('Event') : implode(', ', $objekte);
         $zonen = self::zonenAusReview($after);
         if ($zonen !== []) {
-            $teil .= ' in ' . implode(', ', $zonen);
+            $teil = FrigateHubText::t('%s in %s', $teil, implode(', ', $zonen));
         }
         return ($text !== '' ? $text . ' – ' : '') . $teil;
     }
@@ -577,7 +588,7 @@ class FrigateHubTopics
         }
         foreach ((array)($after['data']['sub_labels'] ?? []) as $s) {
             if (is_string($s) && $s !== '') {
-                $objekte[] = '„' . $s . '“';
+                $objekte[] = FrigateHubText::t('“%s”', $s);
             }
         }
         foreach ((array)($after['data']['audio'] ?? []) as $a) {
@@ -596,7 +607,7 @@ class FrigateHubTopics
             'start'    => (int)floor((float)$after['start_time']),
             'ende'     => is_numeric($after['end_time'] ?? null) ? (int)ceil((float)$after['end_time']) : null,
             'stufe'    => (string)($after['severity'] ?? '') === 'alert' ? 'alarm' : 'erkennung',
-            'text'     => $objekte === [] ? 'Ereignis' : implode(', ', $objekte),
+            'text'     => $objekte === [] ? FrigateHubText::t('Event') : implode(', ', $objekte),
             'zonen'    => self::zonenAusReview($after),
             'ereignis' => $ereignis,
             'labels'   => array_values(array_filter(array_map('strval', (array)($after['data']['objects'] ?? [])), fn ($l) => preg_match('/^[a-z0-9_-]{1,40}\z/', $l))),
@@ -634,14 +645,14 @@ class FrigateHubTopics
         }
         $kamera = (string)($u['camera'] ?? '');
         $zeit = self::zeit($u['timestamp'] ?? null);
-        $prozent = fn ($s): string => is_numeric($s) ? ' (' . (int)round((float)$s * 100) . ' %)' : '';
+        $prozent = fn (string $text, $s): string => is_numeric($s) ? self::mitProzent($text, $s) : $text;
         switch ((string)($u['type'] ?? '')) {
             case 'face':
                 $name = $u['name'] ?? null;
                 if (!is_string($name) || trim($name) === '' || $name === 'unknown') {
                     return null;
                 }
-                return ['art' => 'gesicht', 'id' => $id, 'kamera' => $kamera, 'text' => trim($name) . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+                return ['art' => 'gesicht', 'id' => $id, 'kamera' => $kamera, 'text' => $prozent(trim($name), $u['score'] ?? null), 'zeit' => $zeit];
             case 'lpr':
                 $kennzeichen = trim((string)($u['plate'] ?? ''));
                 $name = is_string($u['name'] ?? null) ? trim($u['name']) : '';
@@ -649,7 +660,7 @@ class FrigateHubTopics
                     return null;
                 }
                 $text = $kennzeichen !== '' ? $kennzeichen . ($name !== '' ? ' – ' . $name : '') : $name;
-                return ['art' => 'kennzeichen', 'id' => $id, 'kamera' => $kamera, 'text' => $text . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+                return ['art' => 'kennzeichen', 'id' => $id, 'kamera' => $kamera, 'text' => $prozent($text, $u['score'] ?? null), 'zeit' => $zeit];
             case 'classification':
                 $wert = trim((string)($u['sub_label'] ?? $u['attribute'] ?? ''));
                 if ($wert === '') {
@@ -657,7 +668,7 @@ class FrigateHubTopics
                 }
                 $modell = trim((string)($u['model'] ?? ''));
                 return ['art' => 'klassifizierung', 'id' => $id, 'kamera' => $kamera,
-                    'text' => $wert . ($modell !== '' ? ' [' . $modell . ']' : '') . $prozent($u['score'] ?? null), 'zeit' => $zeit];
+                    'text' => $prozent($wert . ($modell !== '' ? ' [' . $modell . ']' : ''), $u['score'] ?? null), 'zeit' => $zeit];
             case 'description':
                 $text = trim((string)($u['description'] ?? ''));
                 return $text === '' ? null : ['art' => 'beschreibung', 'id' => $id, 'kamera' => $kamera, 'text' => $text, 'zeit' => $zeit];
@@ -706,8 +717,20 @@ class FrigateHubTopics
         return $tage;
     }
 
-    /** Frigates Bedrohungsstufe der KI-Einschätzung (potential_threat_level) im Klartext. */
-    public const KI_STUFEN = [0 => 'unauffällig', 1 => 'verdächtig', 2 => 'kritisch'];
+    /** Frigates Bedrohungsstufe der KI-Einschätzung (potential_threat_level) im Klartext (englisch, siehe kiStufen()). */
+    public const KI_STUFEN = [0 => 'no concern', 1 => 'suspicious', 2 => 'critical'];
+
+    /** KI_STUFEN übersetzt. */
+    public static function kiStufen(): array
+    {
+        return array_map(fn (string $t): string => FrigateHubText::t($t), self::KI_STUFEN);
+    }
+
+    /** „Person (87 %)" aus Text und Frigate-Score 0–1. */
+    private static function mitProzent(string $text, $score): string
+    {
+        return FrigateHubText::t('%s (%d%%)', $text, (int)round((float)$score * 100));
+    }
 
     /**
      * KI-Einschätzung eines Reviews (data.metadata, Frigate 0.17+, ReviewMetadata im Frigate-Quellcode):

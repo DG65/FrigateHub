@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.18.0 (Build 36) — 04.11.2026
+
+- **Englisch:** FrigateHub spricht die Sprache der Symcon-Installation. Quelltexte stehen englisch im Code, die deutsche Fassung in `locale.json` (Muster RoboHub 0.35): Formulare, Statuszeilen, Variablennamen, Darstellungsoptionen, Meldungen und Push-Texte, Wächter, Konfigurator, beide Kacheln (Konstante `KACHEL_TEXTE`, Funktion `T()` in `module.html`).
+  - `libs/FrigateHubText.php`: Übersetzer für die reinen Klassen (Topics, Wächter, Sensor, Einstellungen, Serverwerte); jedes Modul setzt ihn im Konstruktor auf `$this->Translate`.
+  - `locale.json` entsteht aus `.tools/locale-teile/*.json` per `php .tools/locale-bauen.php` und liegt in allen drei Modulordnern (Symcon liest sie nur dort).
+  - Die deutsche Anzeige ist unverändert; die Prüfstände laufen weiter auf Deutsch (`FRIGATEHUB_SPRACHE=en` für Englisch).
+  - Bereits angelegte Variablen behalten ihren Namen (gehören dem Nutzer); neue Instanzen bekommen Namen in der Sprache der Installation. Öffentliche Funktionen und `FRIGS_GetCameras()` (Vertrag 1.1) bleiben unverändert.
+- `README.en.md`; README nennt Kameras, die sich sonst schwer einbinden lassen.
+
 ## 0.17.1 (Build 35) — 03.11.2026
 
 - **Store-Richtlinie (Instanzeigenschaften gehören dem Nutzer):** Das Frigate-Passwort ist keine Property mehr. Bisher schrieb das Modul ein per „Übernehmen" gespeichertes Passwort mit `IPS_SetProperty`/`IPS_ApplyChanges` wieder leer. Jetzt steht das Passwortfeld ohne Property im Panel „🔑 Anmeldung an Frigate" (Kamera, Server und Konfigurator) und geht nur an `Anmelden()`; gespeichert wird weiterhin nur Frigates Zugangsschlüssel (Attribut). Der Benutzer bleibt oben im Formular. Die Property `ApiPasswort` entfällt; sie war nach jeder Anmeldung leer.

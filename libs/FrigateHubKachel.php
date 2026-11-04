@@ -79,7 +79,7 @@ trait FrigateHubKachel
     {
         $this->WriteAttributeString('HookSchluessel', bin2hex(random_bytes(16)));
         $this->kachelSenden(true);
-        return '✅ Neuer Schlüssel erzeugt. Offene Kacheln laden ihn beim nächsten Öffnen; in IPSView die neue Adresse eintragen.';
+        return FrigateHubText::t('✅ New key created. Open tiles load it the next time they are opened; enter the new address in IPSView.');
     }
 
     /**
@@ -98,7 +98,7 @@ trait FrigateHubKachel
         $get = array_map(fn ($v) => is_string($v) ? $v : '', (array)$_GET);
         $schluessel = $this->ReadAttributeString('HookSchluessel');
         if ($schluessel === '' || !hash_equals($schluessel, $get['k'] ?? '')) {
-            $this->hookAntwort(403, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein Zugriff.');
+            $this->hookAntwort(403, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('No access.'));
             return;
         }
         if (isset($get['seite'])) {
@@ -140,13 +140,13 @@ trait FrigateHubKachel
         }
         $pfad = $this->hookFrigatePfad($get);
         if ($pfad === null) {
-            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('Unknown.'));
             return;
         }
         $a = $this->apiDurchreichen($pfad, '', 8);
         if ($a['code'] !== 200) {
             $this->hookAntwort($a['code'] === 404 ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
-                'Frigate liefert nichts (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                FrigateHubText::t('Frigate delivers nothing (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')));
             return;
         }
         $this->hookAntwort(200, ['Content-Type' => $a['kopf']['content-type'] ?? 'image/jpeg',
@@ -167,6 +167,12 @@ trait FrigateHubKachel
     /** PTZ-Befehle laut Frigate-Doku (frigate/<kamera>/ptz); Voreinstellungen als preset_<name>. */
     private const PTZ_BEFEHLE = ['MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT', 'ZOOM_IN', 'ZOOM_OUT', 'STOP'];
 
+    /**
+     * Alle festen Texte der Kachel (module.html, englisch); kachelDaten() liefert sie übersetzt als 'texte'.
+     * 'language code: en' sagt der Kachel die Sprache (für Datumsformat und lang-Attribut).
+     */
+    private const KACHEL_TEXTE = ['language code: en', 'Live', 'Time of the live image', '📅 Archive', 'Sound', 'Loading …', 'Reload', 'These switches change the setting in Frigate itself', 'Detection', 'Recording', 'Snapshots', 'Boxes', 'Draw boxes around detected objects in the live image (this view only)', '◀ Archive', 'Image', 'Keep permanently (Frigate will then not delete it)', 'Save as an export in Frigate', 'No image yet. Enter the Frigate address in the instance for the live image.', 'Frigate not reachable.', 'Live image currently unavailable.', 'Image not available.', 'Live video, current time', 'No sound: the camera only sends silence. Usually no microphone is connected (many cameras only have a line input) or the audio input is switched off in the camera.', 'No sound: the stream has no audio track the browser can play. Either the camera delivers no sound, or it comes e.g. as AAC – then add a second source “ffmpeg:<Stream>#audio=opus” to the stream in Frigate’s go2rtc.', '🔇 no sound', 'Frigate not reachable', 'Camera offline', '🚨 Alert', 'Motion', 'Control via this page is not enabled in the configuration form of the instance.', '🛑 critical', '⚠️ suspicious', 'in progress', 'Frigate has no recording for this period.', 'critical', 'suspicious', 'Save event (%s min) as an export in Frigate?', 'Play recording from a time of day', '🎞 Recording', 'Play the recording of the selected day from a time of day', 'No events for this selection.', '%s alert', '%s alerts', '%s det.', '%s unseen', 'All', 'Alerts only', 'Detections only', 'Not seen yet', 'AI: suspicious', 'Only: %s', '⛔ Archive not reachable.', 'Position …', 'Last snapshot · %s', 'Live video', 'Live image'];
+
     /** Längster Zeitraum für Clip und Export (s). */
     private const ZEITRAUM_MAX = 3600;
 
@@ -183,11 +189,11 @@ trait FrigateHubKachel
         switch ($ident) {
             case 'Kachel_Gesehen':
                 if (!FrigateHubTopics::idGueltig($wert)) {
-                    throw new Exception('Ungültige Ereignis-ID.');
+                    throw new Exception(FrigateHubText::t('Invalid event ID.'));
                 }
                 $a = $this->apiSchreiben('POST', '/api/reviews/viewed', ['ids' => [$wert]]);
                 if ($a['code'] !== 200) {
-                    throw new Exception('Frigate nimmt „gesehen" nicht an (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                    throw new Exception(FrigateHubText::t('Frigate does not accept “seen” (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')));
                 }
                 $liste = array_map(fn ($e) => is_array($e) && ($e['id'] ?? '') === $wert ? ['gesehen' => true] + $e : $e,
                     (array)json_decode($this->ReadAttributeString('Ereignisse'), true));
@@ -198,33 +204,33 @@ trait FrigateHubKachel
             case 'Kachel_Favorit':
                 [$id, $an] = array_pad(explode(':', $wert, 2), 2, '');
                 if (!FrigateHubTopics::idGueltig($id) || !in_array($an, ['0', '1'], true)) {
-                    throw new Exception('Ungültiger Favorit.');
+                    throw new Exception(FrigateHubText::t('Invalid favorite.'));
                 }
                 $a = $this->apiSchreiben($an === '1' ? 'POST' : 'DELETE', '/api/events/' . $id . '/retain', null);
                 if ($a['code'] !== 200) {
-                    throw new Exception('Frigate nimmt den Favoriten nicht an (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                    throw new Exception(FrigateHubText::t('Frigate does not accept the favorite (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')));
                 }
-                $this->kachelMelden($an === '1' ? '⭐ Ereignis wird dauerhaft behalten.' : '☆ Ereignis wird wieder normal aufgeräumt.');
+                $this->kachelMelden($an === '1' ? FrigateHubText::t('⭐ Event will be kept permanently.') : FrigateHubText::t('☆ Event will be cleaned up normally again.'));
                 return true;
 
             case 'Kachel_Export':
                 $z = FrigateHubTopics::zeitraum($wert, self::ZEITRAUM_MAX);
                 if ($z === null) {
-                    throw new Exception('Ungültiger Zeitraum.');
+                    throw new Exception(FrigateHubText::t('Invalid period.'));
                 }
                 $name = IPS_GetName($this->InstanceID) . ' ' . date('d.m.Y H:i', $z[0]);
                 $a = $this->apiSchreiben('POST', '/api/export/' . rawurlencode($this->kamera()) . '/start/' . $z[0] . '/end/' . $z[1],
                     ['playback' => 'realtime', 'name' => $name]);
                 if ($a['code'] !== 200) {
                     $grund = (string)(json_decode($a['body'], true)['message'] ?? '');
-                    throw new Exception('Export nicht angelegt (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ($grund !== '' ? ': ' . $grund : '') . ').');
+                    throw new Exception(FrigateHubText::t('Export not created (%s).', ($a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')) . ($grund !== '' ? ': ' . $grund : '')));
                 }
-                $this->kachelMelden('💾 Export „' . $name . '" angelegt — in Frigate unter „Exporte".');
+                $this->kachelMelden(FrigateHubText::t('💾 Export “%s” created — in Frigate under “Exports”.', $name));
                 return true;
 
             case 'Kachel_PTZ':
                 if (!in_array($wert, self::PTZ_BEFEHLE, true) && !preg_match('/^preset_[A-Za-z0-9 _.-]{1,64}\z/', $wert)) {
-                    throw new Exception('Unbekannter PTZ-Befehl.');
+                    throw new Exception(FrigateHubText::t('Unknown PTZ command.'));
                 }
                 $this->ptzSenden($wert);
                 return true;
@@ -302,7 +308,7 @@ trait FrigateHubKachel
     {
         $z = FrigateHubTopics::zeitraum($zeitraum, self::ZEITRAUM_MAX);
         if ($this->apiUrl() === '' || $z === null) {
-            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('Unknown.'));
             return;
         }
         $this->clipAusliefern('zeitraum-' . $z[0] . '-' . $z[1],
@@ -343,22 +349,22 @@ trait FrigateHubKachel
         $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
         if (!$this->ReadPropertyBoolean('SeiteBedienung')) {
             $this->hookAntwort(403, $json, (string)json_encode(['ok' => false,
-                'text' => 'Bedienen über diese Seite ist im Formular der Instanz nicht freigegeben.'], JSON_UNESCAPED_UNICODE));
+                'text' => FrigateHubText::t('Control via this page is not enabled in the configuration form of the instance.')], JSON_UNESCAPED_UNICODE));
             return;
         }
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            $this->hookAntwort(405, $json + ['Allow' => 'POST'], (string)json_encode(['ok' => false, 'text' => 'Nur POST.']));
+            $this->hookAntwort(405, $json + ['Allow' => 'POST'], (string)json_encode(['ok' => false, 'text' => FrigateHubText::t('POST only.')], JSON_UNESCAPED_UNICODE));
             return;
         }
         $aktion = in_array($ident, self::KACHEL_AKTIONEN, true);
         if (!$aktion && (!in_array($ident, self::SEITE_SCHALTER, true) || !in_array($wert, ['0', '1'], true)
             || @$this->GetIDForIdent($ident) === false)) {
-            $this->hookAntwort(400, $json, (string)json_encode(['ok' => false, 'text' => 'Unbekannter Schalter.']));
+            $this->hookAntwort(400, $json, (string)json_encode(['ok' => false, 'text' => FrigateHubText::t('Unknown switch.')], JSON_UNESCAPED_UNICODE));
             return;
         }
         if (!$this->HasActiveParent()) {
             $this->hookAntwort(502, $json, (string)json_encode(['ok' => false,
-                'text' => 'Keine aktive MQTT-Instanz über der Kamera, Frigate ist nicht erreichbar.'], JSON_UNESCAPED_UNICODE));
+                'text' => FrigateHubText::t('No active MQTT instance above the camera, Frigate is not reachable.')], JSON_UNESCAPED_UNICODE));
             return;
         }
         try {
@@ -400,18 +406,18 @@ trait FrigateHubKachel
     {
         $stream = $this->ReadAttributeString('Livestream');
         if ($this->apiUrl() === '' || $stream === '' || !$this->ReadPropertyBoolean('KachelVideo')) {
-            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein Livevideo eingerichtet.');
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('No live video set up.'));
             return;
         }
         $angebot = $this->hookEingang();
         if (strpos($angebot, 'v=0') !== 0 || strlen($angebot) > 32768) {
-            $this->hookAntwort(400, ['Content-Type' => 'text/plain; charset=utf-8'], 'Kein gültiges SDP-Angebot.');
+            $this->hookAntwort(400, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('No valid SDP offer.'));
             return;
         }
         $a = $this->apiWebrtc($stream, $angebot);
         if (($a['code'] !== 200 && $a['code'] !== 201) || strpos($a['body'], 'v=0') !== 0) {
             $this->hookAntwort(502, ['Content-Type' => 'text/plain; charset=utf-8'],
-                'go2rtc antwortet nicht (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ').');
+                FrigateHubText::t('go2rtc does not respond (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')));
             return;
         }
         $this->hookAntwort(200, ['Content-Type' => 'application/sdp', 'Cache-Control' => 'no-store'], $a['body']);
@@ -443,22 +449,22 @@ trait FrigateHubKachel
     private function videostatus(): string
     {
         if ($this->apiUrl() === '') {
-            return 'Livevideo braucht die Frigate-Adresse.';
+            return FrigateHubText::t('Live video needs the Frigate address.');
         }
         $stream = $this->ReadAttributeString('Livestream');
         if ($stream === '') {
-            return 'ℹ️ Kein Livevideo: Frigates go2rtc hat (beim letzten Abgleich) keinen Stream für diese Kamera. Ohne Stream zeigt die Kachel ein Standbild im eingestellten Takt.';
+            return FrigateHubText::t('ℹ️ No live video: Frigate\'s go2rtc had no stream for this camera (at the last synchronization). Without a stream, the tile shows a still image at the configured interval.');
         }
         return $this->ReadPropertyBoolean('KachelVideo')
-            ? '✅ Livevideo über go2rtc-Stream „' . $stream . '" (WebRTC, im Heimnetz). Geht das nicht, zeigt die Kachel das Standbild.'
-            : 'Livevideo ist ausgeschaltet, die Kachel zeigt das Standbild.';
+            ? FrigateHubText::t('✅ Live video via go2rtc stream “%s” (WebRTC, on the home network). If that does not work, the tile shows the still image.', $stream)
+            : FrigateHubText::t('Live video is switched off, the tile shows the still image.');
     }
 
     /** Clip eines Ereignisses stückweise ausliefern (Range, 206). */
     private function hookClip(string $id, string $range): void
     {
         if ($this->apiUrl() === '' || !FrigateHubTopics::idGueltig($id)) {
-            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Unbekannt.');
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('Unknown.'));
             return;
         }
         $this->clipAusliefern($id, '/api/events/' . $id . '/clip.mp4', $range);
@@ -474,7 +480,7 @@ trait FrigateHubKachel
             if ($a['code'] !== 200 || $a['body'] === '') {
                 $grund = (string)(json_decode($a['body'], true)['message'] ?? '');
                 $this->hookAntwort(in_array($a['code'], [400, 404], true) ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
-                    'Frigate liefert keinen Clip (' . ($a['code'] > 0 ? 'HTTP ' . $a['code'] : 'nicht erreichbar') . ($grund !== '' ? ': ' . $grund : '') . ').');
+                    FrigateHubText::t('Frigate delivers no clip (%s).', ($a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')) . ($grund !== '' ? ': ' . $grund : '')));
                 return;
             }
             file_put_contents($datei, $a['body']);
@@ -515,7 +521,7 @@ trait FrigateHubKachel
         $id = @IPS_GetObjectIDByIdent('Schnappschuss', $this->InstanceID);
         $inhalt = $id === false ? '' : (string)base64_decode((string)@IPS_GetMediaContent($id));
         if ($inhalt === '') {
-            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], 'Noch kein Schnappschuss.');
+            $this->hookAntwort(404, ['Content-Type' => 'text/plain; charset=utf-8'], FrigateHubText::t('No snapshot yet.'));
             return;
         }
         $this->hookAntwort(200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'no-store'], $inhalt);
@@ -601,6 +607,7 @@ trait FrigateHubKachel
             'eigen'         => $eigen,
             'name'          => $eigen ? IPS_GetName($this->InstanceID) : '',
             'bedienung'     => !$eigen || $this->ReadPropertyBoolean('SeiteBedienung'),
+            'texte'         => array_combine(self::KACHEL_TEXTE, array_map(fn (string $s): string => FrigateHubText::t($s), self::KACHEL_TEXTE)),
         ];
     }
 
@@ -627,10 +634,10 @@ trait FrigateHubKachel
     private function kachelWarnungen(): array
     {
         $aus = [];
-        foreach (['Schalter_enabled' => 'Kamera aus', 'Schalter_detect' => 'Erkennung aus', 'Schalter_recordings' => 'Aufnahme aus',
-            'Schalter_snapshots' => 'Schnappschüsse aus'] as $ident => $text) {
+        foreach (['Schalter_enabled' => 'Camera off', 'Schalter_detect' => 'Detection off', 'Schalter_recordings' => 'Recording off',
+            'Schalter_snapshots' => 'Snapshots off'] as $ident => $text) {
             if ($this->kachelWert($ident) === false) {
-                $aus[] = $text;
+                $aus[] = FrigateHubText::t($text);
             }
         }
         return $aus;

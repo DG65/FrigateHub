@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
+
 /**
  * Frigate-Einstellungen einer Kamera aus Symcon heraus — reines PHP, vom Prüfstand direkt aufgerufen.
  *
@@ -189,9 +191,9 @@ class FrigateHubEinstellungen
     /** Lesbare Zusammenfassung einer Änderung fürs Formular und das Meldungsprotokoll. */
     public static function beschreiben(array $aenderungen): string
     {
-        $namen = ['record' => 'Aufnahme', 'objects' => 'Objekte', 'review' => 'Alarme', 'snapshots' => 'Schnappschüsse', 'detect' => 'Stillstand',
-            'lpr' => 'Kennzeichen', 'face_recognition' => 'Gesichter', 'audio' => 'Geräusche', 'zones' => 'Zonen'];
-        return implode(', ', array_map(fn ($b) => $namen[$b] ?? $b, array_keys($aenderungen)));
+        $namen = ['record' => 'Recording', 'objects' => 'Objects', 'review' => 'Alerts', 'snapshots' => 'Snapshots', 'detect' => 'Stationary objects',
+            'lpr' => 'License plates', 'face_recognition' => 'Faces', 'audio' => 'Sounds', 'zones' => 'Zones'];
+        return implode(', ', array_map(fn ($b) => isset($namen[$b]) ? FrigateHubText::t($namen[$b]) : $b, array_keys($aenderungen)));
     }
 
     /** Kommagetrennte Eingabe oder Liste → Liste ohne Leerstellen/Doppelte, Kleinschreibung bleibt (Frigate-Namen). */

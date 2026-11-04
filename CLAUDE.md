@@ -86,6 +86,12 @@
   stehen seit 0.17.1 in `elements`: Symcons Konsole (9.0, `console-app.js`) übernimmt beim „Übernehmen“ nur Felder,
   deren Name eine Property ist, und zählt Änderungen an anderen nicht als ungespeichert (SUITE.md 3a „nicht in elements“
   ist damit überholt). `'_aktionen' => true` in `formAufbauTeilen` bleibt als Möglichkeit, wird aber nicht genutzt.
+- Zweisprachig (0.18.0, Muster RoboHub 0.35): Quelltexte englisch, Deutsch in `locale.json`. Alle sichtbaren Texte über
+  `FrigateHubText::t('English %s', $wert)` (auch in Traits/Modulen; jedes Modul setzt im Konstruktor `$this->Translate`).
+  Deutsche Fassungen in `.tools/locale-teile/*.json` pflegen, dann `php .tools/locale-bauen.php` (schreibt libs/locale.json
+  und die Kopie in jedem Modulordner, bricht bei Widersprüchen ab). Kacheln: Konstante `KACHEL_TEXTE` + `T()` in module.html.
+  Prüfstände laufen auf Deutsch (deutsche Anzeige blieb wortgleich), `.tools/test-englisch.php` prüft fehlende Übersetzungen,
+  Platzhalter und deutsche Reste in den englischen Formularen. SendDebug-Texte und Kommentare bleiben deutsch.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

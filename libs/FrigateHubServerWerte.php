@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
 require_once __DIR__ . '/FrigateHubTopics.php';
 
 /**
@@ -19,11 +20,11 @@ class FrigateHubServerWerte
 
     /** Frigates connection_quality → Klartext. Unbekannte Stufen erscheinen unverändert. */
     private const QUALITAET = [
-        'excellent' => 'sehr gut',
-        'good'      => 'gut',
-        'fair'      => 'mittel',
-        'poor'      => 'schlecht',
-        'unusable'  => 'unbrauchbar',
+        'excellent' => 'excellent',
+        'good'      => 'good',
+        'fair'      => 'fair',
+        'poor'      => 'poor',
+        'unusable'  => 'unusable',
     ];
 
     /**
@@ -49,27 +50,27 @@ class FrigateHubServerWerte
         $version = self::version($dienst['version'] ?? null);
         if ($version !== '') {
             $out[] = self::wert('Version', 'Version', 'string', $version, '', 0, 2);
-            $out[] = self::wert('NeuesteVersion', 'Neueste Version', 'string', self::neuesteVersion($version, $dienst['latest_version'] ?? null), '', 0, 3);
+            $out[] = self::wert('NeuesteVersion', FrigateHubText::t('Latest version'), 'string', self::neuesteVersion($version, $dienst['latest_version'] ?? null), '', 0, 3);
         }
         if (is_numeric($dienst['uptime'] ?? null)) {
             $stand = is_numeric($dienst['last_updated'] ?? null) ? (int)$dienst['last_updated'] : time();
-            $out[] = self::wert('LaeuftSeit', 'Läuft seit', 'string', date('d.m.Y H:i', $stand - (int)$dienst['uptime']), '', 0, 4);
+            $out[] = self::wert('LaeuftSeit', FrigateHubText::t('Running since'), 'string', date('d.m.Y H:i', $stand - (int)$dienst['uptime']), '', 0, 4);
         }
 
         $system = $s['cpu_usages']['frigate.full_system'] ?? null;
         if (is_array($system)) {
             if (($cpu = self::prozent($system['cpu'] ?? null)) !== null) {
-                $out[] = self::wert('CPU', 'CPU-Last', 'float', $cpu, ' %', 1, 10);
+                $out[] = self::wert('CPU', FrigateHubText::t('CPU load'), 'float', $cpu, ' %', 1, 10);
             }
             if (($ram = self::prozent($system['mem'] ?? null)) !== null) {
-                $out[] = self::wert('Arbeitsspeicher', 'Arbeitsspeicher', 'float', $ram, ' %', 1, 11);
+                $out[] = self::wert('Arbeitsspeicher', FrigateHubText::t('Memory'), 'float', $ram, ' %', 1, 11);
             }
         }
 
         $i = 0;
         foreach ((array)($s['detectors'] ?? []) as $name => $d) {
             if (is_array($d) && is_numeric($d['inference_speed'] ?? null)) {
-                $out[] = self::wert(FrigateHubTopics::ident('Erkennungszeit', (string)$name), 'Erkennungszeit ' . $name, 'float',
+                $out[] = self::wert(FrigateHubTopics::ident('Erkennungszeit', (string)$name), FrigateHubText::t('Inference time %s', $name), 'float',
                     round((float)$d['inference_speed'], 1), ' ms', 1, self::POS_DETEKTOR + min(9, $i++));
             }
         }
@@ -77,27 +78,27 @@ class FrigateHubServerWerte
         $i = 0;
         foreach ((array)($s['gpu_usages'] ?? []) as $name => $g) {
             if (is_array($g) && ($last = self::prozent($g['gpu'] ?? null)) !== null) {
-                $out[] = self::wert(FrigateHubTopics::ident('GPU', (string)$name), 'GPU-Last ' . $name, 'float', $last, ' %', 1, self::POS_GPU + min(9, $i++));
+                $out[] = self::wert(FrigateHubTopics::ident('GPU', (string)$name), FrigateHubText::t('GPU load %s', $name), 'float', $last, ' %', 1, self::POS_GPU + min(9, $i++));
             }
         }
 
         $aufnahmen = $dienst['storage']['/media/frigate/recordings'] ?? null;
         if (is_array($aufnahmen) && is_numeric($aufnahmen['total'] ?? null) && (float)$aufnahmen['total'] > 0) {
             if (is_numeric($aufnahmen['used'] ?? null)) {
-                $out[] = self::wert('AufnahmenBelegt', 'Speicher Aufnahmen belegt', 'float',
+                $out[] = self::wert('AufnahmenBelegt', FrigateHubText::t('Recording storage used'), 'float',
                     round((float)$aufnahmen['used'] / (float)$aufnahmen['total'] * 100, 1), ' %', 1, 40);
             }
             if (is_numeric($aufnahmen['free'] ?? null)) {
-                $out[] = self::wert('AufnahmenFrei', 'Speicher Aufnahmen frei', 'float', round((float)$aufnahmen['free'] / 1024, 1), ' GB', 1, 41);
+                $out[] = self::wert('AufnahmenFrei', FrigateHubText::t('Recording storage free'), 'float', round((float)$aufnahmen['free'] / 1024, 1), ' GB', 1, 41);
             }
         }
 
         if (is_array($s['cameras'] ?? null)) {
             $probleme = self::kameraProbleme($s['cameras']);
             $anzahl = count($s['cameras']);
-            $out[] = self::wert('Kameraprobleme', 'Gestörte Kameras', 'int', count($probleme), '', 0, 50);
-            $out[] = self::wert('Kamerazustand', 'Kamerazustand', 'string', $probleme === []
-                ? ($anzahl === 1 ? 'Die Kamera läuft einwandfrei.' : 'Alle ' . $anzahl . ' Kameras laufen einwandfrei.')
+            $out[] = self::wert('Kameraprobleme', FrigateHubText::t('Faulty cameras'), 'int', count($probleme), '', 0, 50);
+            $out[] = self::wert('Kamerazustand', FrigateHubText::t('Camera status'), 'string', $probleme === []
+                ? ($anzahl === 1 ? FrigateHubText::t('The camera is running fine.') : FrigateHubText::t('All %d cameras are running fine.', $anzahl))
                 : implode(' · ', $probleme), '', 0, 51);
         }
         return $out;
@@ -117,18 +118,18 @@ class FrigateHubServerWerte
             }
             $teile = [];
             if (is_numeric($k['camera_fps'] ?? null) && (float)$k['camera_fps'] <= 0) {
-                $teile[] = 'liefert keine Bilder';
+                $teile[] = FrigateHubText::t('delivers no images');
             }
             $q = (string)($k['connection_quality'] ?? '');
             if (in_array($q, self::QUALITAET_PROBLEM, true)) {
-                $teile[] = 'Verbindung ' . self::qualitaet($q);
+                $teile[] = FrigateHubText::t('connection %s', self::qualitaet($q));
             }
             if ($teile === []) {
                 continue;
             }
             $neu = is_numeric($k['reconnects_last_hour'] ?? null) ? (int)$k['reconnects_last_hour'] : 0;
             if ($neu > 0) {
-                $teile[] = $neu . ($neu === 1 ? ' Neuverbindung' : ' Neuverbindungen') . ' in der letzten Stunde';
+                $teile[] = $neu === 1 ? FrigateHubText::t('%d reconnect in the last hour', $neu) : FrigateHubText::t('%d reconnects in the last hour', $neu);
             }
             $out[] = $name . ': ' . implode(', ', $teile);
         }
@@ -149,13 +150,13 @@ class FrigateHubServerWerte
         $zahl = fn (array $x): string => number_format((float)$x['wert'], $x['stellen'], ',', '.') . $x['einheit'];
         $zeilen = [];
         if (isset($w['Version'])) {
-            $zeilen[] = 'Frigate ' . $w['Version']['wert'] . ' (' . $w['NeuesteVersion']['wert'] . ')'
-                . (isset($w['LaeuftSeit']) ? ' · läuft seit ' . $w['LaeuftSeit']['wert'] : '');
+            $zeile = 'Frigate ' . $w['Version']['wert'] . ' (' . $w['NeuesteVersion']['wert'] . ')';
+            $zeilen[] = isset($w['LaeuftSeit']) ? FrigateHubText::t('%s · running since %s', $zeile, $w['LaeuftSeit']['wert']) : $zeile;
         }
         if (isset($w['CPU']) || isset($w['Arbeitsspeicher'])) {
             $zeilen[] = implode(' · ', array_filter([
-                isset($w['CPU']) ? 'CPU-Last ' . $zahl($w['CPU']) : '',
-                isset($w['Arbeitsspeicher']) ? 'Arbeitsspeicher ' . $zahl($w['Arbeitsspeicher']) : '',
+                isset($w['CPU']) ? FrigateHubText::t('CPU load %s', $zahl($w['CPU'])) : '',
+                isset($w['Arbeitsspeicher']) ? FrigateHubText::t('Memory %s', $zahl($w['Arbeitsspeicher'])) : '',
             ]));
         }
         $geraete = [];
@@ -168,7 +169,7 @@ class FrigateHubServerWerte
             $zeilen[] = implode(' · ', $geraete);
         }
         if (isset($w['AufnahmenBelegt'], $w['AufnahmenFrei'])) {
-            $zeilen[] = 'Speicher Aufnahmen: ' . $zahl($w['AufnahmenBelegt']) . ' belegt, ' . $zahl($w['AufnahmenFrei']) . ' frei';
+            $zeilen[] = FrigateHubText::t('Recording storage: %s used, %s free', $zahl($w['AufnahmenBelegt']), $zahl($w['AufnahmenFrei']));
         }
 
         $kameras = [];
@@ -179,7 +180,8 @@ class FrigateHubServerWerte
             $fps = fn ($v): string => is_numeric($v) ? number_format((float)$v, 1, ',', '') : '';
             $kameras[] = [
                 'kamera'      => (string)$name,
-                'bilder'      => $fps($k['camera_fps'] ?? null) . (is_numeric($k['expected_fps'] ?? null) ? ' von ' . (int)$k['expected_fps'] : ''),
+                'bilder'      => is_numeric($k['expected_fps'] ?? null)
+                    ? FrigateHubText::t('%s of %d', $fps($k['camera_fps'] ?? null), (int)$k['expected_fps']) : $fps($k['camera_fps'] ?? null),
                 'erkennungen' => $fps($k['detection_fps'] ?? null),
                 'verbindung'  => self::qualitaet((string)($k['connection_quality'] ?? '')),
                 'neu'         => is_numeric($k['reconnects_last_hour'] ?? null) ? (string)(int)$k['reconnects_last_hour'] : '',
@@ -206,7 +208,7 @@ class FrigateHubServerWerte
 
     public static function qualitaet(string $stufe): string
     {
-        return self::QUALITAET[$stufe] ?? $stufe;
+        return isset(self::QUALITAET[$stufe]) ? FrigateHubText::t(self::QUALITAET[$stufe]) : $stufe;
     }
 
     /** „0.18.2-cfa08c5" → „0.18.2". */
@@ -220,9 +222,9 @@ class FrigateHubServerWerte
     {
         $neueste = self::version($neueste);
         if ($neueste === '' || !preg_match('/^\d+(\.\d+)*$/', $neueste)) {
-            return 'unbekannt';
+            return FrigateHubText::t('unknown');
         }
-        return version_compare($neueste, $version, '>') ? $neueste . ' verfügbar' : 'aktuell';
+        return version_compare($neueste, $version, '>') ? FrigateHubText::t('%s available', $neueste) : FrigateHubText::t('up to date');
     }
 
     /** „2.51%", „23.8", 4 → Zahl; „-%", „" → null. */

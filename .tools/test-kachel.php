@@ -478,7 +478,7 @@ $nur = fn (array $ps) => array_values(array_filter(array_column($ps, 'c'), fn ($
 check('Standard: Fachpanels in Standardreihenfolge, Aufbau danach', $nur($panels()), array_merge($fachNamen, ['Formular: Aufbau']));
 $ps = $panels();
 $idx = array_flip(array_column($ps, 'c'));
-check('Aufbau-Panel zugeklappt, vor Forum/Über dieses Modul', [$ps[$idx['Formular: Aufbau']]['auf'], $idx['Formular: Aufbau'] < ($idx['Über dieses Modul'] ?? 999)], [false, true]);
+check('Aufbau-Panel zugeklappt, vor Forum/Über dieses Modul', [$ps[$idx['Formular: Aufbau'] ?? -1]['auf'] ?? null, ($idx['Formular: Aufbau'] ?? 999) < ($idx['Über dieses Modul'] ?? 999)], [false, true]);
 $k->props(['FormLayout' => json_encode([
     ['Key' => 'zonen', 'Pos' => 1, 'Opened' => true],
     ['Key' => 'kamera', 'Pos' => 5, 'Closed' => true],
@@ -489,14 +489,14 @@ $ps = $panels();
 // Ohne Eintrag gilt die Standardposition (Schnappschuss 2 …); bei gleicher Zahl die Standardreihenfolge
 check('Reihenfolge nach Position, gleiche Zahl stabil', $nur($ps), ['Zonen', 'Schnappschuss', 'Empfangene Nachrichten', 'Frigate-Kamera', 'Push und Meldungen', 'Kachel und IPSView', 'OpenHomeAlarm (optional)', 'Formular: Aufbau (1 ausgeblendet)']);
 $c = array_column($ps, null, 'c');
-check('Aufgeklappt / Zugeklappt', [$c['Zonen']['auf'], $c['Frigate-Kamera']['auf']], [true, false]);
-check('Ausgeblendet = visible:false, Felder bleiben, Vorrang vor Aufgeklappt', [$c['Empfangene Nachrichten']['sichtbar'], count($c['Empfangene Nachrichten']['e']['items']) > 0, $c['Empfangene Nachrichten']['auf']], [false, true, false]);
+check('Aufgeklappt / Zugeklappt', [$c['Zonen']['auf'] ?? null, $c['Frigate-Kamera']['auf'] ?? null], [true, false]);
+check('Ausgeblendet = visible:false, Felder bleiben, Vorrang vor Aufgeklappt', [$c['Empfangene Nachrichten']['sichtbar'] ?? null, count($c['Empfangene Nachrichten']['e']['items'] ?? []) > 0, $c['Empfangene Nachrichten']['auf'] ?? null], [false, true, false]);
 $liste = null;
-foreach ($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'] as $it) { if (($it['name'] ?? '') === 'FormLayout') { $liste = $it; } }
-check('Liste: alle Fachpanels, unbekannter Schlüssel fällt weg, Schlüssel gespeichert', [count($liste['values']), in_array('gibtsnicht', array_column($liste['values'], 'Key'), true),
-    array_values(array_filter($liste['columns'], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [10, false, true]);
-check('Panel „In Frigate einstellen" steht in der Liste wie jedes Fachpanel', in_array('⚙️  In Frigate einstellen', array_column($liste['values'], 'Panel'), true), true);
-check('Hinweiszeile nennt den ausgeblendeten Bereich', strpos($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'][0]['caption'], 'Ausgeblendet: Empfangene Nachrichten') !== false, true);
+foreach ($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'] ?? [] as $it) { if (($it['name'] ?? '') === 'FormLayout') { $liste = $it; } }
+check('Liste: alle Fachpanels, unbekannter Schlüssel fällt weg, Schlüssel gespeichert', [count($liste['values'] ?? []), in_array('gibtsnicht', array_column($liste['values'] ?? [], 'Key'), true),
+    array_values(array_filter($liste['columns'] ?? [], fn ($s) => $s['name'] === 'Key'))[0]['save'] ?? null], [10, false, true]);
+check('Panel „In Frigate einstellen" steht in der Liste wie jedes Fachpanel', in_array('⚙️  In Frigate einstellen', array_column($liste['values'] ?? [], 'Panel'), true), true);
+check('Hinweiszeile nennt den ausgeblendeten Bereich', strpos($c['Formular: Aufbau (1 ausgeblendet)']['e']['items'][0]['caption'] ?? '', 'Ausgeblendet: Empfangene Nachrichten') !== false, true);
 $k->formFieldUpdates = [];
 $text = $k->ResetFormLayout();
 $r = end($k->formFieldUpdates);
@@ -572,6 +572,27 @@ preg_match('#<div class="bild" id="bild">(.*?)\n        </div>#s', $html, $bild)
 check('keine LIVE-Marke und kein „online"-Chip mehr (doppelte Anzeige verwirrte)', [strpos($html, 'class="marke"'), strpos($html, "chip('online'")], [false, false]);
 check('Datum und Uhrzeit, bei Video mit „Live" und mitlaufend', [strpos($html, "zeitZeigen('Live', new Date())") !== false, strpos($html, 'd.getFullYear()') !== false], [true, true]);
 check('Uhrzeit nicht mehr im Livebild', isset($bild[1]) && strpos($bild[1], 'id="zeit"') === false, true);
+
+// Englisch: jeder T('…')-Text der Kachel steht in KACHEL_TEXTE (sonst bliebe er englisch) und hat eine deutsche Fassung;
+// keine deutschen Texte mehr im Kachel-Skript und -Gerüst (Kommentare und CSS ausgenommen). Muster RoboHub test-englisch.inc.php.
+$enDe = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'] ?? [];
+$enKachel = (new ReflectionClassConstant('FrigateHubKamera', 'KACHEL_TEXTE'))->getValue();
+preg_match_all("/\\bT\\('((?:[^'\\\\]|\\\\.)*)'/u", $html, $enT);
+preg_match_all("/\\bT\\(([^()]*\\?[^()]*)\\)/u", $html, $enTernaer);
+foreach ($enTernaer[1] as $enAusdruck) {
+    preg_match_all("/'([^']*)'/", $enAusdruck, $enTeile);
+    $enT[1] = array_merge($enT[1], $enTeile[1]);
+}
+$enAlle = array_unique($enT[1]);
+$enOhne = array_values(array_filter($enAlle, fn ($s) => !in_array($s, $enKachel, true) || !isset($enDe[$s])));
+check('Kachel: jeder T()-Text in KACHEL_TEXTE und locale.json (' . count($enAlle) . ')', [count($enAlle) >= 30, $enOhne], [true, []]);
+check('Kachel: jeder KACHEL_TEXTE-Eintrag hat eine deutsche Fassung', array_values(array_filter($enKachel, fn ($s) => !isset($enDe[$s]))), []);
+$enSkript = preg_replace(['~<style>.*?</style>~s', '~^\s*//.*$~m', '~/\*.*?\*/~s', '~ // .*$~m'], '', $html);
+preg_match_all("/'[^'\\n]*([äöüÄÖÜß]|\\b(Uhr|nicht|kein|keine|Aufnahme|Ereignis|Ereignisse|Archiv|Bild|Lade|Livebild|Ton)\\b)[^'\\n]*'|>[^<]*[äöüÄÖÜß][^<]*</u", $enSkript, $enReste);
+check('Kachel: keine deutschen Texte im Skript und im HTML-Gerüst', $enReste[0], []);
+$enDaten = $k->daten()['texte'] ?? [];
+check('Kachel-Daten: Übersetzungstabelle dabei, Sprache deutsch', [count($enDaten) === count($enKachel), $enDaten['language code: en'] ?? null, $enDaten['📅 Archive'] ?? null],
+    [true, getenv('FRIGATEHUB_SPRACHE') === 'en' ? 'language code: en' : 'de', getenv('FRIGATEHUB_SPRACHE') === 'en' ? '📅 Archive' : '📅 Archiv']);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

@@ -16,86 +16,89 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.18.0' => [
+            '• 🌍 New: FrigateHub speaks English. The module follows the language of your Symcon installation (forms, variables, notifications, tiles); existing variables keep their names.',
+        ],
         '0.17.1' => [
-            '• 🪟 „In Frigate einstellen" und „Anmeldung an Frigate" stehen jetzt bei den übrigen Einstellungen (über „Formular: Aufbau") statt ganz unten; Position und Aufklappen wie bei jedem anderen Panel.',
+            '• 🪟 “Configure in Frigate” and “Sign in to Frigate” now sit with the other settings (via “Form: layout”) instead of at the very bottom; position and expanding work like any other panel.',
         ],
         '0.17.0' => [
-            '• ⚙️ Neu: Frigate-Einstellungen der Kamera direkt in Symcon ändern (im Formular jeder Kamera-Instanz, Panel „In Frigate einstellen"): Aufbewahrung, erkannte Objekte, was als Alarm zählt, Zonen (welche Objekte, Verweildauer), Schnappschüsse, Stillstand, Kennzeichen, Gesichter, Geräusche. Frigate übernimmt die Änderungen sofort.',
+            '• ⚙️ New: change the camera\'s Frigate settings directly in Symcon (in the configuration form of every camera instance, panel “Configure in Frigate”): retention, detected objects, what counts as an alert, zones (which objects, loitering time), snapshots, stationary objects, license plates, faces, sounds. Frigate applies the changes immediately.',
         ],
         '0.16.0' => [
-            '• 🧠 Neu: Kamera als Sensor (im Formular jeder Kamera-Instanz, Panel „Kamera als Sensor"): Zustände aus Frigates Klassifizierung (Tor offen/zu …), „Auto steht seit" je Zone, „verweilt" je Zone, Paket entfernt, erkannte und unbekannte Gesichter und Kennzeichen, Geschwindigkeit, Auslöser, gesprochener Text, Tageszähler.',
-            '• 🔧 Neu: Bildprüfung — meldet eine abgedeckte, verdreckte oder verstellte Kamera und Dauerbewegung.',
-            '• Frigate-Server: Frigate-Profile anzeigen und schalten; FRIGS_GetCameras() liefert für Alarmanlagen jetzt auch Verweilen, Sabotage und Störungen (Vertrag 1.1).',
+            '• 🧠 New: camera as sensor (in the configuration form of every camera instance, panel “Camera as sensor”): states from Frigate\'s classification (gate open/closed …), “car parked since” per zone, “loitering” per zone, package removed, recognized and unknown faces and license plates, speed, trigger, spoken text, daily counters.',
+            '• 🔧 New: image check — reports a covered, dirty or misaligned camera and constant motion.',
+            '• Frigate server: show and switch Frigate profiles; FRIGS_GetCameras() now also returns loitering, tampering and faults for alarm systems (contract 1.1).',
         ],
         '0.15.1' => [
-            '• Kachel: Datum und Uhrzeit sowie der Archiv-Knopf stehen jetzt groß oben rechts. Bei Livevideo läuft die Uhr mit („Live"), beim Standbild steht sein Zeitpunkt.',
+            '• Tile: date and time as well as the archive button are now shown large at the top right. With live video the clock keeps running (“Live”); with a still image it shows when the image was taken.',
         ],
         '0.15.0' => [
-            '• 🎥 Neu: Aufnahme-Wächter in der Instanz „Frigate-Server" — meldet, wenn Frigate nicht mehr aufzeichnet, obwohl es „läuft": Schreibfehler (z. B. abgerissene USB-Platte), gewechselter Aufnahmespeicher, Alarm ohne Aufnahme, stehende Daueraufnahme, Frigate antwortet nicht. Braucht die Frigate-Adresse; Meldeziele im neuen Panel eintragen.',
+            '• 🎥 New: recording watchdog in the “Frigate server” instance — reports when Frigate stops recording although it is “running”: write errors (e.g. a disconnected USB drive), changed recording storage, alert without recording, stalled continuous recording, Frigate not responding. Needs the Frigate address; enter notification targets in the new panel.',
         ],
         '0.14.0' => [
-            '• 🪟 Neu: Formular-Aufbau selbst wählen — im Panel „🪟 Formular: Aufbau" je Bereich aufgeklappt, zugeklappt oder ausgeblendet und die Reihenfolge. Ausgeblendete Bereiche arbeiten weiter.',
+            '• 🪟 New: choose the form layout yourself — in the panel “🪟 Form: layout”, set each section to expanded, collapsed or hidden, and set the order. Hidden sections keep working.',
         ],
         '0.13.0' => [
-            '• Neu: Frigate-Alarme an die Alarmanlage OpenHomeAlarm melden (ab dessen Version 1.423) — Panel „🛡️ OpenHomeAlarm (optional)", Quellen-ID eintragen. Dort auch: beim Scharfschalten Aufnahme und Erkennung einschalten.',
+            '• New: report Frigate alerts to the OpenHomeAlarm alarm system (from its version 1.423) — panel “🛡️ OpenHomeAlarm (optional)”, enter the source ID. Also there: switch on recording and detection when arming.',
         ],
         '0.11.0' => [
-            '• Neu: Meldung mit Kamerabild. SMTP-Instanz als Ziel eintragen, dann kommt jeder Alarm als E-Mail mit Bild; Antippen einer Push-Meldung öffnet die Kamera. FRIG_MeldungMitSchnappschuss() für Alarmanlagen und Regeln.',
+            '• New: notification with camera image. Enter an SMTP instance as a target and every alert arrives as an email with an image; tapping a push notification opens the camera. FRIG_MeldungMitSchnappschuss() for alarm systems and rules.',
         ],
         '0.10.0' => [
-            '• Neu in der Kachel: 📅 Archiv nach Tag mit Filter, Aufnahme ab Uhrzeit, ungesehene Ereignisse, ☆ dauerhaft behalten, 💾 Export, Warnhinweise und PTZ-Steuerkreuz.',
-            '• Neu: Gesichter, Kennzeichen und KI-Beschreibung/-Einschätzung von Frigate als Variablen (wenn in Frigate eingerichtet), Bewegungsschwelle als Schieberegler.',
+            '• New in the tile: 📅 archive by day with filter, recording from a time of day, unseen events, ☆ keep permanently, 💾 export, warnings and PTZ control pad.',
+            '• New: faces, license plates and AI description/assessment from Frigate as variables (if set up in Frigate), motion threshold as a slider.',
         ],
         '0.9.0' => [
-            '• Neu: Instanz „Frigate-Server" — erreichbar, Version, freier Speicher, gestörte Kameras, Übersicht im Formular und als Kachel aller Kameras. Im Konfigurator mit anlegen.',
+            '• New: “Frigate server” instance — reachability, version, free storage, faulty cameras, overview in the configuration form and as a tile of all cameras. Create it in the configurator as well.',
         ],
         '0.8.0' => [
-            '• Neu: Die Kachel gibt es als eigenständige Seite für IPSView — Adresse im Panel „🖥️ Kachel und IPSView".',
+            '• New: the tile is also available as a standalone page for IPSView — address in the panel “🖥️ Tile and IPSView”.',
         ],
         '0.7.0' => [
-            '• Neu: Livevideo in der Kachel. Hat Frigates go2rtc einen Stream für die Kamera, spielt die Kachel echtes Video mit Ton (WebRTC, im Heimnetz) statt des Standbilds. Einrichtung in Frigate: siehe Doku-Panel und README.',
-            '• Ein Tipp aufs Livevideo vergrößert es, 🔇/🔊 schaltet den Ton. Unterwegs oder ohne Stream bleibt es beim Standbild.',
+            '• New: live video in the tile. If Frigate\'s go2rtc has a stream for the camera, the tile plays real video with sound (WebRTC, on the home network) instead of the still image. Setup in Frigate: see the documentation panel and README.',
+            '• Tapping the live video enlarges it, 🔇/🔊 toggles the sound. On the go or without a stream, the still image remains.',
         ],
         '0.6.0' => [
-            '• Neu: Die Frigate-Kamera ist jetzt auch eine Kachel für die Kachel-Visualisierung — Livebild mit Erkennungsrahmen, Alarm-Rahmen, Zähler und die letzten Ereignisse mit Vorschaubild.',
-            '• Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip, ein Tipp aufs Livebild vergrößert es. Erkennung, Aufnahme und Schnappschüsse lassen sich direkt in der Kachel schalten.',
-            '• Die Bilder laufen über einen gesicherten WebHook der Instanz, auch wenn der Browser Frigate selbst nicht erreicht. Einstellungen im Panel „🖥️ Kachel".',
+            '• New: the Frigate camera is now also a tile for the tile visualization — live image with detection boxes, alert frame, counters and the latest events with thumbnails.',
+            '• Tapping an event shows snapshot and clip, tapping the live image enlarges it. Detection, recording and snapshots can be switched directly in the tile.',
+            '• Images are served through a secured WebHook of the instance, even if the browser cannot reach Frigate itself. Settings in the panel “🖥️ Tile”.',
         ],
         '0.5.1' => [
-            '• Steht vor Port 8971 versehentlich http:// statt https://, sagt die Instanz das jetzt klar und nennt die richtige Adresse.',
+            '• If port 8971 is accidentally preceded by http:// instead of https://, the instance now says so clearly and gives the correct address.',
         ],
         '0.5.0' => [
-            '• Neu: Anmeldung an Frigate über Port 8971 (https://…:8971). Benutzer und Passwort eintragen, „Anmelden" — das Passwort wird nicht gespeichert, nur Frigates Zugangsschlüssel, und der wird automatisch verlängert.',
-            '• Instanzen mit derselben Frigate-Adresse teilen sich die Anmeldung: einmal im Konfigurator anmelden genügt für alle Kameras.',
+            '• New: sign in to Frigate via port 8971 (https://…:8971). Enter user and password, “Sign in” — the password is not stored, only Frigate\'s access token, which is renewed automatically.',
+            '• Instances with the same Frigate address share the sign-in: signing in once in the configurator is enough for all cameras.',
         ],
         '0.4.0' => [
-            '• Neu: Push bei Alarm. Im Panel „🔔 Push bei Alarm" eine oder mehrere Visualisierungen eintragen (WebFront oder Kachel-Visualisierung) — jeder neue Frigate-Alarm kommt einmal als Meldung aufs Handy, mit Zeit, Objekt und Zone.',
-            '• Ton und Mindestabstand zwischen zwei Meldungen sind einstellbar, „Probemeldung senden" prüft die Zustellung.',
+            '• New: push on alert. Enter one or more visualizations in the panel “🔔 Push on alert” (WebFront or tile visualization) — every new Frigate alert arrives once as a notification on your phone, with time, object and zone.',
+            '• Sound and minimum interval between two notifications are adjustable, “Send test notification” checks delivery.',
         ],
         '0.3.0' => [
-            '• Neu: Frigate-Konfigurator. Unter dem MQTT-Server anlegen, Frigate-Adresse eintragen — er listet alle Kameras aus Frigate und legt sie mit einem Klick fertig eingerichtet an.',
+            '• New: Frigate configurator. Create it under the MQTT server and enter the Frigate address — it lists all cameras from Frigate and creates them fully set up with one click.',
         ],
         '0.2.1' => [
-            '• Schnappschuss in voller Größe: Mit Frigate-Adresse holt die Instanz das Bild jeder Erkennung jetzt in Kameraauflösung statt des kleinen MQTT-Ausschnitts.',
+            '• Full-size snapshot: with a Frigate address, the instance now fetches the image of every detection in camera resolution instead of the small MQTT crop.',
         ],
         '0.2.0' => [
-            '• Neu: Medienobjekt „Schnappschuss" — zeigt das Bild, das Frigate zu jeder Erkennung schickt. Funktioniert per MQTT, auch ohne Frigate-Adresse.',
-            '• Mit Frigate-Adresse holt der Knopf „Aktuelles Kamerabild holen" (FRIG_BildHolen) das Livebild. Beim ersten Abgleich entsteht das Medienobjekt gleich mit, damit du es sofort verlinken kannst.',
+            '• New: media object “Snapshot” — shows the image Frigate sends with every detection. Works via MQTT, even without a Frigate address.',
+            '• With a Frigate address, the button “Fetch current camera image” (FRIG_BildHolen) fetches the live image. The media object is created right away during the first synchronization, so you can link it immediately.',
         ],
         '0.1.1' => [
-            '• Neu: Frigate-Adresse eintragen (z. B. http://192.168.1.20:5000) — dann holt die Instanz Schalter, Zonen und den Kamerazustand sofort über Frigates API, statt auf MQTT zu warten.',
-            '• Masken heißen jetzt kurz „Bewegungsmaske 1" statt „Bewegungsmaske motion_mask_1". Aus 0.1.0 vorhandene Masken-Variablen bitte löschen, sie werden neu angelegt.',
-            '• Manuell in Frigate ausgelöste Ereignisse heißen „manuell ausgelöst", Schnappschüsse erscheinen in „Empfangene Nachrichten" als Bild statt als Zeichensalat.',
+            '• New: enter the Frigate address (e.g. http://192.168.1.20:5000) — the instance then fetches switches, zones and the camera state immediately via Frigate\'s API instead of waiting for MQTT.',
+            '• Masks are now simply called “Motion mask 1” instead of “Motion mask motion_mask_1”. Please delete existing mask variables from 0.1.0, they will be created again.',
+            '• Events triggered manually in Frigate are called “triggered manually”, snapshots appear in “Received messages” as an image instead of garbled characters.',
         ],
         '0.1.0' => [
-            '• Erstes Release: Frigate-Kameras über Symcons MQTT-Server — Objektzähler je Kamera und Zone, Bewegung, Alarm, letzte Ereignisse.',
-            '• Erkennung, Aufnahme, Schnappschüsse, Masken und Zonen direkt aus Symcon schalten. Die Variable folgt der Bestätigung von Frigate.',
+            '• First release: Frigate cameras via Symcon\'s MQTT server — object counters per camera and zone, motion, alert, latest events.',
+            '• Switch detection, recording, snapshots, masks and zones directly from Symcon. The variable follows Frigate\'s confirmation.',
         ],
     ];
 
     private static $FRIGATEHUB_REPO_URL     = 'https://github.com/DG65/FrigateHub';
     private static $FRIGATEHUB_ISSUES_URL   = 'https://github.com/DG65/FrigateHub/issues';
-    private static $FRIGATEHUB_FORUM_URL    = 'https://community.symcon.de/t/beta-modul-frigatehub-frigate-videoanalyse-in-ip-symcon-erkennungen-kachel-mit-livevideo-archiv-und-alarmanlage/144813';
+    private static $FRIGATEHUB_FORUM_URL    = 'https://community.symcon.de/t/144813';
     private static $FRIGATEHUB_LICENSE_URL  = 'https://github.com/DG65/FrigateHub/blob/beta/LICENSE';
     private static $FRIGATEHUB_PAYPAL_URL   = 'https://paypal.me/DietmarGureth';
     private static $FRIGATEHUB_LIBRARY_GUID = '{4EE3C963-19C2-4F9A-A21B-CFFDC371223D}';
@@ -165,8 +168,8 @@ trait FrigateHubFormular
         foreach ($this->frigatehubZweck() as $zeile) {
             $items[] = ['type' => 'Label', 'caption' => $zeile];
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => $this->frigatehubPrefix() . '_AckPurposeIntro($id);'];
-        return ['type' => 'ExpansionPanel', 'name' => 'PurposeIntroPanel', 'expanded' => true, 'caption' => '👋  Wozu dieses Modul?', 'items' => $items];
+        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckPurposeIntro($id);'];
+        return ['type' => 'ExpansionPanel', 'name' => 'PurposeIntroPanel', 'expanded' => true, 'caption' => FrigateHubText::t('👋  What is this module for?'), 'items' => $items];
     }
 
     protected function formNeu(): ?array
@@ -187,28 +190,28 @@ trait FrigateHubFormular
         uksort($offen, 'version_compare');
         $items = [];
         foreach ($offen as $version => $zeilen) {
-            $items[] = ['type' => 'Label', 'caption' => 'Version ' . $version . ':'];
+            $items[] = ['type' => 'Label', 'caption' => FrigateHubText::t('Version %s:', $version)];
             foreach ($zeilen as $zeile) {
-                $items[] = ['type' => 'Label', 'caption' => $zeile];
+                $items[] = ['type' => 'Label', 'caption' => FrigateHubText::wert($zeile)];
             }
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'];
+        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'];
         $keys = array_keys($offen);
-        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'expanded' => true, 'caption' => '🆕  Neu bis Version ' . end($keys), 'items' => $items];
+        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🆕  New up to version %s', end($keys)), 'items' => $items];
     }
 
     protected function formDoku(): array
     {
         $lib = $this->frigatehubBibliothek();
         $ver = isset($lib['Version'])
-            ? 'ℹ️ FrigateHub Version ' . $lib['Version'] . ' (Build ' . ($lib['Build'] ?? '?') . ')'
+            ? FrigateHubText::t('ℹ️ FrigateHub version %s (build %s)', $lib['Version'], $lib['Build'] ?? '?')
             : 'ℹ️ FrigateHub';
         $items = [['type' => 'Label', 'caption' => $ver]];
         foreach ($this->frigatehubDoku() as $zeile) {
             $items[] = ['type' => 'Label', 'caption' => $zeile];
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Anleitung auf GitHub', 'onClick' => "echo '" . self::$FRIGATEHUB_REPO_URL . "';", 'link' => true];
-        return ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '📖  Dokumentation & Hilfe', 'items' => $items];
+        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Guide on GitHub'), 'onClick' => "echo '" . self::$FRIGATEHUB_REPO_URL . "';", 'link' => true];
+        return ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('📖  Documentation & help'), 'items' => $items];
     }
 
     protected function formRueckmeldung(): ?array
@@ -218,11 +221,11 @@ trait FrigateHubFormular
         }
         return [
             'type' => 'ExpansionPanel', 'name' => 'ForumHintPanel', 'expanded' => true,
-            'caption' => '💬  Rückmeldungen',
+            'caption' => FrigateHubText::t('💬  Feedback'),
             'items' => [
-                ['type' => 'Label', 'caption' => '🧪 FrigateHub ist neu. Läuft deine Kamera? Fehlt etwas? Schreib es gern im Symcon-Forum — mit Frigate-Version, Anzahl Kameras und einem Ausschnitt aus dem Panel „Empfangene Nachrichten".'],
-                ['type' => 'Button', 'caption' => 'Zum Forum-Thema', 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
-                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => $this->frigatehubPrefix() . '_AckForumHint($id);'],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('🧪 FrigateHub is new. Is your camera working? Is something missing? Feel free to post in the Symcon forum — with Frigate version, number of cameras and an excerpt from the panel “Received messages”.')],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('Go to the forum thread'), 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckForumHint($id);'],
             ],
         ];
     }
@@ -232,14 +235,14 @@ trait FrigateHubFormular
     {
         return [
             'type' => 'ExpansionPanel', 'expanded' => false,
-            'caption' => '🧡  Über dieses Modul',
+            'caption' => FrigateHubText::t('🧡  About this module'),
             'items' => [
-                ['type' => 'Label', 'caption' => 'Entstanden aus echter Begeisterung für die eigene Anlage — und ein paar durchgetippten Abenden. Trotzdem: Software-Hobby hin oder her, das hier ist geistiges Eigentum und echte Arbeit steckt drin.'],
-                ['type' => 'Label', 'caption' => 'Lizenz: PolyForm Noncommercial 1.0.0 — privat und nicht-kommerziell frei nutzbar, für den gewerblichen Einsatz braucht es eine gesonderte Lizenz vom Rechteinhaber.'],
-                ['type' => 'Button', 'caption' => 'Lizenztext ansehen', 'onClick' => "echo '" . self::$FRIGATEHUB_LICENSE_URL . "';", 'link' => true],
-                ['type' => 'Label', 'caption' => 'Gewerbliche Nutzung oder Fragen zur Lizenz? Einfach melden: dietmar@gureth.eu'],
-                ['type' => 'Label', 'caption' => 'Gefällt dir das Modul und du möchtest trotzdem etwas dalassen? Über eine kleine Spende freue ich mich — völlig freiwillig, keine Gegenleistung nötig.'],
-                ['type' => 'Button', 'caption' => '☕  Spenden via PayPal', 'onClick' => "echo '" . self::$FRIGATEHUB_PAYPAL_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Born out of genuine enthusiasm for my own installation — and a few evenings spent typing. Still: hobby software or not, this is intellectual property and real work went into it.')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('License: PolyForm Noncommercial 1.0.0 — free for private and non-commercial use; commercial use requires a separate license from the rights holder.')],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('View license text'), 'onClick' => "echo '" . self::$FRIGATEHUB_LICENSE_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Commercial use or questions about the license? Just get in touch: dietmar@gureth.eu')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Do you like the module and would like to leave something anyway? I appreciate a small donation — completely voluntary, nothing expected in return.')],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('☕  Donate via PayPal'), 'onClick' => "echo '" . self::$FRIGATEHUB_PAYPAL_URL . "';", 'link' => true],
             ],
         ];
     }
@@ -327,7 +330,7 @@ trait FrigateHubFormular
     protected static function formAufbauName(array $panel, string $k): string
     {
         $name = trim((string)preg_replace('/\s*\(.*$/u', '', (string)($panel['caption'] ?? $k)));
-        return !empty($panel['_aktionen']) ? $name . ' (unten bei den Aktionen)' : $name;
+        return !empty($panel['_aktionen']) ? FrigateHubText::t('%s (below with the actions)', $name) : $name;
     }
 
     private function formAufbauPanel(array $aufbau, array $fach): array
@@ -342,28 +345,27 @@ trait FrigateHubFormular
                 $aus[] = trim((string)preg_replace('/^[^\p{L}\p{N}]+/u', '', $name));
             }
         }
-        $ausZeile = $aus === [] ? [] : [['type' => 'Label', 'caption' => '🙈 Ausgeblendet: ' . implode(', ', $aus)
-            . ' — zum Wiederzeigen den Haken bei „Ausgeblendet" entfernen. Ausgeblendete Bereiche arbeiten weiter, nur die Anzeige fehlt.']];
+        $ausZeile = $aus === [] ? [] : [['type' => 'Label', 'caption' => FrigateHubText::t('🙈 Hidden: %s — untick “Hidden” to show it again. Hidden sections keep working, only the display is missing.', implode(', ', $aus))]];
         return [
             'type' => 'ExpansionPanel', 'expanded' => false,
-            'caption' => '🪟  Formular: Aufbau' . ($aus === [] ? '' : ' (' . count($aus) . ' ausgeblendet)'),
+            'caption' => $aus === [] ? FrigateHubText::t('🪟  Form: layout') : FrigateHubText::t('🪟  Form: layout (%d hidden)', count($aus)),
             'items' => array_merge($ausZeile, [
-                ['type' => 'Label', 'caption' => 'Hier legst du fest, welche Bereiche beim Öffnen des Formulars aufgeklappt sind und in welcher Reihenfolge sie stehen. Symcon merkt sich das Auf- und Zuklappen nicht selbst, deshalb gilt die Einstellung hier jedes Mal beim Öffnen. Sie wirkt nach „Übernehmen" beim nächsten Öffnen des Formulars.'],
-                ['type' => 'Label', 'caption' => 'Kein Haken heißt „Standard": wie das Modul es vorsieht (z. B. „Frigate-Kamera" aufgeklappt, solange keine Kamera eingetragen ist). Die Position ist eine Zahl; bei gleicher Zahl bleibt die Standardreihenfolge. „Ausgeblendet" nimmt einen Bereich aus der Anzeige, ohne dass er etwas verliert: seine Einstellungen bleiben erhalten und wirken weiter. Sind mehrere Haken gesetzt, gilt „Ausgeblendet" vor „Zugeklappt" vor „Aufgeklappt". Die Bereiche oben (Zweck, Neu, Dokumentation) und unten (Rückmeldungen, Über dieses Modul) bleiben, wo sie sind, und lassen sich nicht ausblenden.'],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Here you decide which sections are expanded when the configuration form opens and in which order they appear. Symcon does not remember expanding and collapsing itself, so this setting applies every time the form opens. It takes effect after “Apply” the next time the form is opened.')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('No tick means “default”: as the module intends (e.g. “Frigate camera” expanded as long as no camera is entered). The position is a number; with equal numbers the default order is kept. “Hidden” removes a section from the display without it losing anything: its settings are kept and keep working. If several ticks are set, “Hidden” wins over “Collapsed”, which wins over “Expanded”. The sections at the top (purpose, new, documentation) and at the bottom (feedback, about this module) stay where they are and cannot be hidden.')],
                 [
-                    'type' => 'List', 'name' => 'FormLayout', 'caption' => 'Bereiche', 'rowCount' => count($zeilen), 'add' => false, 'delete' => false,
+                    'type' => 'List', 'name' => 'FormLayout', 'caption' => FrigateHubText::t('Sections'), 'rowCount' => count($zeilen), 'add' => false, 'delete' => false,
                     'loadValuesFromConfiguration' => false,
                     'values' => $zeilen,
                     'columns' => [
-                        ['caption' => 'Bereich', 'name' => 'Panel', 'width' => 'auto', 'add' => ''],
-                        ['caption' => 'Schlüssel', 'name' => 'Key', 'width' => '0px', 'visible' => false, 'add' => '', 'save' => true],
-                        ['caption' => 'Aufgeklappt', 'name' => 'Opened', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => 'Zugeklappt', 'name' => 'Closed', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => '🙈 Ausgeblendet', 'name' => 'Hidden', 'width' => '130px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => 'Position', 'name' => 'Pos', 'width' => '100px', 'add' => 1, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 1, 'maximum' => 99]],
+                        ['caption' => FrigateHubText::t('Section'), 'name' => 'Panel', 'width' => 'auto', 'add' => ''],
+                        ['caption' => FrigateHubText::t('Key'), 'name' => 'Key', 'width' => '0px', 'visible' => false, 'add' => '', 'save' => true],
+                        ['caption' => FrigateHubText::t('Expanded'), 'name' => 'Opened', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => FrigateHubText::t('Collapsed'), 'name' => 'Closed', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => FrigateHubText::t('🙈 Hidden'), 'name' => 'Hidden', 'width' => '130px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => FrigateHubText::t('Position'), 'name' => 'Pos', 'width' => '100px', 'add' => 1, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 1, 'maximum' => 99]],
                     ],
                 ],
-                ['type' => 'Button', 'caption' => '↩️ Auf Standard zurücksetzen', 'onClick' => 'echo ' . $this->frigatehubPrefix() . '_ResetFormLayout($id);'],
+                ['type' => 'Button', 'caption' => FrigateHubText::t('↩️ Reset to default'), 'onClick' => 'echo ' . $this->frigatehubPrefix() . '_ResetFormLayout($id);'],
             ]),
         ];
     }
@@ -372,7 +374,7 @@ trait FrigateHubFormular
     public function ResetFormLayout(): string
     {
         if (!method_exists($this, 'frigatehubFachpanels')) {
-            return 'ℹ️ Dieses Modul hat keinen wählbaren Formular-Aufbau.';
+            return FrigateHubText::t('ℹ️ This module has no selectable form layout.');
         }
         $zeilen = [];
         $i = 0;
@@ -380,7 +382,7 @@ trait FrigateHubFormular
             $zeilen[] = ['Key' => $k, 'Panel' => self::formAufbauName($panel, (string)$k), 'Opened' => false, 'Closed' => false, 'Hidden' => false, 'Pos' => ++$i];
         }
         $this->UpdateFormField('FormLayout', 'values', (string)json_encode($zeilen, JSON_UNESCAPED_UNICODE));
-        return 'ℹ️ Auf Standard gesetzt. Zum Speichern unten „Übernehmen" klicken.';
+        return FrigateHubText::t('ℹ️ Reset to default. Click “Apply” below to save.');
     }
 
     /** Baut das komplette Formular aus Rahmen + Fachpanels. */

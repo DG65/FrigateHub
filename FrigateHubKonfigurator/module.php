@@ -62,25 +62,25 @@ class FrigateHubKonfigurator extends IPSModule
         [$status, $werte] = $this->suchen();
         $fach = [
             [
-                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🔎  Kameras in Frigate',
+                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🔎  Cameras in Frigate'),
                 'items' => [
-                    ...$this->apiFormular('Adresse und Benutzer werden an jede angelegte Kamera weitergegeben, die Kameras nutzen die Anmeldung mit.'),
+                    ...$this->apiFormular(FrigateHubText::t('Address and user are passed on to every camera created; the cameras share the login.')),
                     ['type' => 'Label', 'name' => 'Suchstatus', 'caption' => $status],
                     [
                         'type'     => 'Configurator',
                         'name'     => 'Kameras',
-                        'caption'  => 'Kameras',
+                        'caption'  => FrigateHubText::t('Cameras'),
                         'rowCount' => 10,
                         'add'      => false,
                         'delete'   => false,
                         'sort'     => ['column' => 'name', 'direction' => 'ascending'],
                         'columns'  => [
-                            ['caption' => 'Name', 'name' => 'name', 'width' => 'auto'],
-                            ['caption' => 'Kamera-ID', 'name' => 'kamera', 'width' => '180px'],
-                            ['caption' => 'Erkennung', 'name' => 'erkennung', 'width' => '110px'],
-                            ['caption' => 'Auflösung', 'name' => 'aufloesung', 'width' => '170px'],
-                            ['caption' => 'Zonen', 'name' => 'zonen', 'width' => '80px'],
-                            ['caption' => 'Zustand', 'name' => 'zustand', 'width' => '200px'],
+                            ['caption' => FrigateHubText::t('Name'), 'name' => 'name', 'width' => 'auto'],
+                            ['caption' => FrigateHubText::t('Camera ID'), 'name' => 'kamera', 'width' => '180px'],
+                            ['caption' => FrigateHubText::t('Detection'), 'name' => 'erkennung', 'width' => '110px'],
+                            ['caption' => FrigateHubText::t('Resolution'), 'name' => 'aufloesung', 'width' => '170px'],
+                            ['caption' => FrigateHubText::t('Zones'), 'name' => 'zonen', 'width' => '80px'],
+                            ['caption' => FrigateHubText::t('State'), 'name' => 'zustand', 'width' => '200px'],
                         ],
                         'values'   => $werte,
                     ],
@@ -88,8 +88,8 @@ class FrigateHubKonfigurator extends IPSModule
             ],
         ];
         $status = [
-            ['code' => 102, 'icon' => 'active', 'caption' => 'Bereit'],
-            ['code' => 104, 'icon' => 'inactive', 'caption' => 'Bitte die Frigate-Adresse eintragen'],
+            ['code' => 102, 'icon' => 'active', 'caption' => FrigateHubText::t('Ready')],
+            ['code' => 104, 'icon' => 'inactive', 'caption' => FrigateHubText::t('Please enter the Frigate address')],
         ];
         // Zwei Fachpanels, kein Formular-Aufbau (SUITE.md 3a erst ab drei)
         $fach[] = $this->apiAnmeldePanel();
@@ -104,17 +104,17 @@ class FrigateHubKonfigurator extends IPSModule
     protected function frigatehubZweck(): array
     {
         return [
-            'Findet alle Kameras deiner Frigate-Instanz und legt je Kamera mit einem Klick eine Frigate-Kamera-Instanz an — mit Kamera-ID, MQTT-Präfix und Frigate-Adresse bereits eingetragen. Dazu bietet er den Frigate-Server an (Version, Leistung, Speicher, gestörte Kameras).',
+            FrigateHubText::t('Finds all cameras of your Frigate installation and creates a Frigate camera instance per camera with one click — with camera ID, MQTT prefix and Frigate address already filled in. It also offers the Frigate server (version, performance, storage, faulty cameras).'),
         ];
     }
 
     protected function frigatehubDoku(): array
     {
         return [
-            'Den Konfigurator unter dem MQTT-Server bzw. MQTT-Client anlegen, an den Frigate sendet. Die angelegten Kameras hängen dann am selben MQTT-Server.',
-            'Die Liste kommt bei jedem Öffnen frisch aus Frigates API (/api/config). Der Konfigurator liest nur und ändert in Frigate nichts.',
-            'Mit Port 8971 hier einmal anmelden: Die angelegten Kameras übernehmen Benutzer und Anmeldung.',
-            'Eine Kamera gilt als vorhanden, wenn eine Frigate-Kamera-Instanz mit derselben Kamera-ID unter demselben MQTT-Server existiert. Instanzen, deren Kamera es in Frigate nicht mehr gibt, stehen mit Hinweis in der Liste.',
+            FrigateHubText::t('Create the configurator under the MQTT server or MQTT client that Frigate sends to. The cameras created are then attached to the same MQTT server.'),
+            FrigateHubText::t('The list is fetched fresh from Frigate\'s API (/api/config) every time it is opened. The configurator only reads and changes nothing in Frigate.'),
+            FrigateHubText::t('With port 8971, log in here once: the cameras created take over user and login.'),
+            FrigateHubText::t('A camera counts as existing if a Frigate camera instance with the same camera ID exists under the same MQTT server. Instances whose camera no longer exists in Frigate are listed with a note.'),
         ];
     }
 
@@ -130,14 +130,14 @@ class FrigateHubKonfigurator extends IPSModule
         $vorhanden = $this->vorhandeneKameras();
         if ($this->apiUrl() === '') {
             $text = trim((string)$this->ReadPropertyString('ApiUrl')) === ''
-                ? 'ℹ️ Frigate-Adresse eintragen und übernehmen, dann erscheinen hier die Kameras.'
-                : '⚠️ Die Frigate-Adresse ist ungültig — erwartet z. B. http://192.168.1.20:5000.';
-            return [$text, $this->verwaisteZeilen($vorhanden, [], 'Frigate nicht abgefragt')];
+                ? FrigateHubText::t('ℹ️ Enter the Frigate address and apply; the cameras then appear here.')
+                : FrigateHubText::t('⚠️ The Frigate address is invalid — expected e.g. http://192.168.1.20:5000.');
+            return [$text, $this->verwaisteZeilen($vorhanden, [], FrigateHubText::t('Frigate not queried'))];
         }
         $config = $this->apiHolen('/api/config');
         if ($config === null) {
             return ['⛔ ' . $this->apiFehlerText(),
-                $this->verwaisteZeilen($vorhanden, [], 'Frigate nicht erreichbar')];
+                $this->verwaisteZeilen($vorhanden, [], FrigateHubText::t('Frigate not reachable'))];
         }
         $stats = $this->apiHolen('/api/stats');
         $kameras = FrigateHubTopics::kamerasAusConfig($config, $stats);
@@ -148,10 +148,10 @@ class FrigateHubKonfigurator extends IPSModule
             $werte[] = [
                 'name'       => $k['name'],
                 'kamera'     => $k['id'],
-                'erkennung'  => $k['erkennung'] ? 'an' : 'aus',
+                'erkennung'  => $k['erkennung'] ? FrigateHubText::t('on') : FrigateHubText::t('off'),
                 'aufloesung' => $k['aufloesung'],
                 'zonen'      => (string)$k['zonen'],
-                'zustand'    => !$k['aktiv'] ? 'in Frigate deaktiviert' : ($k['bilder'] === null ? '' : ($k['bilder'] ? 'liefert Bilder' : '⚠️ liefert keine Bilder')),
+                'zustand'    => !$k['aktiv'] ? FrigateHubText::t('disabled in Frigate') : ($k['bilder'] === null ? '' : ($k['bilder'] ? FrigateHubText::t('delivers images') : FrigateHubText::t('⚠️ delivers no images'))),
                 'instanceID' => $vorhanden[$k['id']] ?? 0,
                 'create'     => [
                     'moduleID'      => self::KAMERA_GUID,
@@ -161,13 +161,13 @@ class FrigateHubKonfigurator extends IPSModule
                 ],
             ];
         }
-        $werte = array_merge($werte, $this->verwaisteZeilen($vorhanden, array_column($kameras, 'id'), 'nicht mehr in Frigate'));
+        $werte = array_merge($werte, $this->verwaisteZeilen($vorhanden, array_column($kameras, 'id'), FrigateHubText::t('no longer in Frigate')));
         $werte[] = $this->serverZeile($praefix);
 
         $version = is_string($stats['service']['version'] ?? null) ? ' ' . preg_replace('/-.*$/', '', $stats['service']['version']) : '';
-        $text = '✅ ' . count($kameras) . ' ' . (count($kameras) === 1 ? 'Kamera' : 'Kameras') . ' in Frigate' . $version . ' gefunden.';
+        $text = count($kameras) === 1 ? FrigateHubText::t('✅ %d camera found in Frigate%s.', count($kameras), $version) : FrigateHubText::t('✅ %d cameras found in Frigate%s.', count($kameras), $version);
         if (!$this->HasActiveParent()) {
-            $text .= ' ⚠️ Der Konfigurator hängt unter keinem aktiven MQTT-Server — angelegte Kameras empfangen dann nichts.';
+            $text .= ' ' . FrigateHubText::t('⚠️ The configurator is not attached to an active MQTT server — cameras created will then receive nothing.');
         }
         return [$text, $werte];
     }
@@ -184,16 +184,16 @@ class FrigateHubKonfigurator extends IPSModule
             }
         }
         return [
-            'name'       => 'Frigate-Server',
+            'name'       => FrigateHubText::t('Frigate server'),
             'kamera'     => '',
             'erkennung'  => '',
             'aufloesung' => '',
             'zonen'      => '',
-            'zustand'    => 'Version, Leistung, Speicher, gestörte Kameras',
+            'zustand'    => FrigateHubText::t('Version, performance, storage, faulty cameras'),
             'instanceID' => $vorhanden,
             'create'     => [
                 'moduleID'      => self::SERVER_GUID,
-                'name'          => 'Frigate-Server',
+                'name'          => FrigateHubText::t('Frigate server'),
                 'configuration' => ['TopicPrefix' => $praefix, 'ApiUrl' => $this->apiUrl(),
                     'ApiBenutzer' => (string)$this->ReadPropertyString('ApiBenutzer'), 'ZertifikatPruefen' => $this->ReadPropertyBoolean('ZertifikatPruefen')],
             ],

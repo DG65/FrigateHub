@@ -1,16 +1,24 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.3.0-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.18.0-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
 
-[Frigate](https://frigate.video) in IP-Symcon: Frigate ist eine quelloffene Videoüberwachung
+*English: [README.en.md](README.en.md)*
+
+[Frigate](https://frigate.video) in Symcon: Frigate ist eine quelloffene Videoüberwachung
 (NVR) mit KI-Objekterkennung. FrigateHub holt die Erkennungen je Kamera und Zone als Variablen
 nach Symcon und schaltet Erkennung, Aufnahme, Masken und Zonen von dort aus.
 
-> **Stand 0.7.0:** Livevideo per WebRTC in der Kachel. Davor: MQTT, Abgleich über Frigates API (Port 5000 oder 8971 mit Anmeldung), Schnappschuss als Medienobjekt, Konfigurator, Push bei Alarm und eine Kachel mit Livebild, Ereignissen und Clips.
+FrigateHub ist damit auch der Weg für Kameras, die sich sonst nicht oder nur mühsam in Symcon
+einbinden lassen: Jede Kamera mit RTSP-Stream – Mobotix, Axis, Hikvision, Dahua, Reolink, Instar,
+Foscam, Doorbird, Ubiquiti, TP-Link Tapo oder No-Name – wird über Frigate zur Symcon-Kamera mit
+Livevideo, Aufnahmen, Archiv und Ereignissen. Reine Cloud-Kameras ohne RTSP (Ring, Blink, Arlo,
+Nest) gehen in der Regel nicht.
+
+Das Modul spricht die Sprache der Symcon-Installation (Deutsch oder Englisch).
 
 ## Was tut dieses Modul?
 
@@ -219,7 +227,7 @@ anlegen bleiben in Frigates Oberfläche.
 
 ## Voraussetzungen
 
-- IP-Symcon 9.0 oder neuer
+- Symcon 9.0 oder neuer
 - Frigate (getestet mit 0.18.2), das per MQTT an Symcon sendet:
 
 ```yaml

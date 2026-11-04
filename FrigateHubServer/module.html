@@ -69,6 +69,9 @@
 
         function el(id) { return document.getElementById(id); }
 
+        /** Kacheltext übersetzen (PHP liefert daten.texte: englisch → Sprache der Instanz); ohne Daten englisch. */
+        function T(s, a) { var t = (daten && daten.texte && daten.texte[s]) || s; return a == null ? t : t.replace('%s', a); }
+
         function bildUrl(kamera, h) {
             return daten.hook + '?k=' + encodeURIComponent(daten.k) + (kamera === '' ? '&bild=birdseye' : '&bild=live&kamera=' + encodeURIComponent(kamera))
                 + '&h=' + h + '&t=' + Date.now();
@@ -86,7 +89,8 @@
             }
             var s = document.createElement('span');
             var alarme = daten.kameras.filter(function (k) { return k.alarm; }).length;
-            s.textContent = daten.verfuegbar === false ? '⛔ Frigate nicht erreichbar' : daten.kameras.length + (daten.kameras.length === 1 ? ' Kamera' : ' Kameras') + (alarme ? ' · 🚨 ' + alarme + ' Alarm' : '');
+            s.textContent = daten.verfuegbar === false ? T('⛔ Frigate not reachable') : T(daten.kameras.length === 1 ? '%s camera' : '%s cameras', daten.kameras.length)
+                + (alarme ? ' · 🚨 ' + T(alarme === 1 ? '%s alarm' : '%s alarms', alarme) : '');
             kopf.appendChild(s);
 
             var raster = el('raster');
@@ -94,7 +98,7 @@
             if (!daten.api) {
                 var d = document.createElement('div');
                 d.className = 'leer';
-                d.textContent = 'Für die Livebilder in der Instanz die Frigate-Adresse eintragen.';
+                d.textContent = T('Enter the Frigate address in the instance to see the live images.');
                 raster.appendChild(d);
                 return;
             }
@@ -110,8 +114,8 @@
                 z.appendChild(img);
                 var n = document.createElement('div');
                 n.className = 'name';
-                [[k.name, ''], [k.alarm ? '🚨 Alarm' : '', 'rot'], [k.personen ? k.personen + ' ' + (k.personen === 1 ? 'Person' : 'Personen') : '', ''],
-                    [k.online === false ? 'offline' : '', 'rot'], [k.verbindung ? 'Verbindung ' + k.verbindung : '', 'gelb']].forEach(function (t) {
+                [[k.name, ''], [k.alarm ? T('🚨 Alarm') : '', 'rot'], [k.personen ? T(k.personen === 1 ? '%s person' : '%s people', k.personen) : '', ''],
+                    [k.online === false ? T('offline') : '', 'rot'], [k.verbindung ? T('Connection %s', k.verbindung) : '', 'gelb']].forEach(function (t) {
                     if (!t[0]) { return; }
                     var sp = document.createElement('span');
                     sp.textContent = t[0];

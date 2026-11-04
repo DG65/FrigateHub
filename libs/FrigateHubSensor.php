@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
+
 /**
  * Die Kamera als Sensor — reines PHP, vom Prüfstand direkt aufgerufen.
  *
@@ -230,9 +232,9 @@ class FrigateHubSensor
         $z['grund'] = $grund;
         $z['folge'] = $folge;
         $auffaellig = $folge >= self::BESTAETIGEN;
-        $text = !$auffaellig ? 'Bild unauffällig.' : ($grund === 'einfarbig'
-            ? 'Bild fast einfarbig — Kamera abgedeckt, verdreckt oder gestört?'
-            : 'Bild weicht stark von der gewohnten Ansicht ab — Kamera verstellt oder Sicht verdeckt?');
+        $text = FrigateHubText::t(!$auffaellig ? 'Image looks normal.' : ($grund === 'einfarbig'
+            ? 'Image almost uniform — camera covered, dirty or faulty?'
+            : 'Image differs strongly from the usual view — camera moved or view blocked?'));
         return ['zustand' => $z, 'auffaellig' => $auffaellig, 'text' => $text];
     }
 

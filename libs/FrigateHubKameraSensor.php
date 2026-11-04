@@ -51,7 +51,7 @@ trait FrigateHubKameraSensor
     public function SensorPruefen(): string
     {
         $this->stehenUndVerweilenSetzen();
-        return '✅ Verweilen und Stillstand neu bewertet.';
+        return FrigateHubText::t('✅ Loitering and stationary objects re-evaluated.');
     }
 
     /** FRIG_Tageswechsel($id): Tageszähler auf 0 (Timer um Mitternacht). */
@@ -75,10 +75,10 @@ trait FrigateHubKameraSensor
     public function BildPruefen(): string
     {
         if ($this->kamera() === '' || $this->apiUrl() === '') {
-            return 'ℹ️ Die Bildprüfung braucht Kamera-ID und Frigate-Adresse.';
+            return FrigateHubText::t('ℹ️ The image check needs the camera ID and the Frigate address.');
         }
         if (!function_exists('imagecreatefromstring')) {
-            return '⛔ Symcon hat keine Bildfunktionen (PHP-Erweiterung GD) — die Bildprüfung ist nicht möglich.';
+            return FrigateHubText::t('⛔ Symcon has no image functions (PHP extension GD) — the image check is not possible.');
         }
         $teile = [];
         $auffaellig = false;
@@ -97,17 +97,17 @@ trait FrigateHubKameraSensor
         if ($seit > 0) {
             if (time() - $seit >= self::$FRIGATEHUB_DAUERBEWEGUNG * 60) {
                 $auffaellig = true;
-                $teile[] = 'Dauerbewegung seit ' . date('H:i', $seit) . ' — Spinnennetz, Regen auf der Linse oder eine Pflanze im Bild?';
+                $teile[] = FrigateHubText::t('Continuous motion since %s — spider web, rain on the lens or a plant in the picture?', date('H:i', $seit));
             }
         }
         $vorher = @$this->GetIDForIdent('BildAuffaellig') !== false ? (bool)$this->GetValue('BildAuffaellig') : false;
-        $this->variableAnlegen('BildAuffaellig', 'Bild auffällig', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('auffällig', 'unauffällig'), self::POS_SENSOR + 90);
-        $this->variableAnlegen('Bildzustand', 'Bildzustand', VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 91);
-        $text = $k === null && $teile === [] ? 'Kein Bild von Frigate — Prüfung ausgesetzt.' : ($teile === [] ? 'Bild unauffällig.' : implode(' ', $teile));
+        $this->variableAnlegen('BildAuffaellig', FrigateHubText::t('Image abnormal'), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein(FrigateHubText::t('abnormal'), FrigateHubText::t('normal')), self::POS_SENSOR + 90);
+        $this->variableAnlegen('Bildzustand', FrigateHubText::t('Image state'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 91);
+        $text = $k === null && $teile === [] ? FrigateHubText::t('No image from Frigate — check suspended.') : ($teile === [] ? FrigateHubText::t('Image normal.') : implode(' ', $teile));
         $this->SetValue('BildAuffaellig', $auffaellig);
         $this->SetValue('Bildzustand', $text);
         if ($auffaellig && !$vorher) {
-            $this->LogMessage('Bildprüfung: ' . $text, KL_WARNING);
+            $this->LogMessage(FrigateHubText::t('Image check: %s', $text), KL_WARNING);
             if ($this->ReadPropertyBoolean('SabotageMelden') && $this->pushZiele() !== []) {
                 $this->pushSenden('🔧 ' . IPS_GetName($this->InstanceID), $text, true);
             }
@@ -119,7 +119,7 @@ trait FrigateHubKameraSensor
     public function BildNeuLernen(): string
     {
         $this->WriteAttributeString('Sabotage', '{}');
-        return '✅ Gelernte Ansichten verworfen. Die Bildprüfung lernt die Kamera jetzt neu (je Tagesstunde ab dem dritten Bild).';
+        return FrigateHubText::t('✅ Learned views discarded. The image check now learns the camera anew (per hour of the day, from the third image).');
     }
 
     /* ---------------------------------------------------------------- aus ReceiveData */
@@ -142,7 +142,7 @@ trait FrigateHubKameraSensor
             return;
         }
         $ident = FrigateHubTopics::ident('Zustand', $modell);
-        $this->variableAnlegen($ident, 'Zustand ' . $modell, VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR);
+        $this->variableAnlegen($ident, FrigateHubText::t('State %s', $modell), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR);
         $this->SetValue($ident, $wert);
     }
 
@@ -153,7 +153,7 @@ trait FrigateHubKameraSensor
         if ($text === '') {
             return;
         }
-        $this->variableAnlegen('Gesprochen', 'Gesprochener Text', VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 60);
+        $this->variableAnlegen('Gesprochen', FrigateHubText::t('Spoken text'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 60);
         $this->SetValue('Gesprochen', FrigateHubTopics::kuerzenBytes(date('d.m.Y H:i:s') . ' – ' . $text, 1000));
     }
 
@@ -166,7 +166,7 @@ trait FrigateHubKameraSensor
         }
         $name = trim((string)$t['name']);
         $ident = FrigateHubTopics::ident('Ausloeser', $name);
-        $this->variableAnlegen($ident, 'Auslöser ' . $name, VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 70);
+        $this->variableAnlegen($ident, FrigateHubText::t('Trigger %s', $name), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 70);
         $this->SetValue($ident, time());
     }
 
@@ -182,7 +182,7 @@ trait FrigateHubKameraSensor
         $label = (string)($after['label'] ?? '');
 
         if ($e['neu'] && $label !== '' && $this->ReadPropertyBoolean('Tageszaehler')) {
-            $this->zaehlen($label, 'Heute: ' . FrigateHubTopics::objektName($label));
+            $this->zaehlen($label, FrigateHubText::t('Today: %s', FrigateHubTopics::objektName($label)));
         }
         $fz = FrigateHubSensor::fahrzeug($after);
         if ($fz !== null && isset($objekte[$id])) {
@@ -204,7 +204,7 @@ trait FrigateHubKameraSensor
     protected function sensorAlarm(): void
     {
         if ($this->ReadPropertyBoolean('Tageszaehler')) {
-            $this->zaehlen('alarme', 'Heute: Alarme');
+            $this->zaehlen('alarme', FrigateHubText::t('Today: Alerts'));
         }
     }
 
@@ -223,7 +223,7 @@ trait FrigateHubKameraSensor
         $objekte = (array)json_decode($this->GetBuffer('Objekte'), true);
         if ($art === 'face') {
             if ($name !== '') {
-                $this->variableAnlegen('PersonName', 'Erkannte Person (Name)', VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 40);
+                $this->variableAnlegen('PersonName', FrigateHubText::t('Recognized person (name)'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 40);
                 $this->SetValue('PersonName', $name);
             }
             if (isset($objekte[$id])) {
@@ -250,23 +250,23 @@ trait FrigateHubKameraSensor
     {
         $label = (string)($o['label'] ?? '');
         if ($label === 'package' && (int)($o['steht'] ?? 0) > 0) {
-            $this->variableAnlegen('PaketEntfernt', 'Paket entfernt', VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 30);
+            $this->variableAnlegen('PaketEntfernt', FrigateHubText::t('Package removed'), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 30);
             $this->SetValue('PaketEntfernt', time());
         }
         if (!empty($o['gesichtVersuch']) && (string)($o['gesicht'] ?? '') === '') {
-            $this->variableAnlegen('UnbekanntesGesicht', 'Unbekanntes Gesicht', VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 41);
+            $this->variableAnlegen('UnbekanntesGesicht', FrigateHubText::t('Unknown face'), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 41);
             $this->SetValue('UnbekanntesGesicht', time());
         }
         if ((string)($o['kennzeichen'] ?? '') !== '' && (string)($o['fahrzeug'] ?? '') === '') {
-            $this->variableAnlegen('UnbekanntesKennzeichen', 'Unbekanntes Kennzeichen', VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 51);
+            $this->variableAnlegen('UnbekanntesKennzeichen', FrigateHubText::t('Unknown license plate'), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 51);
             $this->SetValue('UnbekanntesKennzeichen', time());
         }
         $tempo = $o['geschwindigkeit'] ?? (is_numeric($after['average_estimated_speed'] ?? null) && (float)$after['average_estimated_speed'] > 0 ? round((float)$after['average_estimated_speed'], 1) : null);
         if ($tempo !== null) {
-            $this->variableAnlegen('Geschwindigkeit', 'Letzte Geschwindigkeit', VARIABLETYPE_FLOAT,
+            $this->variableAnlegen('Geschwindigkeit', FrigateHubText::t('Last speed'), VARIABLETYPE_FLOAT,
                 ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => $this->ReadAttributeString('Einheit'), 'DIGITS' => 1], self::POS_SENSOR + 55);
             $this->SetValue('Geschwindigkeit', (float)$tempo);
-            $this->variableAnlegen('GeschwindigkeitObjekt', 'Letzte Geschwindigkeit: Objekt', VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 56);
+            $this->variableAnlegen('GeschwindigkeitObjekt', FrigateHubText::t('Last speed: object'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 56);
             $this->SetValue('GeschwindigkeitObjekt', FrigateHubTopics::objektEinzahl($label) . ', ' . date('d.m.Y H:i:s'));
         }
     }
@@ -276,7 +276,7 @@ trait FrigateHubKameraSensor
         if ($name === '' && $kennzeichen === '') {
             return;
         }
-        $this->variableAnlegen('Fahrzeug', 'Erkanntes Fahrzeug', VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 50);
+        $this->variableAnlegen('Fahrzeug', FrigateHubText::t('Recognized vehicle'), VARIABLETYPE_STRING, self::anzeigeText(), self::POS_SENSOR + 50);
         $this->SetValue('Fahrzeug', $name !== '' ? $name . ($kennzeichen !== '' ? ' (' . $kennzeichen . ')' : '') : $kennzeichen);
     }
 
@@ -299,13 +299,13 @@ trait FrigateHubKameraSensor
         }
         foreach ($s['klasse'] as $label => $seit) {
             $ident = FrigateHubTopics::ident('Steht', $label);
-            $this->variableAnlegen($ident, FrigateHubTopics::objektEinzahl($label) . ' steht seit', VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 10);
+            $this->variableAnlegen($ident, FrigateHubText::t('%s stationary since', FrigateHubTopics::objektEinzahl($label)), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 10);
             $this->wertSetzen($ident, $seit);
         }
         foreach ($s['zone'] as $schluessel => $seit) {
             [$zone, $label] = explode('|', $schluessel, 2);
             $ident = FrigateHubTopics::ident('Steht', $zone, $label);
-            $this->variableAnlegen($ident, $zone . ': ' . FrigateHubTopics::objektEinzahl($label) . ' steht seit', VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 11);
+            $this->variableAnlegen($ident, FrigateHubText::t('%s: %s stationary since', $zone, FrigateHubTopics::objektEinzahl($label)), VARIABLETYPE_INTEGER, self::anzeigeZeitpunkt(), self::POS_SENSOR + 11);
             $this->wertSetzen($ident, $seit);
         }
 
@@ -316,7 +316,7 @@ trait FrigateHubKameraSensor
                 $ident = FrigateHubTopics::ident('Verweilt', $zone);
                 $wert = $verweilt[$zone] ?? false;
                 if ($wert || @$this->GetIDForIdent($ident) !== false) {
-                    $this->variableAnlegen($ident, $zone . ': verweilt', VARIABLETYPE_BOOLEAN, self::anzeigeJaNein('verweilt', 'frei'), self::POS_SENSOR + 20);
+                    $this->variableAnlegen($ident, FrigateHubText::t('%s: loitering', $zone), VARIABLETYPE_BOOLEAN, self::anzeigeJaNein(FrigateHubText::t('loitering'), FrigateHubText::t('zone clear')), self::POS_SENSOR + 20);
                     $this->wertSetzen($ident, $wert);
                 }
             }
@@ -384,20 +384,20 @@ trait FrigateHubKameraSensor
     protected function sensorPanel(): array
     {
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🧠  Kamera als Sensor',
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🧠  Camera as sensor'),
             'items' => [
-                ['type' => 'Label', 'caption' => 'Macht aus der Kamera Sensoren für Abläufe und Alarmanlagen. Die Variablen entstehen erst, wenn Frigate die Daten liefert — was Frigate nicht erkennt (Kennzeichen, Gesichter, Zustände, Geschwindigkeit, Sprache), muss dort eingerichtet sein.'],
-                ['type' => 'Label', 'caption' => '„… steht seit": wann ein Objekt zum Stillstand kam (Frigate „stationary"), je Objektart und je Zone, z. B. „Carport: Auto steht seit". „-" = steht keins. Liegt ein Paket und verschwindet, setzt die Kamera „Paket entfernt".'],
-                ['type' => 'NumberSpinner', 'name' => 'VerweilSekunden', 'caption' => 'Verweilen: so lange in einer Zone (0 = aus)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
-                ['type' => 'ValidationTextBox', 'name' => 'VerweilKlassen', 'caption' => 'Verweilen gilt für (Frigate-Objektarten, mit Komma, leer = alle)'],
-                ['type' => 'Label', 'caption' => '„<Zone>: verweilt" ist ein besserer Alarm-Auslöser als „Person erkannt": Vorbeigehen löst ihn nicht aus, jemand, der vor der Tür stehen bleibt, schon.'],
-                ['type' => 'CheckBox', 'name' => 'Tageszaehler', 'caption' => 'Tageszähler („Heute: Personen", „Heute: Alarme" …), um Mitternacht auf 0'],
-                ['type' => 'NumberSpinner', 'name' => 'SabotageMinuten', 'caption' => 'Bildprüfung (abgedeckt, verstellt, Dauerbewegung) alle (0 = aus)', 'suffix' => 'min', 'minimum' => 0, 'maximum' => 60],
-                ['type' => 'CheckBox', 'name' => 'SabotageMelden', 'caption' => 'Auffälliges Bild an die Ziele unter „Push und Meldungen" melden'],
-                ['type' => 'Label', 'caption' => 'Die Bildprüfung lernt je Tagesstunde, wie das Bild normalerweise aussieht, und meldet erst nach drei auffälligen Prüfungen in Folge — Lichtwechsel und Wetter zählen nicht. Nach einem gewollten Umbau „Ansicht neu lernen".'],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('Turns the camera into sensors for automations and alarm systems. The variables are only created once Frigate delivers the data — whatever Frigate does not detect (license plates, faces, states, speed, speech) must be set up there.')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('"… stationary since": when an object came to a standstill (Frigate "stationary"), per object type and per zone, e.g. "Carport: Car stationary since". "-" = none stationary. If a package was lying there and disappears, the camera sets "Package removed".')],
+                ['type' => 'NumberSpinner', 'name' => 'VerweilSekunden', 'caption' => FrigateHubText::t('Loitering: this long in a zone (0 = off)'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                ['type' => 'ValidationTextBox', 'name' => 'VerweilKlassen', 'caption' => FrigateHubText::t('Loitering applies to (Frigate object types, comma-separated, empty = all)')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('"<Zone>: loitering" is a better alarm trigger than "person detected": walking past does not trigger it, someone who stops in front of the door does.')],
+                ['type' => 'CheckBox', 'name' => 'Tageszaehler', 'caption' => FrigateHubText::t('Daily counters ("Today: People", "Today: Alerts" …), reset to 0 at midnight')],
+                ['type' => 'NumberSpinner', 'name' => 'SabotageMinuten', 'caption' => FrigateHubText::t('Image check (covered, moved, continuous motion) every (0 = off)'), 'suffix' => 'min', 'minimum' => 0, 'maximum' => 60],
+                ['type' => 'CheckBox', 'name' => 'SabotageMelden', 'caption' => FrigateHubText::t('Report an abnormal image to the targets under "Push and notifications"')],
+                ['type' => 'Label', 'caption' => FrigateHubText::t('The image check learns per hour of the day what the image normally looks like and only reports after three abnormal checks in a row — changes in light and weather do not count. After an intentional rebuild use "Learn view anew".')],
                 ['type' => 'RowLayout', 'items' => [
-                    ['type' => 'Button', 'caption' => 'Bild jetzt prüfen', 'onClick' => 'echo FRIG_BildPruefen($id);'],
-                    ['type' => 'Button', 'caption' => 'Ansicht neu lernen', 'onClick' => 'echo FRIG_BildNeuLernen($id);', 'confirm' => 'Gelernte Ansichten verwerfen und neu lernen?'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Check image now'), 'onClick' => 'echo FRIG_BildPruefen($id);'],
+                    ['type' => 'Button', 'caption' => FrigateHubText::t('Learn view anew'), 'onClick' => 'echo FRIG_BildNeuLernen($id);', 'confirm' => FrigateHubText::t('Discard learned views and learn anew?')],
                 ]],
             ],
         ];
@@ -407,9 +407,9 @@ trait FrigateHubKameraSensor
     protected function sensorDoku(): array
     {
         return [
-            'Kamera als Sensor: „Zustand <Modell>" aus Frigates Zustandsklassifizierung (z. B. Tor open/closed; frigate/<kamera>/classification/<modell>, nur bei Änderung). „… steht seit" (Datum/Uhrzeit, „-" = keins) je Objektart und Zone. „<Zone>: verweilt" nach der eingestellten Zeit. „Paket entfernt" (Zeitpunkt).',
-            '„Erkannte Person (Name)" und „Erkanntes Fahrzeug" (Name aus Frigates bekannten Kennzeichen, sonst das Kennzeichen); „Unbekanntes Gesicht"/„Unbekanntes Kennzeichen" (Zeitpunkt), wenn Frigate ein Gesicht/Kennzeichen sah, aber niemanden erkannte. „Letzte Geschwindigkeit" aus Zonen mit Geschwindigkeitsmessung. „Auslöser <Name>" aus Frigates semantischen Auslösern. „Gesprochener Text" aus Frigates Transkription.',
-            'Tageszähler je Objektart und Alarme. Bildprüfung: „Bild auffällig" + „Bildzustand" (abgedeckt/einfarbig, verstellt, Dauerbewegung ab 15 min). Die Bildprüfung holt alle paar Minuten ein kleines Livebild (120 px) und braucht die Frigate-Adresse.',
+            FrigateHubText::t('Camera as sensor: "State <model>" from Frigate\'s state classification (e.g. gate open/closed; frigate/<camera>/classification/<model>, only on change). "… stationary since" (date/time, "-" = none) per object type and zone. "<Zone>: loitering" after the configured time. "Package removed" (point in time).'),
+            FrigateHubText::t('"Recognized person (name)" and "Recognized vehicle" (name from Frigate\'s known license plates, otherwise the plate); "Unknown face"/"Unknown license plate" (point in time) when Frigate saw a face/plate but recognized no one. "Last speed" from zones with speed estimation. "Trigger <name>" from Frigate\'s semantic triggers. "Spoken text" from Frigate\'s transcription.'),
+            FrigateHubText::t('Daily counters per object type and alerts. Image check: "Image abnormal" + "Image state" (covered/single-colored, moved, continuous motion from 15 min). The image check fetches a small live image (120 px) every few minutes and needs the Frigate address.'),
         ];
     }
 }

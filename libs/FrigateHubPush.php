@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
 require_once __DIR__ . '/FrigateHubTopics.php';
 
 /**
@@ -40,7 +41,7 @@ trait FrigateHubPush
     {
         $ziele = $this->pushZiele();
         if ($ziele === []) {
-            $status = '⚠️ Kein Ziel eingetragen — bitte unter „Ziele" eine Visualisierung hinzufügen und übernehmen.';
+            $status = FrigateHubText::t('⚠️ No target entered — please add a visualization under "Targets" and apply.');
             $this->WriteAttributeString('Pushstatus', $status);
             return $status;
         }
@@ -65,11 +66,11 @@ trait FrigateHubPush
             } elseif ($modul === self::SMTP_GUID && function_exists('SMTP_SendMailMedia')) {
                 $bild = $bild ?? $this->pushBild($livebild);
                 $gesendet = $bild > 0 ? @SMTP_SendMailMedia($ziel, $titel, $text, $bild)
-                    : @SMTP_SendMail($ziel, $titel, $text . ($bild === 0 ? "\n\n(Kein Bild verfügbar.)" : ''));
+                    : @SMTP_SendMail($ziel, $titel, $text . ($bild === 0 ? "\n\n" . FrigateHubText::t('(No image available.)') : ''));
             } elseif ($modul === self::WEBFRONT_GUID && function_exists('WFC_PushNotification')) {
                 $gesendet = @WFC_PushNotification($ziel, $titel, $text, $ton, $this->InstanceID);
             } else {
-                $fehler[] = $name . ' (keine Visualisierung)';
+                $fehler[] = FrigateHubText::t('%s (no visualization)', $name);
                 continue;
             }
             if ($gesendet !== false) {
@@ -80,11 +81,11 @@ trait FrigateHubPush
         }
         $zeit = date('d.m.Y H:i:s');
         if ($fehler === []) {
-            $status = '✅ ' . $zeit . ' an ' . implode(', ', $ok) . ' gesendet.';
+            $status = FrigateHubText::t('✅ %s sent to %s.', $zeit, implode(', ', $ok));
         } else {
-            $status = ($ok === [] ? '⛔ ' : '⚠️ ') . $zeit . ' nicht zugestellt an ' . implode(', ', $fehler)
-                . ($ok === [] ? '.' : ', gesendet an ' . implode(', ', $ok) . '.');
-            $this->LogMessage('Push nicht zugestellt an ' . implode(', ', $fehler), KL_WARNING);
+            $status = $ok === [] ? FrigateHubText::t('⛔ %s not delivered to %s.', $zeit, implode(', ', $fehler))
+                : FrigateHubText::t('⚠️ %s not delivered to %s, sent to %s.', $zeit, implode(', ', $fehler), implode(', ', $ok));
+            $this->LogMessage(FrigateHubText::t('Push not delivered to %s', implode(', ', $fehler)), KL_WARNING);
         }
         $this->WriteAttributeString('Pushstatus', $status);
         return $status;
@@ -96,7 +97,7 @@ trait FrigateHubPush
         if ($status !== '') {
             return $status;
         }
-        return $this->pushZiele() === [] ? 'Push ist aus (kein Ziel eingetragen).' : 'Noch keine Meldung gesendet.';
+        return $this->pushZiele() === [] ? FrigateHubText::t('Push is off (no target entered).') : FrigateHubText::t('No message sent yet.');
     }
 
     private function tonOptionen(): array
@@ -111,9 +112,9 @@ trait FrigateHubPush
     /** Formularliste der Meldeziele (Kachel-Visualisierung, WebFront, E-Mail/SMTP). */
     private function pushZielListe(): array
     {
-        return ['type' => 'List', 'name' => 'PushZiele', 'caption' => 'Ziele (Kachel-Visualisierung, WebFront oder E-Mail/SMTP)', 'add' => true, 'delete' => true, 'rowCount' => 3,
+        return ['type' => 'List', 'name' => 'PushZiele', 'caption' => FrigateHubText::t('Targets (tile visualization, WebFront or email/SMTP)'), 'add' => true, 'delete' => true, 'rowCount' => 3,
             'columns' => [[
-                'caption' => 'Ziel', 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
+                'caption' => FrigateHubText::t('Target'), 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
                 'edit' => ['type' => 'SelectInstance', 'validModules' => [self::KACHEL_GUID, self::WEBFRONT_GUID, self::SMTP_GUID]],
             ]],
         ];

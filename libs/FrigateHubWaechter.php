@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubText.php';
+
 /**
  * Aufnahme-Wächter: erkennt aus Frigates API, dass Frigate nicht mehr aufzeichnet — reines PHP,
  * vom Prüfstand direkt aufgerufen. Das Modul sammelt die Beobachtungen, diese Klasse bewertet sie
@@ -235,7 +237,7 @@ class FrigateHubWaechter
             $start = (int)($z['stilleSeit'] ?? 0) ?: $jetzt;
             $z['stilleSeit'] = $start;
             if ($jetzt - $start >= self::STILLE) {
-                $texte['erreichbar'] = 'Frigate antwortet seit ' . self::zeit($start, $jetzt) . ' nicht.';
+                $texte['erreichbar'] = FrigateHubText::t('Frigate has not responded since %s.', self::zeit($start, $jetzt));
                 $seit['erreichbar'] = $seit['erreichbar'] ?? $start;
             }
             // Ohne Antwort lässt sich der Rest nicht prüfen: Zustand der übrigen bleibt stehen.
@@ -249,7 +251,7 @@ class FrigateHubWaechter
                 if ($p['fehler'] >= self::FEHLER_AB) {
                     $seit['schreibfehler'] = $seit['schreibfehler'] ?? $jetzt;
                     $z['gut'] = 0;
-                    $texte['schreibfehler'] = 'Frigate kann Aufnahmen nicht speichern: Schreibfehler seit ' . self::zeit($seit['schreibfehler'], $jetzt) . '.';
+                    $texte['schreibfehler'] = FrigateHubText::t('Frigate cannot save recordings: write errors since %s.', self::zeit($seit['schreibfehler'], $jetzt));
                 } elseif (isset($texte['schreibfehler']) && $p['fehler'] === 0) {
                     $z['gut'] = (int)($z['gut'] ?? 0) + 1;
                     if ($z['gut'] >= self::GUT_NACH) {
@@ -267,7 +269,7 @@ class FrigateHubWaechter
                     unset($texte['speicher'], $seit['speicher']);
                 } elseif (self::speicherGewechselt($bekannt, $sp)) {
                     $seit['speicher'] = $seit['speicher'] ?? $jetzt;
-                    $texte['speicher'] = 'Aufnahmespeicher gewechselt: jetzt ' . self::speicherText($sp) . ' statt ' . self::speicherText($bekannt) . '.';
+                    $texte['speicher'] = FrigateHubText::t('Recording storage changed: now %s instead of %s.', self::speicherText($sp), self::speicherText($bekannt));
                 } else {
                     unset($texte['speicher'], $seit['speicher']);
                 }
@@ -296,14 +298,14 @@ class FrigateHubWaechter
                     $teile[] = $kamera . ' ' . self::zeit($t, $jetzt);
                 }
                 $seit['alarm'] = $seit['alarm'] ?? min($ohne);
-                $texte['alarm'] = 'Alarm ohne Aufnahme: ' . implode(', ', $teile) . '.';
+                $texte['alarm'] = FrigateHubText::t('Alert without recording: %s.', implode(', ', $teile));
             }
 
             // Daueraufnahme steht
             $stehen = [];
             foreach ((array)($b['dauer'] ?? []) as $kamera => $ende) {
                 if ($jetzt - $ende > self::DAUER_ALTER) {
-                    $stehen[] = (string)$kamera . ($ende > 0 ? ' seit ' . self::zeit((int)$ende, $jetzt) : '');
+                    $stehen[] = $ende > 0 ? FrigateHubText::t('%s since %s', (string)$kamera, self::zeit((int)$ende, $jetzt)) : (string)$kamera;
                 }
             }
             if ($stehen === []) {
@@ -311,7 +313,7 @@ class FrigateHubWaechter
             } else {
                 sort($stehen);
                 $seit['dauer'] = $seit['dauer'] ?? $jetzt;
-                $texte['dauer'] = 'Daueraufnahme steht: ' . implode(', ', $stehen) . '.';
+                $texte['dauer'] = FrigateHubText::t('Continuous recording stopped: %s.', implode(', ', $stehen));
             }
         }
 
@@ -323,11 +325,11 @@ class FrigateHubWaechter
         $neu = array_diff(array_keys($texte), $alt);
         $letzte = (int)($z['letzteMeldung'] ?? 0);
         if ($neu !== []) {
-            $meldung = ['titel' => '⛔ Frigate-Aufnahme gestört', 'text' => implode(' ', $texte), 'art' => 'stoerung'];
+            $meldung = ['titel' => FrigateHubText::t('⛔ Frigate recording disrupted'), 'text' => implode(' ', $texte), 'art' => 'stoerung'];
         } elseif ($texte === [] && $alt !== []) {
-            $meldung = ['titel' => '✅ Frigate-Aufnahme in Ordnung', 'text' => 'Die Störung ist behoben, Frigate zeichnet wieder auf.', 'art' => 'entwarnung'];
+            $meldung = ['titel' => FrigateHubText::t('✅ Frigate recording OK'), 'text' => FrigateHubText::t('The fault is cleared, Frigate is recording again.'), 'art' => 'entwarnung'];
         } elseif ($texte !== [] && $jetzt - $letzte >= self::ERINNERUNG) {
-            $meldung = ['titel' => '⏰ Frigate-Aufnahme gestört', 'text' => 'Weiterhin: ' . implode(' ', $texte), 'art' => 'erinnerung'];
+            $meldung = ['titel' => FrigateHubText::t('⏰ Frigate recording disrupted'), 'text' => FrigateHubText::t('Still: %s', implode(' ', $texte)), 'art' => 'erinnerung'];
         }
         if ($meldung !== null) {
             $z['letzteMeldung'] = $jetzt;
@@ -338,7 +340,7 @@ class FrigateHubWaechter
     /** Klartext für die Variable „Aufnahmezustand". */
     public static function zustandText(array $probleme): string
     {
-        return $probleme === [] ? 'Frigate zeichnet auf, keine Störung erkannt.' : implode(' ', $probleme);
+        return $probleme === [] ? FrigateHubText::t('Frigate is recording, no fault detected.') : implode(' ', $probleme);
     }
 
     private static function sortieren(array $texte): array
