@@ -92,6 +92,8 @@
   und die Kopie in jedem Modulordner, bricht bei Widersprüchen ab). Kacheln: Konstante `KACHEL_TEXTE` + `T()` in module.html.
   Prüfstände laufen auf Deutsch (deutsche Anzeige blieb wortgleich), `.tools/test-englisch.php` prüft fehlende Übersetzungen,
   Platzhalter und deutsche Reste in den englischen Formularen. SendDebug-Texte und Kommentare bleiben deutsch.
+  Seit 0.18.3 Merkliste (`FrigateHubText::mitMerkliste`): je Text einmal `Translate()` je Prozess, nie die locale.json selbst lesen
+  (Store: Dateizugriff nur als Ausnahme; 0.18.2 las sie per Datei und machte das Kamera-Formular von >2 min auf 30 ms schnell).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.3 (Build 39) — 05.11.2026
+
+- **Übersetzung ohne Dateizugriff (Merkliste):** `FrigateHubText::mitMerkliste()` ersetzt `mitTabelle()`. Jeder Text fragt Symcons `Translate()` höchstens einmal je Prozess und merkt sich die Antwort (Vorbild WPModbusHub). FrigateHub liest die `locale.json` nicht mehr selbst — die Store-Richtlinie erlaubt Dateizugriff nur als genehmigte Ausnahme (Entscheidung Dietmar, SUITE.md Stolperstein 24). Prüfstand: 600 Übersetzungen = 2 Fragen bei 2 Texten; kein Dateizugriff in `FrigateHubText`.
+
 ## 0.18.2 (Build 38) — 05.11.2026
 
 - **Übersetzung ohne Bremse (SUITE.md Stolperstein 24):** Symcons `Translate()` liest bei jedem Aufruf `locale.json`. FrigateHub übersetzt je Formular, Kacheldaten und MQTT-Nachricht viele Texte; live bei Dietmar (Symcon auf Englisch) brauchte das Formular der Kamera über eine Minute, ein Messskript mit drei Formularen rund drei Minuten. Jetzt fragt `FrigateHubText::mitTabelle()` Symcon einmal je Lauf nach der Sprache: Deutsch liest die eigene Tabelle, Englisch nimmt den Quelltext, andere Sprachen fragen je Text einmal und merken es sich (Muster Automat 0.2.1). Prüfstand: 600 Übersetzungen = 1 Frage an Symcon.

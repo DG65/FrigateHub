@@ -220,26 +220,26 @@ IPSTestState::useLocale($basis . '/libs', 'de');
 FrigateHubText::vergessen();
 check('deutsch: dieselbe Quelle über locale.json', FrigateHubText::t('Motion'), $de['Motion'] ?? 'fehlt');
 
-/* ------------------------------------------------- Stolperstein 24: Symcons Translate() nur einmal je Lauf fragen */
+/* ------------------------------------------------- Stolperstein 24: je Text höchstens einmal Translate(), keine Datei lesen */
 $fragen = 0;
 $deutschFrage = function (string $t) use (&$fragen, $de): string { $fragen++; return $de[$t] ?? $t; };
 FrigateHubText::vergessen();
-FrigateHubText::setzen(FrigateHubText::mitTabelle($deutschFrage, $basis . '/libs/locale.json'));
+FrigateHubText::setzen(FrigateHubText::mitMerkliste($deutschFrage));
 $aus = [];
 for ($i = 0; $i < 300; $i++) { $aus[] = FrigateHubText::t('Motion'); $aus[] = FrigateHubText::t('People'); }
-check('Deutsch: 600 Übersetzungen, Symcon nur einmal gefragt, Ergebnis aus der eigenen Tabelle', [$fragen, $aus[0], $aus[1]], [1, $de['Motion'], $de['People']]);
+check('Deutsch: 600 Übersetzungen, je Text einmal gefragt', [$fragen, $aus[0], $aus[1]], [2, $de['Motion'], $de['People']]);
 $fragen = 0;
 $englischFrage = function (string $t) use (&$fragen): string { $fragen++; return $t; };
 FrigateHubText::vergessen();
-FrigateHubText::setzen(FrigateHubText::mitTabelle($englischFrage, $basis . '/libs/locale.json'));
+FrigateHubText::setzen(FrigateHubText::mitMerkliste($englischFrage));
 for ($i = 0; $i < 300; $i++) { FrigateHubText::t('Motion'); FrigateHubText::t('People'); }
-check('Englisch: Quelltext, Symcon nur einmal gefragt', [$fragen, FrigateHubText::t('People')], [1, 'People']);
-$fragen = 0;
-$andereFrage = function (string $t) use (&$fragen): string { $fragen++; return 'FR:' . $t; };
+check('Englisch: Quelltext, je Text einmal gefragt', [$fragen, FrigateHubText::t('People')], [2, 'People']);
+$fehlerFrage = function (string $t): string { throw new RuntimeException('weg'); };
 FrigateHubText::vergessen();
-FrigateHubText::setzen(FrigateHubText::mitTabelle($andereFrage, $basis . '/libs/locale.json'));
-for ($i = 0; $i < 300; $i++) { FrigateHubText::t('Motion'); FrigateHubText::t('People'); }
-check('andere Sprache: je Text einmal gefragt und gemerkt', [$fragen, FrigateHubText::t('People')], [2, 'FR:People']);
+FrigateHubText::setzen(FrigateHubText::mitMerkliste($fehlerFrage));
+check('Fehler beim Fragen: Quelltext statt Absturz', FrigateHubText::t('People'), 'People');
+$code = (string)file_get_contents($basis . '/libs/FrigateHubText.php');
+check('FrigateHubText liest keine Datei (Store: Dateizugriff nur als Ausnahme)', preg_match('/file_get_contents|fopen|locale\.json\'/', $code), 0);
 
 echo "{$geprueft} Prüfungen" . ($fehler > 0 ? ", {$fehler} fehlgeschlagen.\n" : ", alle bestanden.\n");
 echo ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";

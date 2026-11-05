@@ -20,40 +20,33 @@ final class FrigateHubText
         self::$uebersetzer = $uebersetzer;
     }
 
-    /** @var array<string,string>|false|null null = Sprache noch nicht bestimmt, false = nicht Deutsch */
-    private static $tabelle = null;
-    /** @var array<string,string> */
+    /** @var array<string,string> gemerkte Übersetzungen dieses Prozesses */
     private static $gemerkt = [];
 
     /**
-     * Übersetzer für die Module: Symcons Translate() liest bei jedem Aufruf locale.json — bei hunderten Texten
-     * je Formular, Kachel oder MQTT-Nachricht summiert sich das (SUITE.md Stolperstein 24, Automat live 05.11.2026:
-     * Tick 2,5 s, Formular 5,4 s; FrigateHub live 05.11.: Formular der Kamera über eine Minute). Deshalb wird Symcon
-     * nur einmal nach der Sprache gefragt; bei Deutsch liest FrigateHub die Tabelle selbst, sonst merkt es sich
-     * jede Antwort von Symcon.
+     * Übersetzer für die Module: Symcons Translate(), aber je Text höchstens einmal je Prozess (Merkliste,
+     * Vorbild WPModbusHub). Translate() liest bei jedem Aufruf locale.json — bei hunderten Texten je Formular,
+     * Kachel oder MQTT-Nachricht summierte sich das (SUITE.md Stolperstein 24; FrigateHub live 05.11.2026:
+     * Formular der Kamera über eine Minute). Die locale.json liest FrigateHub nie selbst (Store-Richtlinie:
+     * Dateizugriff nur als genehmigte Ausnahme).
      */
-    public static function mitTabelle(callable $translate, string $localeDatei): callable
+    public static function mitMerkliste(callable $translate): callable
     {
-        return function (string $text) use ($translate, $localeDatei): string {
-            if (self::$tabelle === null) {
-                $probe = 'Motion';
-                $ziel = (string)$translate($probe);
-                $de = $ziel === $probe ? [] : (json_decode((string)@file_get_contents($localeDatei), true)['translations']['de'] ?? []);
-                // Englisch: Tabelle leer (Quelltext gilt). Deutsch: eigene Tabelle. Andere Sprache/unlesbar: je Text einmal fragen.
-                self::$tabelle = $ziel === $probe || ($de[$probe] ?? null) === $ziel ? $de : false;
-                self::$gemerkt[$probe] = $ziel;
+        return function (string $text) use ($translate): string {
+            if (!isset(self::$gemerkt[$text])) {
+                try {
+                    self::$gemerkt[$text] = (string)$translate($text);
+                } catch (\Throwable $e) {
+                    return $text;   // z. B. Instanz während des Aufrufs gelöscht: Quelltext zeigen, nichts merken
+                }
             }
-            if (self::$tabelle !== false) {
-                return self::$tabelle[$text] ?? $text;
-            }
-            return self::$gemerkt[$text] ?? (self::$gemerkt[$text] = (string)$translate($text));
+            return self::$gemerkt[$text];
         };
     }
 
-    /** Nur für den Prüfstand: Sprachwahl vergessen. */
+    /** Nur für den Prüfstand: gemerkte Übersetzungen vergessen. */
     public static function vergessen(): void
     {
-        self::$tabelle = null;
         self::$gemerkt = [];
     }
 
