@@ -217,7 +217,29 @@ check('Formulare auf Englisch ohne deutsche Reste (Kamera, Server, Konfigurator,
 /* ------------------------------------------------- Stichproben: Englisch und Deutsch aus derselben Quelle */
 check('englisch: Zustandsname aus Topics', FrigateHubText::t('Motion'), 'Motion');
 IPSTestState::useLocale($basis . '/libs', 'de');
+FrigateHubText::vergessen();
 check('deutsch: dieselbe Quelle über locale.json', FrigateHubText::t('Motion'), $de['Motion'] ?? 'fehlt');
+
+/* ------------------------------------------------- Stolperstein 24: Symcons Translate() nur einmal je Lauf fragen */
+$fragen = 0;
+$deutschFrage = function (string $t) use (&$fragen, $de): string { $fragen++; return $de[$t] ?? $t; };
+FrigateHubText::vergessen();
+FrigateHubText::setzen(FrigateHubText::mitTabelle($deutschFrage, $basis . '/libs/locale.json'));
+$aus = [];
+for ($i = 0; $i < 300; $i++) { $aus[] = FrigateHubText::t('Motion'); $aus[] = FrigateHubText::t('People'); }
+check('Deutsch: 600 Übersetzungen, Symcon nur einmal gefragt, Ergebnis aus der eigenen Tabelle', [$fragen, $aus[0], $aus[1]], [1, $de['Motion'], $de['People']]);
+$fragen = 0;
+$englischFrage = function (string $t) use (&$fragen): string { $fragen++; return $t; };
+FrigateHubText::vergessen();
+FrigateHubText::setzen(FrigateHubText::mitTabelle($englischFrage, $basis . '/libs/locale.json'));
+for ($i = 0; $i < 300; $i++) { FrigateHubText::t('Motion'); FrigateHubText::t('People'); }
+check('Englisch: Quelltext, Symcon nur einmal gefragt', [$fragen, FrigateHubText::t('People')], [1, 'People']);
+$fragen = 0;
+$andereFrage = function (string $t) use (&$fragen): string { $fragen++; return 'FR:' . $t; };
+FrigateHubText::vergessen();
+FrigateHubText::setzen(FrigateHubText::mitTabelle($andereFrage, $basis . '/libs/locale.json'));
+for ($i = 0; $i < 300; $i++) { FrigateHubText::t('Motion'); FrigateHubText::t('People'); }
+check('andere Sprache: je Text einmal gefragt und gemerkt', [$fragen, FrigateHubText::t('People')], [2, 'FR:People']);
 
 echo "{$geprueft} Prüfungen" . ($fehler > 0 ? ", {$fehler} fehlgeschlagen.\n" : ", alle bestanden.\n");
 echo ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";

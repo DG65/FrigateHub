@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.2 (Build 38) — 05.11.2026
+
+- **Übersetzung ohne Bremse (SUITE.md Stolperstein 24):** Symcons `Translate()` liest bei jedem Aufruf `locale.json`. FrigateHub übersetzt je Formular, Kacheldaten und MQTT-Nachricht viele Texte; live bei Dietmar (Symcon auf Englisch) brauchte das Formular der Kamera über eine Minute, ein Messskript mit drei Formularen rund drei Minuten. Jetzt fragt `FrigateHubText::mitTabelle()` Symcon einmal je Lauf nach der Sprache: Deutsch liest die eigene Tabelle, Englisch nimmt den Quelltext, andere Sprachen fragen je Text einmal und merken es sich (Muster Automat 0.2.1). Prüfstand: 600 Übersetzungen = 1 Frage an Symcon.
+
 ## 0.18.1 (Build 37) — 04.11.2026
 
 - **Datum im Englischen eindeutig:** Datum und Uhrzeit erscheinen auf Englisch als `2026-11-04 20:22:41` statt `04.11.2026` (las sich dort als 11. April). Die Formate laufen über die Übersetzung (`FrigateHubText::t('Y-m-d H:i:s')` → Deutsch `d.m.Y H:i:s`, ebenso `Y-m-d H:i` und `m-d H:i`); die Kachel zeigt auf Englisch `JJJJ-MM-TT`, im Archiv `MM-TT`. Auf Deutsch unverändert. Anlass: Live-Prüfung auf Englisch bei Dietmar.

@@ -66,7 +66,7 @@ class FrigateHubServer extends IPSModule
     {
         parent::__construct($InstanceID);
         // Reine Klassen (libs) übersetzen über diesen Übersetzer, siehe FrigateHubText
-        FrigateHubText::setzen(fn (string $text): string => $this->Translate($text));
+        FrigateHubText::setzen(FrigateHubText::mitTabelle(fn (string $text): string => $this->Translate($text), __DIR__ . '/locale.json'));
     }
 
     public function Create()

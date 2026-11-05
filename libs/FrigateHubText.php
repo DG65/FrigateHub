@@ -20,6 +20,43 @@ final class FrigateHubText
         self::$uebersetzer = $uebersetzer;
     }
 
+    /** @var array<string,string>|false|null null = Sprache noch nicht bestimmt, false = nicht Deutsch */
+    private static $tabelle = null;
+    /** @var array<string,string> */
+    private static $gemerkt = [];
+
+    /**
+     * Übersetzer für die Module: Symcons Translate() liest bei jedem Aufruf locale.json — bei hunderten Texten
+     * je Formular, Kachel oder MQTT-Nachricht summiert sich das (SUITE.md Stolperstein 24, Automat live 05.11.2026:
+     * Tick 2,5 s, Formular 5,4 s; FrigateHub live 05.11.: Formular der Kamera über eine Minute). Deshalb wird Symcon
+     * nur einmal nach der Sprache gefragt; bei Deutsch liest FrigateHub die Tabelle selbst, sonst merkt es sich
+     * jede Antwort von Symcon.
+     */
+    public static function mitTabelle(callable $translate, string $localeDatei): callable
+    {
+        return function (string $text) use ($translate, $localeDatei): string {
+            if (self::$tabelle === null) {
+                $probe = 'Motion';
+                $ziel = (string)$translate($probe);
+                $de = $ziel === $probe ? [] : (json_decode((string)@file_get_contents($localeDatei), true)['translations']['de'] ?? []);
+                // Englisch: Tabelle leer (Quelltext gilt). Deutsch: eigene Tabelle. Andere Sprache/unlesbar: je Text einmal fragen.
+                self::$tabelle = $ziel === $probe || ($de[$probe] ?? null) === $ziel ? $de : false;
+                self::$gemerkt[$probe] = $ziel;
+            }
+            if (self::$tabelle !== false) {
+                return self::$tabelle[$text] ?? $text;
+            }
+            return self::$gemerkt[$text] ?? (self::$gemerkt[$text] = (string)$translate($text));
+        };
+    }
+
+    /** Nur für den Prüfstand: Sprachwahl vergessen. */
+    public static function vergessen(): void
+    {
+        self::$tabelle = null;
+        self::$gemerkt = [];
+    }
+
     /** Text übersetzen; mit Argumenten wie sprintf (Platzhalter %s/%d, Prozentzeichen als %%). */
     public static function t(string $text, ...$args): string
     {
