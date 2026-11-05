@@ -101,6 +101,12 @@
 
         /* Großansicht */
         .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
+        .ablauf { max-height: 34%; overflow-y: auto; padding: 6px 12px 10px; color: #d6dde4; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 24px; }
+        .ablauf .objekt { min-width: 220px; }
+        .ablauf .name { font-weight: 600; margin: 4px 0 2px; }
+        .ablauf button { display: flex; justify-content: space-between; gap: 16px; width: 100%; background: none; border: 0; border-left: 2px solid #4a5560; color: inherit; font: inherit; text-align: left; padding: 2px 0 2px 10px; cursor: pointer; }
+        .ablauf button:hover { border-left-color: #5b8def; color: #fff; }
+        .ablauf .uhr { opacity: .7; font-variant-numeric: tabular-nums; }
         .gross[hidden] { display: none; }
         /* oben 46px frei wie .wrap: dort zeichnet Symcon Kacheltitel und Vergrößern-Knopf */
         .gross .leiste-oben { display: flex; align-items: center; gap: 8px; padding: 46px 12px 10px; color: #fff; font-size: 13px; }
@@ -166,6 +172,7 @@
         <div class="info" id="grossInfo" hidden></div>
         <div class="werkzeug" id="grossWerkzeug" hidden></div>
         <div class="inhalt" id="grossInhalt"></div>
+        <div class="ablauf" id="grossAblauf" hidden></div>
     </div>
 
     <script>
@@ -586,7 +593,8 @@
         function grossOeffnen(titel) {
             el('grossTitel').textContent = titel;
             el('grossInhalt').textContent = '';
-            ['grossBild', 'grossClip', 'grossFav', 'grossExport', 'grossZurueck', 'grossInfo', 'grossWerkzeug'].forEach(function (id) { el(id).hidden = true; });
+            ['grossBild', 'grossClip', 'grossFav', 'grossExport', 'grossZurueck', 'grossInfo', 'grossWerkzeug', 'grossAblauf'].forEach(function (id) { el(id).hidden = true; });
+            el('grossAblauf').textContent = '';
             el('grossInfo').textContent = '';
             el('grossWerkzeug').textContent = '';
             el('gross').hidden = false;
@@ -602,6 +610,55 @@
             v.src = quelle;
             v.onerror = function () { inhalt.textContent = ''; var d = document.createElement('div'); d.className = 'leer'; d.style.color = '#d6dde4'; d.style.padding = '12px'; d.textContent = T('Frigate has no recording for this period.'); inhalt.appendChild(d); };
             inhalt.appendChild(v);
+            return v;
+        }
+
+        /** Uhrzeit (Unix-Sekunden) → Stelle im Clip: Frigate hängt nur die aufgezeichneten Stücke aneinander. */
+        function videoStelle(t, stuecke, clipStart) {
+            if (!stuecke || !stuecke.length) { return Math.max(0, t - clipStart); }
+            var stelle = 0;
+            for (var i = 0; i < stuecke.length; i++) {
+                if (t < stuecke[i][0]) { return stelle; }
+                if (t <= stuecke[i][1]) { return stelle + (t - stuecke[i][0]); }
+                stelle += stuecke[i][1] - stuecke[i][0];
+            }
+            return stelle;
+        }
+
+        /** Ablauf je Objekt unter Bild/Video (wie Frigates Objekt-Lebenszyklus); ein Tipp springt im Video an die Stelle. */
+        function ablaufZeigen(e, clipStart, clipEnde, videoAn) {
+            var ids = (e.ereignisse && e.ereignisse.length) ? e.ereignisse : (e.ereignis ? [e.ereignis] : []);
+            if (!ids.length || !daten.api) { return; }
+            fetch(url({ ablauf: ids.join(','), bereich: clipStart + '-' + clipEnde })).then(function (r) { return r.ok ? r.json() : null; }).then(function (a) {
+                if (!a || !a.objekte || !a.objekte.length || el('gross').hidden) { return; }
+                var box = el('grossAblauf');
+                box.textContent = '';
+                var zwei = function (n) { return ('0' + n).slice(-2); };
+                a.objekte.forEach(function (o) {
+                    var spalte = document.createElement('div');
+                    spalte.className = 'objekt';
+                    var n = document.createElement('div');
+                    n.className = 'name';
+                    n.textContent = o.name;
+                    spalte.appendChild(n);
+                    o.eintraege.forEach(function (x) {
+                        var b = document.createElement('button');
+                        var d = new Date(x.t * 1000);
+                        var txt = document.createElement('span'); txt.textContent = x.text;
+                        var uhr = document.createElement('span'); uhr.className = 'uhr'; uhr.textContent = zwei(d.getHours()) + ':' + zwei(d.getMinutes()) + ':' + zwei(d.getSeconds());
+                        b.appendChild(txt); b.appendChild(uhr);
+                        b.title = T('Show this moment in the video');
+                        b.onclick = function () {
+                            var v = el('grossInhalt').querySelector('video') || videoAn();
+                            var ziel = Math.max(0, videoStelle(x.t, a.stuecke, clipStart) - 1);
+                            if (v.readyState >= 1) { v.currentTime = ziel; v.play(); } else { v.addEventListener('loadedmetadata', function () { v.currentTime = ziel; v.play(); }, { once: true }); }
+                        };
+                        spalte.appendChild(b);
+                    });
+                    box.appendChild(spalte);
+                });
+                box.hidden = false;
+            }).catch(function () { });
         }
 
         function grossBild(quelle) {
@@ -664,14 +721,20 @@
             grossBild(bildQuelle);
             el('grossBild').hidden = false;
             el('grossBild').onclick = function () { grossBild(bildQuelle); };
-            if (e.ereignis) {
+            // Abgeschlossenes Ereignis: die Aufnahme des ganzen Zeitraums (alle Objekte, auch wenn Frigate dieselbe Person
+            // zwischendurch verlor und neu erkannte); läuft es noch, der Clip des ersten Objekts.
+            var clipStart = Math.max(0, e.start - 5), clipEnde = e.ende ? e.ende + 5 : Math.floor(Date.now() / 1000);
+            var videoAn = function () {
+                var v = grossVideo(e.ende ? url({ zeitraum: clipStart + '-' + clipEnde }) : url({ clip: e.ereignis }));
+                el('grossClip').classList.add('aktiv');
+                el('grossBild').classList.remove('aktiv');
+                return v;
+            };
+            if (e.ende || e.ereignis) {
                 el('grossClip').hidden = false;
-                el('grossClip').onclick = function () {
-                    grossVideo(url({ clip: e.ereignis }));
-                    el('grossClip').classList.add('aktiv');
-                    el('grossBild').classList.remove('aktiv');
-                };
+                el('grossClip').onclick = function () { videoAn(); };
             }
+            ablaufZeigen(e, e.ende ? clipStart : Math.max(0, e.start - 5), clipEnde, videoAn);
         }
 
         /* ---------------------------------------------------------------- Archiv */

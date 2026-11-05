@@ -118,6 +118,10 @@ trait FrigateHubKachel
             $this->hookArchiv($get['tag'] ?? '');
             return;
         }
+        if (isset($get['ablauf'])) {
+            $this->hookAblauf((string)$get['ablauf'], (string)($get['bereich'] ?? ''));
+            return;
+        }
         if (isset($get['zeitraum'])) {
             $this->hookZeitraum($get['zeitraum'], (string)($_SERVER['HTTP_RANGE'] ?? ''));
             return;
@@ -171,7 +175,7 @@ trait FrigateHubKachel
      * Alle festen Texte der Kachel (module.html, englisch); kachelDaten() liefert sie übersetzt als 'texte'.
      * 'language code: en' sagt der Kachel die Sprache (für Datumsformat und lang-Attribut).
      */
-    private const KACHEL_TEXTE = ['language code: en', 'Live', 'Time of the live image', '📅 Archive', 'Sound', 'Loading …', 'Reload', 'These switches change the setting in Frigate itself', 'Detection', 'Recording', 'Snapshots', 'Boxes', 'Draw boxes around detected objects in the live image (this view only)', '◀ Archive', 'Image', 'Keep permanently (Frigate will then not delete it)', 'Save as an export in Frigate', 'No image yet. Enter the Frigate address in the instance for the live image.', 'Frigate not reachable.', 'Live image currently unavailable.', 'Image not available.', 'Live video, current time', 'No sound: the camera only sends silence. Usually no microphone is connected (many cameras only have a line input) or the audio input is switched off in the camera.', 'No sound: the stream has no audio track the browser can play. Either the camera delivers no sound, or it comes e.g. as AAC – then add a second source “ffmpeg:<Stream>#audio=opus” to the stream in Frigate’s go2rtc.', '🔇 no sound', 'Frigate not reachable', 'Camera offline', '🚨 Alert', 'Motion', 'Control via this page is not enabled in the configuration form of the instance.', '🛑 critical', '⚠️ suspicious', 'in progress', 'Frigate has no recording for this period.', 'critical', 'suspicious', 'Save event (%s min) as an export in Frigate?', 'Play recording from a time of day', '🎞 Recording', 'Play the recording of the selected day from a time of day', 'No events for this selection.', '%s alert', '%s alerts', '%s det.', '%s unseen', 'All', 'Alerts only', 'Detections only', 'Not seen yet', 'AI: suspicious', 'Only: %s', '⛔ Archive not reachable.', 'Position …', 'Last snapshot · %s', 'Live video', 'Live image'];
+    private const KACHEL_TEXTE = ['language code: en', 'Live', 'Time of the live image', '📅 Archive', 'Sound', 'Loading …', 'Reload', 'These switches change the setting in Frigate itself', 'Detection', 'Recording', 'Snapshots', 'Boxes', 'Draw boxes around detected objects in the live image (this view only)', '◀ Archive', 'Image', 'Keep permanently (Frigate will then not delete it)', 'Save as an export in Frigate', 'No image yet. Enter the Frigate address in the instance for the live image.', 'Frigate not reachable.', 'Live image currently unavailable.', 'Image not available.', 'Live video, current time', 'No sound: the camera only sends silence. Usually no microphone is connected (many cameras only have a line input) or the audio input is switched off in the camera.', 'No sound: the stream has no audio track the browser can play. Either the camera delivers no sound, or it comes e.g. as AAC – then add a second source “ffmpeg:<Stream>#audio=opus” to the stream in Frigate’s go2rtc.', '🔇 no sound', 'Frigate not reachable', 'Camera offline', '🚨 Alert', 'Motion', 'Control via this page is not enabled in the configuration form of the instance.', '🛑 critical', '⚠️ suspicious', 'in progress', 'Frigate has no recording for this period.', 'critical', 'suspicious', 'Save event (%s min) as an export in Frigate?', 'Play recording from a time of day', '🎞 Recording', 'Play the recording of the selected day from a time of day', 'No events for this selection.', '%s alert', '%s alerts', '%s det.', '%s unseen', 'All', 'Alerts only', 'Detections only', 'Not seen yet', 'AI: suspicious', 'Only: %s', '⛔ Archive not reachable.', 'Position …', 'Last snapshot · %s', 'Live video', 'Live image', 'Show this moment in the video'];
 
     /** Längster Zeitraum für Clip und Export (s). */
     private const ZEITRAUM_MAX = 3600;
@@ -301,6 +305,31 @@ trait FrigateHubKachel
             'beschreibung' => (string)($e['data']['description'] ?? ''),
             'name'      => is_string($e['sub_label'] ?? null) ? $e['sub_label'] : (string)($e['sub_label'][0] ?? ''),
         ], JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Ablauf je Objekt eines Ereignisses (ids mit Komma, höchstens 20) und die aufgezeichneten Stücke im Bereich
+     * („start-ende"), damit die Kachel einen Eintrag an der richtigen Stelle im Video zeigt.
+     */
+    private function hookAblauf(string $ids, string $bereich): void
+    {
+        $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
+        $z = FrigateHubTopics::zeitraum($bereich, self::ZEITRAUM_MAX);
+        $liste = array_slice(array_values(array_filter(explode(',', $ids), [FrigateHubTopics::class, 'idGueltig'])), 0, 20);
+        if ($this->apiUrl() === '' || $liste === []) {
+            $this->hookAntwort(404, $json, (string)json_encode(['objekte' => [], 'stuecke' => []]));
+            return;
+        }
+        $objekte = [];
+        foreach ($liste as $id) {
+            $a = FrigateHubTopics::ablauf((array)($this->apiHolen('/api/timeline?source_id=' . rawurlencode($id)) ?? []));
+            if ($a['eintraege'] !== []) {
+                $objekte[] = $a;
+            }
+        }
+        $stuecke = $z === null ? [] : FrigateHubTopics::stuecke((array)($this->apiHolen('/api/' . rawurlencode($this->kamera())
+            . '/recordings?after=' . $z[0] . '&before=' . $z[1]) ?? []), $z[0], $z[1]);
+        $this->hookAntwort(200, $json, (string)json_encode(['objekte' => $objekte, 'stuecke' => $stuecke], JSON_UNESCAPED_UNICODE));
     }
 
     /** Aufnahme eines Zeitraums („start-ende", Unix-Sekunden) als Clip, wie hookClip. */

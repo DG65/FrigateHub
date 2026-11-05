@@ -80,6 +80,11 @@ check('Liste: doppelt und leer weg', $E::liste(' person,, car ,person '), ['pers
 check('Anfrage wie Frigates Oberfläche', $E::anfrage('Door-Cam', 'zones', ['Carport' => ['objects' => ['person', 'car']]]),
     ['requires_restart' => 0, 'update_topic' => 'config/cameras/Door-Cam/zones', 'config_data' => ['cameras' => ['Door-Cam' => ['zones' => ['Carport' => ['objects' => ['person', 'car']]]]]]]);
 check('Beschreibung', $E::beschreiben(['record' => 1, 'zones' => 1]), 'Aufnahme, Zonen');
+check('lesen: Aufbewahrungsmodus (Standard motion)', [$w['alarmModus'], $w['erkennungModus'], $E::lesen([], [])['alarmModus']], ['motion', 'motion', 'motion']);
+check('Modus: nur der Modus der Alarme', $E::aenderungen($w, ['alarmModus' => 'active_objects'] + $w), ['record' => ['alerts' => ['retain' => ['mode' => 'active_objects']]]]);
+check('Modus und Tage zusammen, beide Bereiche', $E::aenderungen($w, ['alarme' => 14, 'alarmModus' => 'all', 'erkennungModus' => 'active_objects'] + $w),
+    ['record' => ['alerts' => ['retain' => ['days' => 14, 'mode' => 'all']], 'detections' => ['retain' => ['mode' => 'active_objects']]]]);
+check('ungültiger Modus wird nicht geschrieben', $E::aenderungen($w, ['alarmModus' => 'irgendwas'] + $w), []);
 
 /* ------------------------------------------------------------- Kamera-Instanz */
 
@@ -178,6 +183,12 @@ $text = $klick(['FE_Zonen' => new ArrayIterator($zonen), 'FE_Alarme' => 14.0]);
 check('car im Carport + 14 Tage: zwei Bereiche, PUT config/set', [count(TestKamera::$geschrieben), TestKamera::$geschrieben[0][0], TestKamera::$geschrieben[0][1],
     array_column(array_column(TestKamera::$geschrieben, 2), 'update_topic')], [2, 'PUT', '/api/config/set', ['config/cameras/Door-Cam/record', 'config/cameras/Door-Cam/zones']]);
 check('Meldung: gespeichert', [strpos($text, '✅') === 0, strpos($text, 'Aufnahme, Zonen') !== false], [true, true]);
+check('Formular: Auswahl Aufbewahrung mit Frigates Wert', [$felder['FE_AlarmModus']['value'] ?? null, array_column($felder['FE_AlarmModus']['options'] ?? [], 'value')],
+    ['motion', ['all', 'motion', 'active_objects']]);
+TestKamera::$geschrieben = [];
+$klick(['FE_AlarmModus' => 'active_objects']);
+check('Speichern-Knopf schreibt den Modus', [count(TestKamera::$geschrieben), TestKamera::$geschrieben[0][2]['config_data']['cameras']['Door-Cam']['record'] ?? null],
+    [1, ['alerts' => ['retain' => ['mode' => 'active_objects']]]]);
 check('Abgleich danach angestoßen', $k->timers['Abgleich']['interval'] > 0, true);
 
 TestKamera::$geschrieben = [];

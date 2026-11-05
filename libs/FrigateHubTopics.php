@@ -595,13 +595,14 @@ class FrigateHubTopics
             $objekte[] = self::geraeuschName((string)$a);
         }
         $objekte = array_values(array_unique($objekte));
-        $ereignis = '';
+        // Alle Objekte des Ereignisses: Frigate führt dieselbe Person nach kurzem Verlust als neues Objekt weiter
+        $ereignisse = [];
         foreach ((array)($after['data']['detections'] ?? []) as $e) {
-            if (self::idGueltig((string)$e)) {
-                $ereignis = (string)$e;
-                break;
+            if (self::idGueltig((string)$e) && !in_array((string)$e, $ereignisse, true)) {
+                $ereignisse[] = (string)$e;
             }
         }
+        $ereignis = $ereignisse[0] ?? '';
         return [
             'id'       => $id,
             'start'    => (int)floor((float)$after['start_time']),
@@ -610,6 +611,7 @@ class FrigateHubTopics
             'text'     => $objekte === [] ? FrigateHubText::t('Event') : implode(', ', $objekte),
             'zonen'    => self::zonenAusReview($after),
             'ereignis' => $ereignis,
+            'ereignisse' => array_slice($ereignisse, 0, 20),
             'labels'   => array_values(array_filter(array_map('strval', (array)($after['data']['objects'] ?? [])), fn ($l) => preg_match('/^[a-z0-9_-]{1,40}\z/', $l))),
             'ki'       => self::reviewKi($after),
             'gesehen'  => !empty($after['has_been_reviewed']),
@@ -715,6 +717,81 @@ class FrigateHubTopics
         }
         usort($tage, fn ($a, $b) => strcmp($b['tag'], $a['tag']));
         return $tage;
+    }
+
+    /**
+     * Ablauf eines Objekts aus Frigates Zeitleiste (/api/timeline?source_id=<id>), wie Frigates „Objekt-Lebenszyklus":
+     * erkannt, betrat Zone, wurde stationär/aktiv, Merkmal erkannt, hat sich entfernt.
+     *
+     * @return array{name:string,eintraege:list<array{t:float,text:string}>}
+     */
+    public static function ablauf(array $zeitleiste): array
+    {
+        $eintraege = [];
+        $name = '';
+        foreach ($zeitleiste as $z) {
+            if (!is_array($z) || !is_numeric($z['timestamp'] ?? null)) {
+                continue;
+            }
+            $d = (array)($z['data'] ?? []);
+            $objekt = self::objektEinzahl((string)($d['label'] ?? ''));
+            if ($name === '' && $objekt !== '') {
+                $name = $objekt;
+            }
+            $zonen = implode(', ', array_map('strval', (array)($d['zones'] ?? [])));
+            switch ((string)($z['class_type'] ?? '')) {
+                case 'visible':
+                    $text = FrigateHubText::t('%s detected', $objekt);
+                    break;
+                case 'entered_zone':
+                    $text = FrigateHubText::t('%s entered %s', $objekt, $zonen);
+                    break;
+                case 'stationary':
+                    $text = FrigateHubText::t('%s became stationary', $objekt);
+                    break;
+                case 'active':
+                    $text = FrigateHubText::t('%s became active', $objekt);
+                    break;
+                case 'attribute':
+                    $text = FrigateHubText::t('%s: %s recognized', $objekt, self::objektEinzahl((string)($d['attribute'] ?? '')));
+                    break;
+                case 'gone':
+                    $text = FrigateHubText::t('%s left', $objekt);
+                    break;
+                case 'heard':
+                    $text = FrigateHubText::t('%s heard', $objekt);
+                    break;
+                default:
+                    continue 2;
+            }
+            $eintraege[] = ['t' => round((float)$z['timestamp'], 1), 'text' => $text];
+        }
+        usort($eintraege, fn ($a, $b) => $a['t'] <=> $b['t']);
+        return ['name' => $name, 'eintraege' => $eintraege];
+    }
+
+    /**
+     * Aufgezeichnete Stücke im Zeitraum (/api/<kamera>/recordings), auf [von, bis] zugeschnitten und sortiert.
+     * Frigates Clip eines Zeitraums hängt nur diese Stücke aneinander — Lücken (bei „nur mit Bewegung" aufbewahrt)
+     * fehlen im Video. Die Kachel rechnet damit eine Uhrzeit in die Stelle im Video um.
+     *
+     * @return list<array{0:float,1:float}>
+     */
+    public static function stuecke(array $aufnahmen, int $von, int $bis): array
+    {
+        $aus = [];
+        foreach ($aufnahmen as $a) {
+            if (!is_array($a) || !is_numeric($a['start_time'] ?? null)) {
+                continue;
+            }
+            $s = max((float)$von, (float)$a['start_time']);
+            $e = min((float)$bis, is_numeric($a['end_time'] ?? null) ? (float)$a['end_time'] : (float)$a['start_time'] + (float)($a['duration'] ?? 0));
+            if ($e > $s) {
+                $aus[] = [round($s, 1), round($e, 1)];
+            }
+        }
+        usort($aus, fn ($a, $b) => $a[0] <=> $b[0]);
+        return $aus;
     }
 
     /** Frigates Bedrohungsstufe der KI-Einschätzung (potential_threat_level) im Klartext (englisch, siehe kiStufen()). */

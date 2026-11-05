@@ -25,6 +25,13 @@ class FrigateHubEinstellungen
     /** Geräusche zur Auswahl (Frigates Audio-Modell, häufigste); weitere frei eintragbar. */
     public const GERAEUSCHE = ['speech', 'yell', 'scream', 'bark', 'fire_alarm', 'smoke_detector', 'glass', 'siren', 'car_alarm', 'doorbell', 'knock', 'crying', 'baby_cry'];
 
+    /**
+     * Was Frigate von Alarmen bzw. Erkennungen aufbewahrt (record.alerts|detections.retain.mode): alle Teilstücke,
+     * nur solche mit Bewegung (Frigate-Standard) oder solange ein erkanntes Objekt aktiv ist. „Nur mit Bewegung"
+     * verliert Sekunden, in denen jemand still steht (Dietmar 05.11.2026: 11 s Lücke mitten im Alarm).
+     */
+    public const AUFBEWAHREN = ['all' => 'Everything', 'motion' => 'Only with motion', 'active_objects' => 'While an object is active'];
+
     /** Formularwerte, die Listen sind (Eingabe als Liste oder mit Komma). */
     private const LISTEN = ['verfolgen', 'alarmObjekte', 'alarmZonen', 'hoeren'];
 
@@ -53,6 +60,8 @@ class FrigateHubEinstellungen
             'bewegung'      => (float)($r['motion']['days'] ?? 0),
             'alarme'        => (float)($r['alerts']['retain']['days'] ?? 0),
             'erkennungen'   => (float)($r['detections']['retain']['days'] ?? 0),
+            'alarmModus'    => (string)($r['alerts']['retain']['mode'] ?? 'motion'),
+            'erkennungModus' => (string)($r['detections']['retain']['mode'] ?? 'motion'),
             'verfolgen'     => array_values(array_map('strval', (array)($kamera['objects']['track'] ?? []))),
             'alarmObjekte'  => array_values(array_map('strval', (array)($kamera['review']['alerts']['labels'] ?? []))),
             'alarmZonen'    => array_values(array_map('strval', (array)($kamera['review']['alerts']['required_zones'] ?? []))),
@@ -104,10 +113,16 @@ class FrigateHubEinstellungen
             $rec['motion'] = ['days' => self::tage($neu['bewegung'])];
         }
         if ($anders('alarme')) {
-            $rec['alerts'] = ['retain' => ['days' => self::tage($neu['alarme'])]];
+            $rec['alerts']['retain']['days'] = self::tage($neu['alarme']);
+        }
+        if ($anders('alarmModus') && isset(self::AUFBEWAHREN[(string)$neu['alarmModus']])) {
+            $rec['alerts']['retain']['mode'] = (string)$neu['alarmModus'];
         }
         if ($anders('erkennungen')) {
-            $rec['detections'] = ['retain' => ['days' => self::tage($neu['erkennungen'])]];
+            $rec['detections']['retain']['days'] = self::tage($neu['erkennungen']);
+        }
+        if ($anders('erkennungModus') && isset(self::AUFBEWAHREN[(string)$neu['erkennungModus']])) {
+            $rec['detections']['retain']['mode'] = (string)$neu['erkennungModus'];
         }
         if ($rec !== []) {
             $out['record'] = $rec;

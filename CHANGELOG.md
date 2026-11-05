@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0 (Build 40) — 05.11.2026
+
+- **Ganzes Ereignis abspielen (Kachel):** Ein abgeschlossenes Ereignis spielt die Aufnahme des ganzen Zeitraums (5 s davor bis 5 s danach, `/api/<kamera>/start/…/end/…/clip.mp4`) statt nur des Clips des ersten Objekts. Anlass Dietmar 05.11.2026: Alarm 13:09:17–13:10:32, Frigate verlor dieselbe Person nach 3 s und führte sie als zweites Objekt weiter — die Kachel spielte 9 s statt 69 s. Läuft das Ereignis noch, bleibt es beim Objekt-Clip. `reviewEintrag()` liefert dazu alle Objekte (`ereignisse`).
+- **Ablauf je Objekt wie in Frigate:** Unter Bild/Video steht je Objekt „erkannt“, „betrat <Zone>“, „wurde stationär“, „wurde aktiv“, „<Merkmal> erkannt“, „hat sich entfernt“ mit Uhrzeit (`/api/timeline?source_id=`, neuer Hook `?ablauf=<ids>&bereich=`); ein Tipp springt im Video an die Stelle. Weil Frigates Zeitraum-Clip nur die aufgezeichneten Stücke aneinanderhängt, rechnet die Kachel über `/api/<kamera>/recordings` die Uhrzeit in die Videostelle um (`FrigateHubTopics::stuecke()`).
+- **Bildprüfung ohne Fehlalarme bei Dämmerung:** Live 03.–05.11.2026 meldete sie viermal „verstellt“ (17:39, 17:41, 06:59, 09:19). Neu: „verstellt“ nur bei Farbbild (Tag, `farbe` ≥ 5; Infrarot gemessen 0–3,5, Tag 8–16) gegen eigene Tagesansichten (`tagansicht`) derselben und der Nachbarstunden, Vergleich als Korrelation (`aehnlichkeit()`, Helligkeit und Kontrast herausgerechnet) mit Grenze 0,45 — an 58 Bildern der Door-Cam kalibriert: Tagbilder 0,63–0,99, gespiegelt 0,26, verschoben 0,17. „Einfarbig/abgedeckt“ weiter rund um die Uhr. Alte gelernte Zustände bleiben gültig; die Tagesansichten lernen sich in den ersten Tagen neu.
+- **Aufbewahrungsmodus in „In Frigate einstellen“:** `record.alerts|detections.retain.mode` — alles, nur mit Bewegung (Frigate-Standard) oder solange ein Objekt aktiv ist. „Nur mit Bewegung“ verwarf bei Dietmar 11 s mitten im Alarm, als die Person still stand.
+- Enthält 0.18.3 (Übersetzung als Merkliste ohne eigenes Lesen der locale.json).
+
 ## 0.18.3 (Build 39) — 05.11.2026
 
 - **Übersetzung ohne Dateizugriff (Merkliste):** `FrigateHubText::mitMerkliste()` ersetzt `mitTabelle()`. Jeder Text fragt Symcons `Translate()` höchstens einmal je Prozess und merkt sich die Antwort (Vorbild WPModbusHub). FrigateHub liest die `locale.json` nicht mehr selbst — die Store-Richtlinie erlaubt Dateizugriff nur als genehmigte Ausnahme (Entscheidung Dietmar, SUITE.md Stolperstein 24). Prüfstand: 600 Übersetzungen = 2 Fragen bei 2 Texten; kein Dateizugriff in `FrigateHubText`.

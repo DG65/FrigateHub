@@ -95,14 +95,21 @@ trait FrigateHubKameraEinstellungen
             $zonen[] = ['Zone' => $name, 'Objekte' => $liste($z['objekte']), 'Verweilen' => $z['verweilen']];
         }
         $tage = fn (string $name, string $caption, float $wert) => ['type' => 'NumberSpinner', 'name' => $name, 'caption' => $caption, 'suffix' => FrigateHubText::t('days'), 'digits' => 1, 'minimum' => 0, 'maximum' => 3650, 'value' => $wert];
+        $modus = fn (string $name, string $caption, string $wert) => ['type' => 'Select', 'name' => $name, 'caption' => $caption, 'value' => $wert,
+            'options' => array_map(fn ($k, $t) => ['caption' => FrigateHubText::t($t), 'value' => $k], array_keys(FrigateHubEinstellungen::AUFBEWAHREN), FrigateHubEinstellungen::AUFBEWAHREN)];
         $items = [
             ['type' => 'Label', 'caption' => FrigateHubText::t('Changes this camera\'s settings directly in Frigate (its config.yml) — like Frigate\'s own interface, without a restart. Shown is the state when the form was opened. Only what you changed is saved; Frigate checks the values and reverts invalid ones itself. Drawing zones and masks as well as adding cameras stay in Frigate\'s interface.')],
             ['type' => 'Label', 'caption' => FrigateHubText::t('Object types as Frigate spells them, separated by commas, e.g. %s (package only with Frigate+).', implode(', ', array_slice(FrigateHubEinstellungen::OBJEKTE, 0, 9))), 'italic' => true],
             ['type' => 'CheckBox', 'name' => 'FE_Aufnahme', 'caption' => FrigateHubText::t('Recording on (record.enabled)'), 'value' => $w['aufnahme']],
             ['type' => 'RowLayout', 'items' => [
                 $tage('FE_Alarme', FrigateHubText::t('Keep alerts'), $w['alarme']),
-                $tage('FE_Erkennungen', FrigateHubText::t('Keep detections'), $w['erkennungen']),
+                $modus('FE_AlarmModus', FrigateHubText::t('of alerts keep (record.alerts.retain.mode)'), $w['alarmModus']),
             ]],
+            ['type' => 'RowLayout', 'items' => [
+                $tage('FE_Erkennungen', FrigateHubText::t('Keep detections'), $w['erkennungen']),
+                $modus('FE_ErkennungModus', FrigateHubText::t('of detections keep (record.detections.retain.mode)'), $w['erkennungModus']),
+            ]],
+            ['type' => 'Label', 'caption' => FrigateHubText::t('“Only with motion” drops seconds in which someone stands still in the picture — the clip of an alert then has gaps. “While an object is active” keeps them.'), 'italic' => true],
             ['type' => 'RowLayout', 'items' => [
                 $tage('FE_Dauer', FrigateHubText::t('Keep continuous recording (0 = none)'), $w['dauer']),
                 $tage('FE_Bewegung', FrigateHubText::t('Keep recordings with motion'), $w['bewegung']),
@@ -137,7 +144,7 @@ trait FrigateHubKameraEinstellungen
             $items[] = ['type' => 'Label', 'caption' => FrigateHubText::t('License plate or face recognition is switched off globally in Frigate; it can only be switched on there (needs more computing power and a model).'), 'italic' => true];
         }
         $items[] = ['type' => 'ValidationTextBox', 'name' => 'FE_Hoeren', 'caption' => FrigateHubText::t('Listen for these sounds (audio.listen), e.g. %s', implode(', ', array_slice(FrigateHubEinstellungen::GERAEUSCHE, 0, 8))), 'value' => $liste($w['hoeren'])];
-        $werte = '["aufnahme" => $FE_Aufnahme, "alarme" => $FE_Alarme, "erkennungen" => $FE_Erkennungen, "dauer" => $FE_Dauer, "bewegung" => $FE_Bewegung,'
+        $werte = '["aufnahme" => $FE_Aufnahme, "alarme" => $FE_Alarme, "erkennungen" => $FE_Erkennungen, "alarmModus" => $FE_AlarmModus, "erkennungModus" => $FE_ErkennungModus, "dauer" => $FE_Dauer, "bewegung" => $FE_Bewegung,'
             . ' "verfolgen" => $FE_Verfolgen, "alarmObjekte" => $FE_AlarmObjekte, "alarmZonen" => $FE_AlarmZonen, "schnappschuss" => $FE_Schnappschuss,'
             . ' "schnappTage" => $FE_SchnappTage, "stillstand" => $FE_Stillstand, "audio" => $FE_Audio, "hoeren" => $FE_Hoeren, "zonen" => $z'
             . ($w['kennzeichen'] !== null ? ', "kennzeichen" => $FE_Kennzeichen' : '') . ($w['gesichter'] !== null ? ', "gesichter" => $FE_Gesichter' : '') . ']';

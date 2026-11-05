@@ -91,13 +91,14 @@ check('ohne Kennzeichen kein Fahrzeug', $S::fahrzeug(['sub_label' => ['Tesla', 0
 
 /* ------------------------------------------------------------- Sabotage */
 
-function jpeg(callable $farbe): string
+/** Testbild 64×36: $hell($x, $y) = Graustufe, $farbig = Tagbild (leichter Farbstich) statt Infrarot-Grau. */
+function jpeg(callable $hell, bool $farbig = true): string
 {
     $b = imagecreatetruecolor(64, 36);
     for ($y = 0; $y < 36; $y++) {
         for ($x = 0; $x < 64; $x++) {
-            $g = (int)$farbe($x, $y);
-            imagesetpixel($b, $x, $y, imagecolorallocate($b, $g, $g, $g));
+            $g = (int)$hell($x, $y);
+            imagesetpixel($b, $x, $y, $farbig ? imagecolorallocate($b, min(255, $g + 12), $g, max(0, $g - 12)) : imagecolorallocate($b, $g, $g, $g));
         }
     }
     ob_start();
@@ -110,20 +111,25 @@ if (!function_exists('imagecreatetruecolor')) {
 } else {
     $szene = jpeg(fn ($x, $y) => ($x < 32 ? 60 : 200) + ($y < 18 ? 20 : 0));          // „Haus links, Himmel rechts"
     $heller = jpeg(fn ($x, $y) => ($x < 32 ? 90 : 230) + ($y < 18 ? 20 : 0));         // dieselbe Szene, Sonne
+    $daemmerung = jpeg(fn ($x, $y) => ($x < 32 ? 70 : 110) + ($y < 18 ? 8 : 0));      // dieselbe Szene, wenig Kontrast
     $verdreht = jpeg(fn ($x, $y) => ($x < 32 ? 200 : 60) + ($y < 18 ? 0 : 20));       // Kamera gedreht
-    $schwarz = jpeg(fn ($x, $y) => 12);                                                // abgeklebt
+    $verdrehtIr = jpeg(fn ($x, $y) => ($x < 32 ? 200 : 60) + ($y < 18 ? 0 : 20), false); // anderes Muster, aber Infrarot-Grau
+    $schwarz = jpeg(fn ($x, $y) => 12, false);                                         // abgeklebt
     $k = $S::kennwerte($szene);
-    check('Kennwerte: Raster 8×8, Streuung deutlich', [count($k['raster']), $k['streuung'] > 50], [64, true]);
+    check('Kennwerte: Raster 8×8, Streuung deutlich, Farbbild = Tag', [count($k['raster']), $k['streuung'] > 50, $k['farbe'] >= $S::FARBE_TAG], [64, true, true]);
+    check('Infrarot-Grau ist kein Tagbild', $S::kennwerte($verdrehtIr)['farbe'] < $S::FARBE_TAG, true);
     check('kein JPEG → null', $S::kennwerte('kein bild'), null);
-    check('Abstand ohne Helligkeit: Sonne zählt nicht', $S::abstand($k['raster'], $S::kennwerte($heller)['raster']) < 10, true);
-    check('Abstand: verdreht deutlich', $S::abstand($k['raster'], $S::kennwerte($verdreht)['raster']) >= $S::VERSTELLT, true);
+    check('Ähnlichkeit: Sonne zählt nicht', $S::aehnlichkeit($k['raster'], $S::kennwerte($heller)['raster']) > 0.9, true);
+    check('Ähnlichkeit: Dämmerung (wenig Kontrast) zählt nicht', $S::aehnlichkeit($k['raster'], $S::kennwerte($daemmerung)['raster']) > 0.9, true);
+    check('Ähnlichkeit: verdreht deutlich darunter', $S::aehnlichkeit($k['raster'], $S::kennwerte($verdreht)['raster']) < $S::AEHNLICH, true);
+    check('Ähnlichkeit: einfarbig hat kein Muster', $S::aehnlichkeit($k['raster'], $S::kennwerte($schwarz)['raster']), 0.0);
 
     $z = [];
     for ($i = 0; $i < 3; $i++) {
         $r = $S::sabotage($z, $S::kennwerte($szene), 14);
         $z = $r['zustand'];
     }
-    check('Lernen: 3 Bilder, unauffällig', [$z['ansicht'][14]['n'], $r['auffaellig']], [3, false]);
+    check('Lernen: 3 Bilder, unauffällig, Tagesansicht mitgelernt', [$z['ansicht'][14]['n'], $z['tagansicht'][14]['n'], $r['auffaellig']], [3, 3, false]);
     $r = $S::sabotage($z, $S::kennwerte($schwarz), 3);
     check('andere Stunde ungelernt: schwarz (Nacht?) unauffällig', [$r['auffaellig'], $r['zustand']['grund']], [false, '']);
     $zz = $z;
@@ -140,9 +146,31 @@ if (!function_exists('imagecreatetruecolor')) {
         $r = $S::sabotage($zz, $S::kennwerte($verdreht), 14);
         $zz = $r['zustand'];
     }
-    check('verdreht: nach 3 Prüfungen gemeldet', [$r['auffaellig'], $r['zustand']['grund']], [true, 'verstellt']);
+    check('verdreht bei Tag: nach 3 Prüfungen gemeldet', [$r['auffaellig'], $r['zustand']['grund']], [true, 'verstellt']);
     $r = $S::sabotage($zz, $S::kennwerte($heller), 14);
     check('wieder normal (heller Tag): sofort unauffällig', [$r['auffaellig'], $r['zustand']['folge']], [false, 0]);
+    $zz = $z;
+    for ($i = 0; $i < 5; $i++) {
+        $r = $S::sabotage($zz, $S::kennwerte($daemmerung), 14);
+        $zz = $r['zustand'];
+    }
+    check('Dämmerung (wenig Kontrast): nie gemeldet (Fehlalarm bis 0.18.x)', [$r['auffaellig'], $r['zustand']['grund']], [false, '']);
+    $zz = $z;
+    for ($i = 0; $i < 5; $i++) {
+        $r = $S::sabotage($zz, $S::kennwerte($verdrehtIr), 14);
+        $zz = $r['zustand'];
+    }
+    check('Infrarot-Bild mit anderem Muster: nicht als verstellt gewertet', [$r['auffaellig'], $r['zustand']['grund']], [false, '']);
+    check('Infrarot-Bild lernt die Tagesansicht nicht mit', $r['zustand']['tagansicht'][14]['n'], 3);
+    // Nachbarstunde: um 15 Uhr ist noch nichts gelernt, die Tagesansicht von 14 Uhr gilt mit
+    $zz = $z;
+    for ($i = 0; $i < 3; $i++) {
+        $r = $S::sabotage($zz, $S::kennwerte($verdreht), 15);
+        $zz = $r['zustand'];
+    }
+    check('Nachbarstunde: verdreht um 15 Uhr gegen die Ansicht von 14 Uhr gemeldet', [$r['auffaellig'], $r['zustand']['grund']], [true, 'verstellt']);
+    $r = $S::sabotage($z, $S::kennwerte($heller), 15);
+    check('Nachbarstunde: normales Bild um 15 Uhr unauffällig', $r['zustand']['grund'], '');
     $zz = $z;
     $r = $S::sabotage($zz, $S::kennwerte($schwarz), 14);
     $r = $S::sabotage($r['zustand'], $S::kennwerte($verdreht), 14);
@@ -154,9 +182,13 @@ if (!function_exists('imagecreatetruecolor')) {
         $r = $S::sabotage($zz, $S::kennwerte($verdreht), 9);
         $zz = $r['zustand'];
     }
-    check('erst ab 3 gelernten Bildern vergleichen', [$r['auffaellig'], $r['zustand']['ansicht'][9]['n']], [false, 3]);
+    check('erst ab 3 gelernten Bildern vergleichen: nichts gemeldet', [$r['auffaellig'], $r['zustand']['ansicht'][9]['n'] >= 3], [false, true]);
+    // Alte Zustände (bis 0.18.x) ohne Tagesansicht: kein Vergleich, bis neu gelernt ist
+    $alt = ['ansicht' => $z['ansicht'], 'grund' => '', 'folge' => 0];
+    $r = $S::sabotage($alt, $S::kennwerte($verdreht), 14);
+    check('Zustand aus 0.18.x: verstellt erst nach neu gelernter Tagesansicht', $r['zustand']['grund'], '');
     // Nachts ohne Licht ist auch das freie Bild fast einfarbig: dann ist „einfarbig" kein Befund
-    $nacht = jpeg(fn ($x, $y) => 10 + ($x % 2));
+    $nacht = jpeg(fn ($x, $y) => 10 + ($x % 2), false);
     $zz = [];
     for ($i = 0; $i < 3; $i++) {
         $zz = $S::sabotage($zz, $S::kennwerte($nacht), 2)['zustand'];
@@ -167,6 +199,7 @@ if (!function_exists('imagecreatetruecolor')) {
     }
     check('dunkle Nachtstunde: schwarz ist normal', [$r['auffaellig'], $r['zustand']['grund']], [false, '']);
 }
+
 
 /* ------------------------------------------------------------- Kamera-Instanz */
 

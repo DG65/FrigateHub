@@ -126,7 +126,28 @@ foreach (['', '../../api/config', $ID . '/../x', $ID . '.webp', '1793259219-abc'
 }
 $e = FrigateHubTopics::reviewEintrag($review);
 check('Eintrag aus echtem Review', $e, ['id' => $ID, 'start' => 1793259219, 'ende' => 1793259224, 'stufe' => 'alarm',
-    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV, 'labels' => ['on_demand'], 'ki' => null, 'gesehen' => false]);
+    'text' => 'manuell ausgelöst', 'zonen' => [], 'ereignis' => $EV, 'ereignisse' => [$EV], 'labels' => ['on_demand'], 'ki' => null, 'gesehen' => false]);
+// Live 05.11.2026 13:09: dieselbe Person, von Frigate nach 3 s verloren und neu erkannt → zwei Objekte in einem Ereignis
+$zwei = FrigateHubTopics::reviewEintrag(['id' => '1793880557.1-abcd', 'start_time' => 1793880557.1, 'end_time' => 1793880632.4, 'severity' => 'alert',
+    'data' => ['objects' => ['person'], 'detections' => ['1793880557.2-dpvzoo', '1793880579.5-18675p', '1793880557.2-dpvzoo', '../x']]]);
+check('Ereignis mit zwei Objekten: beide im Eintrag (erstes bleibt ereignis)', [$zwei['ereignis'], $zwei['ereignisse']],
+    ['1793880557.2-dpvzoo', ['1793880557.2-dpvzoo', '1793880579.5-18675p']]);
+$ablauf = FrigateHubTopics::ablauf([
+    ['timestamp' => 1793880579.6, 'class_type' => 'visible', 'data' => ['label' => 'person', 'zones' => []]],
+    ['timestamp' => 1793880627.0, 'class_type' => 'stationary', 'data' => ['label' => 'person']],
+    ['timestamp' => 1793880579.7, 'class_type' => 'entered_zone', 'data' => ['label' => 'person', 'zones' => ['Eingangsbereich']]],
+    ['timestamp' => 1793880629.0, 'class_type' => 'active', 'data' => ['label' => 'person']],
+    ['timestamp' => 1793880600.0, 'class_type' => 'attribute', 'data' => ['label' => 'person', 'attribute' => 'face']],
+    ['timestamp' => 1793880632.0, 'class_type' => 'gone', 'data' => ['label' => 'person']],
+    ['timestamp' => 1793880633.0, 'class_type' => 'unbekannt', 'data' => ['label' => 'person']],
+    'kaputt',
+]);
+check('Ablauf wie Frigates Lebenszyklus, sortiert, Unbekanntes übergangen', [$ablauf['name'], array_column($ablauf['eintraege'], 'text')],
+    ['Person', ['Person erkannt', 'Person betrat Eingangsbereich', 'Person: Gesicht erkannt', 'Person wurde stationär', 'Person wurde aktiv', 'Person hat sich entfernt']]);
+check('Aufnahmestücke: zugeschnitten, sortiert, leere verworfen', FrigateHubTopics::stuecke([
+    ['start_time' => 1793880576, 'end_time' => 1793880586], ['start_time' => 1793880555, 'end_time' => 1793880565],
+    ['start_time' => 1793880640, 'end_time' => 1793880650], ['start_time' => 1793880600, 'duration' => 10], 'x'], 1793880552, 1793880637),
+    [[1793880555.0, 1793880565.0], [1793880576.0, 1793880586.0], [1793880600.0, 1793880610.0]]);
 check('Eintrag: Erkennung, läuft noch', array_intersect_key((array)FrigateHubTopics::reviewEintrag(['id' => '1793259300.1-ab', 'start_time' => 1793259300.1,
     'end_time' => null, 'severity' => 'detection', 'data' => ['objects' => ['person', 'car'], 'zones' => ['einfahrt']]]), ['stufe' => 1, 'ende' => 1, 'text' => 1, 'zonen' => 1]),
     ['ende' => null, 'stufe' => 'erkennung', 'text' => 'Person, Auto', 'zonen' => ['einfahrt']]);

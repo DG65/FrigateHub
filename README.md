@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul-0.18.0-informational)
+![Modul Version](https://img.shields.io/badge/Modul-0.19.0-informational)
 ![Symcon Version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -71,7 +71,9 @@ unter `mqtt:` ein (`height`, `crop`, `quality`, `bounding_box`, `timestamp`).
 
 **Kachel:** Die Instanz lässt sich direkt in die Kachel-Visualisierung legen. Sie zeigt das
 Livebild (wahlweise mit Rahmen um erkannte Objekte), einen roten Rahmen bei Alarm, die Zähler und
-die letzten Ereignisse mit Vorschaubild. Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip,
+die letzten Ereignisse mit Vorschaubild. Ein Tipp auf ein Ereignis zeigt Schnappschuss und Clip —
+den ganzen Zeitraum mit allen Objekten — und darunter den Ablauf je Objekt wie in Frigate (erkannt,
+betrat Zone, stationär, aktiv, entfernt); ein Tipp auf einen Eintrag springt im Video an die Stelle,
 ein Tipp aufs Livebild vergrößert es; Erkennung, Aufnahme und Schnappschüsse lassen sich direkt
 schalten. Die Bilder holt die Instanz selbst bei Frigate und reicht sie über einen eigenen
 WebHook weiter — der Browser muss Frigate also nicht erreichen. Jeder Abruf braucht einen
@@ -203,10 +205,12 @@ wenn Frigate die Daten liefert; was Frigate erkennen soll, muss dort eingerichte
 | Heute: Personen, Autos …, Alarme | Tageszähler, um Mitternacht auf 0 | — |
 | Bild auffällig, Bildzustand | Kamera abgedeckt/verdreckt, verstellt oder Dauerbewegung (Spinnennetz, Regen) | Frigate-Adresse |
 
-Die **Bildprüfung** holt alle 5 Minuten ein kleines Livebild und vergleicht es mit der gelernten
-Ansicht derselben Tagesstunde. Helligkeit zählt dabei nicht (Sonne, Licht), nur das Muster; erst
-drei auffällige Prüfungen in Folge melden. Nachts ohne Licht ist ein dunkles Bild normal.
-Nach einem gewollten Umbau „Ansicht neu lernen".
+Die **Bildprüfung** holt alle 5 Minuten ein kleines Livebild. „Abgedeckt/einfarbig“ prüft sie rund um die
+Uhr gegen die gelernte Ansicht derselben Tagesstunde; nachts ohne Licht ist ein dunkles Bild normal.
+„Verstellt“ prüft sie nur bei Tageslicht (Farbbild) gegen die gelernten Tagesansichten derselben und der
+benachbarten Stunden und vergleicht dabei nur das Muster — Helligkeit und Kontrast zählen nicht (Sonne,
+Dämmerung, Gegenlicht). Infrarotbilder werden darauf nicht geprüft. Erst drei auffällige Prüfungen in
+Folge melden. Nach einem gewollten Umbau „Ansicht neu lernen".
 
 ## In Frigate einstellen
 
@@ -215,6 +219,8 @@ Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: P
 Stand aus Frigate; gespeichert wird nur, was geändert wurde.
 
 - Aufnahme an/aus, wie lange Alarme, Erkennungen, Daueraufnahme und Bewegungsaufnahmen bleiben
+- was von Alarmen und Erkennungen aufbewahrt wird: alles, nur mit Bewegung oder solange ein Objekt aktiv ist
+  („nur mit Bewegung“ verwirft Sekunden, in denen jemand still steht)
 - welche Objektarten Frigate erkennt, welche als Alarm zählen und in welchen Zonen
 - je Zone: welche Objekte zählen (z. B. `car` im Carport) und die Verweildauer
 - Schnappschüsse und wie lange sie bleiben, ab wann ein Objekt als stehend gilt

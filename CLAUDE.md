@@ -94,6 +94,11 @@
   Platzhalter und deutsche Reste in den englischen Formularen. SendDebug-Texte und Kommentare bleiben deutsch.
   Seit 0.18.3 Merkliste (`FrigateHubText::mitMerkliste`): je Text einmal `Translate()` je Prozess, nie die locale.json selbst lesen
   (Store: Dateizugriff nur als Ausnahme; 0.18.2 las sie per Datei und machte das Kamera-Formular von >2 min auf 30 ms schnell).
+- Ereignis in der Kachel (0.19.0): ganzer Zeitraum statt Clip des ersten Objekts (Frigate verliert Personen und führt sie
+  als neues Objekt weiter, live 05.11.2026). Ablauf je Objekt aus `/api/timeline?source_id=`, Zeitraum-Clip hängt nur
+  aufgezeichnete Stücke aneinander (`retain.mode: motion` verwirft Stillstand) → Videostelle über `/api/<kamera>/recordings`.
+- Bildprüfung (0.19.0): „verstellt“ nur bei Farbbild (Tag) gegen `tagansicht` der Stunde ±1, Korrelation < 0,45; kalibriert an
+  58 Door-Cam-Bildern 28.10.–05.11. (Tag 0,63–0,99, gespiegelt 0,26, verschoben 0,17; Farbe IR 0–3,5, Tag 8–16).
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

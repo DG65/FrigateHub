@@ -1,7 +1,7 @@
 # FrigateHub
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHP%20module-blue)
-![Module version](https://img.shields.io/badge/Module-0.18.0-informational)
+![Module version](https://img.shields.io/badge/Module-0.19.0-informational)
 ![Symcon version](https://img.shields.io/badge/Symcon-9.0%2B-informational)
 ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://paypal.me/DietmarGureth)
@@ -62,7 +62,9 @@ see `mqtt:` per camera in Frigate).
 
 **Tile:** The instance can be placed directly in the tile visualization. It shows the live image
 (optionally with boxes around detected objects), a red frame on alert, the counters and the latest
-events with thumbnails. Tapping an event shows snapshot and clip, tapping the live image enlarges
+events with thumbnails. Tapping an event shows snapshot and clip — the whole period with all objects —
+and below it the course per object as in Frigate (detected, entered zone, stationary, active, left);
+tapping an entry jumps to that moment in the video. Tapping the live image enlarges
 it; detection, recording and snapshots can be switched directly. The instance fetches the images
 from Frigate itself and passes them on via its own WebHook, so the browser does not need to reach
 Frigate. Every request needs a secret key of the instance, which can be renewed in the “Tile” panel.
@@ -143,9 +145,12 @@ Switches only take a value once Frigate confirms it.
 | Today: people, cars …, alerts | daily counters, reset at midnight | — |
 | Image suspicious, image state | camera covered/dirty, moved, or permanent motion | Frigate address |
 
-The **image check** fetches a small live image every 5 minutes and compares it with the learned view
-of the same hour of day. Brightness does not count, only the pattern; only three suspicious checks in
-a row raise a report. After an intended change click “Learn view anew”.
+The **image check** fetches a small live image every 5 minutes. “Covered/uniform” is checked around the
+clock against the learned view of the same hour; a dark image at night is normal. “Moved” is checked only
+in daylight (colour image) against the learned daytime views of the same and neighbouring hours, comparing
+only the pattern — brightness and contrast do not count (sun, dusk, backlight). Infrared images are not
+checked for this. Only three suspicious checks in a row raise a report. After an intended change click
+“Learn view anew”.
 
 ## Configure Frigate from Symcon
 
@@ -153,6 +158,8 @@ Many settings can be changed without opening Frigate's interface: panel **⚙️
 in the form of every camera instance. It shows Frigate's current state; only what you changed is saved.
 
 - recording on/off, how long alerts, detections, continuous and motion recordings are kept
+- what is kept of alerts and detections: everything, only with motion, or while an object is active
+  (“only with motion” drops seconds in which someone stands still)
 - which object types Frigate detects, which count as alerts and in which zones
 - per zone: which objects count (e.g. `car` in the carport) and the loitering time
 - snapshots and retention, after how long an object counts as stationary

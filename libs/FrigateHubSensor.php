@@ -162,8 +162,19 @@ class FrigateHubSensor
     /** Unter dieser Streuung (0–255) gilt ein Bild als einfarbig: abgedeckt, verdreckt oder Kamera kaputt. */
     public const EINFARBIG = 6.0;
 
-    /** Ab dieser mittleren Rasterabweichung (0–255) zur gelernten Ansicht gilt die Kamera als verstellt. */
-    public const VERSTELLT = 30.0;
+    /**
+     * Unter dieser Musterähnlichkeit (Korrelation −1…1, Helligkeit und Kontrast herausgerechnet) zur gelernten
+     * Tagesansicht gilt die Kamera als verstellt. Gemessen an Dietmars Door-Cam (05.11.2026, 58 Bilder über 8 Tage):
+     * Tagbilder verschiedener Tage 0,63–0,99, gespiegelt 0,26, um zwei Rasterfelder verschoben 0,17, Kontrast 40 % 1,0.
+     */
+    public const AEHNLICH = 0.45;
+
+    /**
+     * Ab dieser mittleren Farbigkeit (0–255) ist ein Bild ein Tagbild. Infrarot-/Nachtbilder sind grau: gemessen 0–3,5,
+     * Tagbilder 8–16. Nur Tagbilder werden auf „verstellt" geprüft — nachts (Infrarot, Scheinwerfer, Licht an/aus)
+     * ändert sich das Muster zu stark (Fehlalarme bei Dämmerung bis 0.18.x).
+     */
+    public const FARBE_TAG = 5.0;
 
     /** So viele Prüfungen in Folge, bis eine Auffälligkeit gemeldet wird (Lichtwechsel, Schatten, Regen). */
     public const BESTAETIGEN = 3;
@@ -189,45 +200,60 @@ class FrigateHubSensor
         $klein = imagecreatetruecolor($n, $n);
         imagecopyresampled($klein, $bild, 0, 0, 0, 0, $n, $n, imagesx($bild), imagesy($bild));
         $werte = [];
+        $farbe = 0.0;
         for ($y = 0; $y < $n; $y++) {
             for ($x = 0; $x < $n; $x++) {
                 $rgb = imagecolorat($klein, $x, $y);
-                $werte[] = round(0.299 * (($rgb >> 16) & 255) + 0.587 * (($rgb >> 8) & 255) + 0.114 * ($rgb & 255), 1);
+                $r = ($rgb >> 16) & 255;
+                $g = ($rgb >> 8) & 255;
+                $b = $rgb & 255;
+                $werte[] = round(0.299 * $r + 0.587 * $g + 0.114 * $b, 1);
+                $farbe += (abs($r - $g) + abs($g - $b) + abs($r - $b)) / 3;
             }
         }
         $hell = array_sum($werte) / count($werte);
         $streuung = sqrt(array_sum(array_map(fn ($w) => ($w - $hell) ** 2, $werte)) / count($werte));
-        return ['hell' => round($hell, 1), 'streuung' => round($streuung, 1), 'raster' => $werte];
+        return ['hell' => round($hell, 1), 'streuung' => round($streuung, 1), 'farbe' => round($farbe / count($werte), 1), 'raster' => $werte];
     }
 
     /**
      * Eine Sabotage-Prüfung bewerten. Die gelernte Ansicht je Tagesstunde ist der gleitende
      * Mittelwert der unauffälligen Bilder dieser Stunde — so passt sie sich an Jahreszeit und
-     * Bewuchs an, und Tag/Nacht (Infrarot) stören den Vergleich nicht.
+     * Bewuchs an. „einfarbig" wird rund um die Uhr geprüft, „verstellt" nur bei Farbbild (Tag) gegen eigene
+     * Tagesansichten (`tagansicht`) — Infrarot und Dämmerung lösten bis 0.18.x Fehlalarme aus.
      *
      * @return array{zustand:array,auffaellig:bool,text:string}
      */
     public static function sabotage(array $z, array $k, int $stunde): array
     {
         $ansicht = (array)($z['ansicht'][$stunde] ?? []);
+        $tag = (float)($k['farbe'] ?? 0) >= self::FARBE_TAG;
         $grund = '';
         // Erst vergleichen, wenn die Stunde gelernt ist: nachts ohne Licht ist auch ein freies Bild fast einfarbig
-        if ((int)($ansicht['n'] ?? 0) >= self::LERNEN && is_array($ansicht['raster'] ?? null)) {
-            if ($k['streuung'] < self::EINFARBIG && (float)($ansicht['streuung'] ?? 0) >= 3 * self::EINFARBIG) {
-                $grund = 'einfarbig';
-            } elseif (self::abstand($ansicht['raster'], $k['raster']) >= self::VERSTELLT) {
+        if ((int)($ansicht['n'] ?? 0) >= self::LERNEN && $k['streuung'] < self::EINFARBIG && (float)($ansicht['streuung'] ?? 0) >= 3 * self::EINFARBIG) {
+            $grund = 'einfarbig';
+        } elseif ($tag) {
+            // „verstellt" nur bei Tageslicht und gegen gelernte Tagesansichten derselben Stunde und der Nachbarstunden
+            // (die Dämmerung wandert übers Jahr durch die Stunden); die ähnlichste zählt.
+            $beste = null;
+            foreach ([$stunde, ($stunde + 23) % 24, ($stunde + 1) % 24] as $h) {
+                $v = (array)($z['tagansicht'][$h] ?? []);
+                if ((int)($v['n'] ?? 0) >= self::LERNEN && is_array($v['raster'] ?? null)) {
+                    $a = self::aehnlichkeit($v['raster'], $k['raster']);
+                    $beste = $beste === null ? $a : max($beste, $a);
+                }
+            }
+            if ($beste !== null && $beste < self::AEHNLICH) {
                 $grund = 'verstellt';
             }
         }
         $folge = $grund === '' ? 0 : ((($z['grund'] ?? '') === $grund) ? (int)($z['folge'] ?? 0) + 1 : 1);
         if ($grund === '') {
             // Nur unauffällige Bilder lernen: eine verstellte Kamera soll nicht zur neuen Normalität werden
-            $n = min(20, (int)($ansicht['n'] ?? 0) + 1);
-            $raster = is_array($ansicht['raster'] ?? null) && count($ansicht['raster']) === count($k['raster'])
-                ? array_map(fn ($a, $b) => round($a + ($b - $a) / $n, 1), $ansicht['raster'], $k['raster'])
-                : $k['raster'];
-            $streuung = round((float)($ansicht['streuung'] ?? $k['streuung']) + ($k['streuung'] - (float)($ansicht['streuung'] ?? $k['streuung'])) / $n, 1);
-            $z['ansicht'][$stunde] = ['n' => $n, 'raster' => $raster, 'streuung' => $streuung];
+            $z['ansicht'][$stunde] = self::lernen($ansicht, $k);
+            if ($tag) {
+                $z['tagansicht'][$stunde] = self::lernen((array)($z['tagansicht'][$stunde] ?? []), $k);
+            }
         }
         $z['grund'] = $grund;
         $z['folge'] = $folge;
@@ -238,12 +264,23 @@ class FrigateHubSensor
         return ['zustand' => $z, 'auffaellig' => $auffaellig, 'text' => $text];
     }
 
+    /** Gleitender Mittelwert (bis 20 Bilder) einer gelernten Ansicht um ein unauffälliges Bild erweitern. */
+    private static function lernen(array $ansicht, array $k): array
+    {
+        $n = min(20, (int)($ansicht['n'] ?? 0) + 1);
+        $raster = is_array($ansicht['raster'] ?? null) && count($ansicht['raster']) === count($k['raster'])
+            ? array_map(fn ($a, $b) => round($a + ($b - $a) / $n, 1), $ansicht['raster'], $k['raster'])
+            : $k['raster'];
+        $streuung = round((float)($ansicht['streuung'] ?? $k['streuung']) + ($k['streuung'] - (float)($ansicht['streuung'] ?? $k['streuung'])) / $n, 1);
+        return ['n' => $n, 'raster' => $raster, 'streuung' => $streuung];
+    }
+
     /**
-     * Mittlere absolute Abweichung zweier Raster, jeweils ohne ihre mittlere Helligkeit: Sonne,
-     * Wolken oder eingeschaltetes Licht verschieben alles gleich und zählen so nicht, eine
-     * verdrehte Kamera oder ein Gegenstand vor der Linse verändert dagegen das Muster.
+     * Musterähnlichkeit zweier Raster (Korrelation, −1…1): Helligkeit UND Kontrast sind herausgerechnet — Sonne,
+     * Wolken, Dämmerung oder Gegenlicht ändern das Muster kaum, eine verdrehte Kamera oder ein Gegenstand vor der
+     * Linse schon. Ein Raster ohne Streuung (einfarbig) hat kein Muster: 0.
      */
-    public static function abstand(array $a, array $b): float
+    public static function aehnlichkeit(array $a, array $b): float
     {
         $n = min(count($a), count($b));
         if ($n === 0) {
@@ -253,10 +290,15 @@ class FrigateHubSensor
         $b = array_slice(array_map('floatval', $b), 0, $n);
         $ma = array_sum($a) / $n;
         $mb = array_sum($b) / $n;
+        $sa = sqrt(array_sum(array_map(fn ($v) => ($v - $ma) ** 2, $a)) / $n);
+        $sb = sqrt(array_sum(array_map(fn ($v) => ($v - $mb) ** 2, $b)) / $n);
+        if ($sa < 0.5 || $sb < 0.5) {
+            return 0.0;
+        }
         $summe = 0.0;
         for ($i = 0; $i < $n; $i++) {
-            $summe += abs(($a[$i] - $ma) - ($b[$i] - $mb));
+            $summe += ($a[$i] - $ma) * ($b[$i] - $mb);
         }
-        return round($summe / $n, 1);
+        return round($summe / ($n * $sa * $sb), 2);
     }
 }

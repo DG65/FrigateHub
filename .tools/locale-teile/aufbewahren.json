@@ -1,0 +1,8 @@
+{
+  "Everything": "Alles",
+  "Only with motion": "Nur mit Bewegung",
+  "While an object is active": "Solange ein Objekt aktiv ist",
+  "of alerts keep (record.alerts.retain.mode)": "von Alarmen aufbewahren (record.alerts.retain.mode)",
+  "of detections keep (record.detections.retain.mode)": "von Erkennungen aufbewahren (record.detections.retain.mode)",
+  "“Only with motion” drops seconds in which someone stands still in the picture — the clip of an alert then has gaps. “While an object is active” keeps them.": "„Nur mit Bewegung“ verwirft Sekunden, in denen jemand still im Bild steht – der Clip eines Alarms hat dann Lücken. „Solange ein Objekt aktiv ist“ behält sie."
+}
