@@ -78,7 +78,7 @@ trait FrigateHubKameraEinstellungen
      */
     protected function einstellungenPanel(): array
     {
-        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('⚙️  Configure in Frigate'), 'items' => []];
+        $panel = ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '⚙️  Configure in Frigate', 'items' => []];
         $hinweis = fn (string $t) => array_merge($panel, ['items' => [['type' => 'Label', 'caption' => $t]]]);
         $kamera = $this->kamera();
         if ($kamera === '' || $this->apiUrl() === '') {
@@ -94,13 +94,13 @@ trait FrigateHubKameraEinstellungen
         foreach ($w['zonen'] as $name => $z) {
             $zonen[] = ['Zone' => $name, 'Objekte' => $liste($z['objekte']), 'Verweilen' => $z['verweilen']];
         }
-        $tage = fn (string $name, string $caption, float $wert) => ['type' => 'NumberSpinner', 'name' => $name, 'caption' => $caption, 'suffix' => FrigateHubText::t('days'), 'digits' => 1, 'minimum' => 0, 'maximum' => 3650, 'value' => $wert];
+        $tage = fn (string $name, string $caption, float $wert) => ['type' => 'NumberSpinner', 'name' => $name, 'caption' => $caption, 'suffix' => 'days', 'digits' => 1, 'minimum' => 0, 'maximum' => 3650, 'value' => $wert];
         $modus = fn (string $name, string $caption, string $wert) => ['type' => 'Select', 'name' => $name, 'caption' => $caption, 'value' => $wert,
             'options' => array_map(fn ($k, $t) => ['caption' => FrigateHubText::t($t), 'value' => $k], array_keys(FrigateHubEinstellungen::AUFBEWAHREN), FrigateHubEinstellungen::AUFBEWAHREN)];
         $items = [
-            ['type' => 'Label', 'caption' => FrigateHubText::t('Changes this camera\'s settings directly in Frigate (its config.yml) — like Frigate\'s own interface, without a restart. Shown is the state when the form was opened. Only what you changed is saved; Frigate checks the values and reverts invalid ones itself. Drawing zones and masks as well as adding cameras stay in Frigate\'s interface.')],
+            ['type' => 'Label', 'caption' => 'Changes this camera\'s settings directly in Frigate (its config.yml) — like Frigate\'s own interface, without a restart. Shown is the state when the form was opened. Only what you changed is saved; Frigate checks the values and reverts invalid ones itself. Drawing zones and masks as well as adding cameras stay in Frigate\'s interface.'],
             ['type' => 'Label', 'caption' => FrigateHubText::t('Object types as Frigate spells them, separated by commas, e.g. %s (package only with Frigate+).', implode(', ', array_slice(FrigateHubEinstellungen::OBJEKTE, 0, 9))), 'italic' => true],
-            ['type' => 'CheckBox', 'name' => 'FE_Aufnahme', 'caption' => FrigateHubText::t('Recording on (record.enabled)'), 'value' => $w['aufnahme']],
+            ['type' => 'CheckBox', 'name' => 'FE_Aufnahme', 'caption' => 'Recording on (record.enabled)', 'value' => $w['aufnahme']],
             ['type' => 'RowLayout', 'items' => [
                 $tage('FE_Alarme', FrigateHubText::t('Keep alerts'), $w['alarme']),
                 $modus('FE_AlarmModus', FrigateHubText::t('of alerts keep (record.alerts.retain.mode)'), $w['alarmModus']),
@@ -109,39 +109,39 @@ trait FrigateHubKameraEinstellungen
                 $tage('FE_Erkennungen', FrigateHubText::t('Keep detections'), $w['erkennungen']),
                 $modus('FE_ErkennungModus', FrigateHubText::t('of detections keep (record.detections.retain.mode)'), $w['erkennungModus']),
             ]],
-            ['type' => 'Label', 'caption' => FrigateHubText::t('“Only with motion” drops seconds in which someone stands still in the picture — the clip of an alert then has gaps. “While an object is active” keeps them.'), 'italic' => true],
+            ['type' => 'Label', 'caption' => '“Only with motion” drops seconds in which someone stands still in the picture — the clip of an alert then has gaps. “While an object is active” keeps them.', 'italic' => true],
             ['type' => 'RowLayout', 'items' => [
                 $tage('FE_Dauer', FrigateHubText::t('Keep continuous recording (0 = none)'), $w['dauer']),
                 $tage('FE_Bewegung', FrigateHubText::t('Keep recordings with motion'), $w['bewegung']),
             ]],
-            ['type' => 'ValidationTextBox', 'name' => 'FE_Verfolgen', 'caption' => FrigateHubText::t('Detect and track (objects.track)'), 'value' => $liste($w['verfolgen'])],
-            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmObjekte', 'caption' => FrigateHubText::t('As alert instead of just detection (review.alerts.labels)'), 'value' => $liste($w['alarmObjekte'])],
+            ['type' => 'ValidationTextBox', 'name' => 'FE_Verfolgen', 'caption' => 'Detect and track (objects.track)', 'value' => $liste($w['verfolgen'])],
+            ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmObjekte', 'caption' => 'As alert instead of just detection (review.alerts.labels)', 'value' => $liste($w['alarmObjekte'])],
             ['type' => 'ValidationTextBox', 'name' => 'FE_AlarmZonen', 'caption' => $zonen === [] ? FrigateHubText::t('Alert only in these zones (empty = everywhere; no zones)') : FrigateHubText::t('Alert only in these zones (empty = everywhere; zones: %s)', implode(', ', array_keys($w['zonen']))), 'value' => $liste($w['alarmZonen'])],
-            ['type' => 'List', 'name' => 'FE_Zonen', 'caption' => FrigateHubText::t('Zones: which objects count (empty = all), dwell time in seconds (loitering_time, 0 = immediately)'), 'rowCount' => max(1, min(6, count($zonen))),
+            ['type' => 'List', 'name' => 'FE_Zonen', 'caption' => 'Zones: which objects count (empty = all), dwell time in seconds (loitering_time, 0 = immediately)', 'rowCount' => max(1, min(6, count($zonen))),
                 'add' => false, 'delete' => false, 'values' => $zonen,
                 'columns' => [
-                    ['caption' => FrigateHubText::t('Zone'), 'name' => 'Zone', 'width' => '200px', 'add' => ''],
-                    ['caption' => FrigateHubText::t('Objects'), 'name' => 'Objekte', 'width' => 'auto', 'add' => '', 'edit' => ['type' => 'ValidationTextBox']],
-                    ['caption' => FrigateHubText::t('Dwell (s)'), 'name' => 'Verweilen', 'width' => '140px', 'add' => 0, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 0, 'maximum' => 3600]],
+                    ['caption' => 'Zone', 'name' => 'Zone', 'width' => '200px', 'add' => ''],
+                    ['caption' => 'Objects', 'name' => 'Objekte', 'width' => 'auto', 'add' => '', 'edit' => ['type' => 'ValidationTextBox']],
+                    ['caption' => 'Dwell (s)', 'name' => 'Verweilen', 'width' => '140px', 'add' => 0, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 0, 'maximum' => 3600]],
                 ]],
             ['type' => 'RowLayout', 'items' => [
-                ['type' => 'CheckBox', 'name' => 'FE_Schnappschuss', 'caption' => FrigateHubText::t('Save snapshots'), 'value' => $w['schnappschuss']],
+                ['type' => 'CheckBox', 'name' => 'FE_Schnappschuss', 'caption' => 'Save snapshots', 'value' => $w['schnappschuss']],
                 $tage('FE_SchnappTage', FrigateHubText::t('Keep snapshots'), $w['schnappTage']),
             ]],
             ['type' => 'NumberSpinner', 'name' => 'FE_Stillstand', 'caption' => FrigateHubText::t('An object counts as stationary after (detect.stationary.threshold, at %s frames/s)', $w['fps']), 'suffix' => 's', 'minimum' => 1, 'maximum' => 600, 'value' => $w['stillstand']],
         ];
         $schalter = [];
         if ($w['kennzeichen'] !== null) {
-            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Kennzeichen', 'caption' => FrigateHubText::t('Recognize license plates'), 'value' => $w['kennzeichen']];
+            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Kennzeichen', 'caption' => 'Recognize license plates', 'value' => $w['kennzeichen']];
         }
         if ($w['gesichter'] !== null) {
-            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Gesichter', 'caption' => FrigateHubText::t('Recognize faces'), 'value' => $w['gesichter']];
+            $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Gesichter', 'caption' => 'Recognize faces', 'value' => $w['gesichter']];
         }
         $schalter[] = ['type' => 'CheckBox', 'name' => 'FE_Audio', 'caption' => $w['audioRolle'] ? FrigateHubText::t('Detect sounds') : FrigateHubText::t('Detect sounds (camera has no stream with role "audio" — add it in Frigate)'),
             'value' => $w['audio'], 'enabled' => $w['audioRolle'] || $w['audio']];
         $items[] = ['type' => 'RowLayout', 'items' => $schalter];
         if ($w['kennzeichen'] === null || $w['gesichter'] === null) {
-            $items[] = ['type' => 'Label', 'caption' => FrigateHubText::t('License plate or face recognition is switched off globally in Frigate; it can only be switched on there (needs more computing power and a model).'), 'italic' => true];
+            $items[] = ['type' => 'Label', 'caption' => 'License plate or face recognition is switched off globally in Frigate; it can only be switched on there (needs more computing power and a model).', 'italic' => true];
         }
         $items[] = ['type' => 'ValidationTextBox', 'name' => 'FE_Hoeren', 'caption' => FrigateHubText::t('Listen for these sounds (audio.listen), e.g. %s', implode(', ', array_slice(FrigateHubEinstellungen::GERAEUSCHE, 0, 8))), 'value' => $liste($w['hoeren'])];
         $werte = '["aufnahme" => $FE_Aufnahme, "alarme" => $FE_Alarme, "erkennungen" => $FE_Erkennungen, "alarmModus" => $FE_AlarmModus, "erkennungModus" => $FE_ErkennungModus, "dauer" => $FE_Dauer, "bewegung" => $FE_Bewegung,'
@@ -149,7 +149,7 @@ trait FrigateHubKameraEinstellungen
             . ' "schnappTage" => $FE_SchnappTage, "stillstand" => $FE_Stillstand, "audio" => $FE_Audio, "hoeren" => $FE_Hoeren, "zonen" => $z'
             . ($w['kennzeichen'] !== null ? ', "kennzeichen" => $FE_Kennzeichen' : '') . ($w['gesichter'] !== null ? ', "gesichter" => $FE_Gesichter' : '') . ']';
         $items[] = ['type' => 'RowLayout', 'items' => [
-            ['type' => 'Button', 'caption' => FrigateHubText::t('💾 Save in Frigate'), 'confirm' => FrigateHubText::t('Save the changed settings in Frigate? Frigate writes them to its config.yml and applies them immediately.'),
+            ['type' => 'Button', 'caption' => '💾 Save in Frigate', 'confirm' => 'Save the changed settings in Frigate? Frigate writes them to its config.yml and applies them immediately.',
                 'onClick' => '$z = []; foreach ($FE_Zonen as $x) { $z[] = $x; } echo FRIG_EinstellungenSpeichern($id, json_encode(' . $werte . '));'],
             ['type' => 'Label', 'name' => 'EinstellungenStatus', 'caption' => FrigateHubText::t('State from Frigate: %s. To reload, close and reopen the form.', date('H:i:s'))],
         ]];

@@ -94,6 +94,9 @@
   Platzhalter und deutsche Reste in den englischen Formularen. SendDebug-Texte und Kommentare bleiben deutsch.
   Seit 0.18.3 Merkliste (`FrigateHubText::mitMerkliste`): je Text einmal `Translate()` je Prozess, nie die locale.json selbst lesen
   (Store: Dateizugriff nur als Ausnahme; 0.18.2 las sie per Datei und machte das Kamera-Formular von >2 min auf 30 ms schnell).
+  Seit 0.19.1 feste Formulartexte (caption/confirm/label/suffix) NICHT über t() — die Konsole übersetzt sie (Store-Checkliste 25);
+  t() nur für Texte mit Werten, Variablennamen, Meldungen, Kacheln, Listenwerte. Prüfstand-Stub bildet die Konsole über
+  `FrigateHubText::$formularHaken` nach.
 - Ereignis in der Kachel (0.19.0): ganzer Zeitraum statt Clip des ersten Objekts (Frigate verliert Personen und führt sie
   als neues Objekt weiter, live 05.11.2026). Ablauf je Objekt aus `/api/timeline?source_id=`, Zeitraum-Clip hängt nur
   aufgezeichnete Stücke aneinander (`retain.mode: motion` verwirft Stillstand) → Videostelle über `/api/<kamera>/recordings`.

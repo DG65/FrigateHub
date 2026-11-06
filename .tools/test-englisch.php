@@ -85,6 +85,30 @@ foreach (array_merge(glob($basis . '/libs/*.php'), glob($basis . '/FrigateHub*/m
     }
 }
 check('jeder feste FrigateHubText::t()-Text hat eine deutsche Fassung', $fehlt, [], (string)count($fehlt));
+// Feste Formulartexte übersetzt die Konsole (Store-Checkliste 25) — jeder braucht trotzdem seinen locale.json-Eintrag
+$festOhne = [];
+foreach (array_merge(glob($basis . '/libs/*.php'), glob($basis . '/FrigateHub*/module.php')) as $datei) {
+    $t = token_get_all((string)file_get_contents($datei));
+    $n = count($t);
+    for ($i = 0; $i < $n - 4; $i++) {
+        if (is_array($t[$i]) && $t[$i][0] === T_CONSTANT_ENCAPSED_STRING && in_array($t[$i][1], ["'caption'", "'confirm'", "'label'", "'suffix'"], true)) {
+            $j = $i + 1;
+            while ($j < $n && is_array($t[$j]) && $t[$j][0] === T_WHITESPACE) { $j++; }
+            if (!(is_array($t[$j]) && $t[$j][0] === T_DOUBLE_ARROW)) { continue; }
+            $j++;
+            while ($j < $n && is_array($t[$j]) && $t[$j][0] === T_WHITESPACE) { $j++; }
+            $folgt = $t[$j + 1] ?? '';
+            if (is_array($t[$j]) && $t[$j][0] === T_CONSTANT_ENCAPSED_STRING && !(is_string($folgt) && $folgt === '.')) {
+                $roh = $t[$j][1];
+                $text = $roh[0] === "'" ? str_replace(["\\'", '\\\\'], ["'", '\\'], substr($roh, 1, -1)) : stripcslashes(substr($roh, 1, -1));
+                if (preg_match('/[a-z]{3,}/', $text) && !isset($de[$text]) && !in_array($text, ['min'], true)) {   // Einheiten gleich in beiden Sprachen
+                    $festOhne[] = basename($datei) . ': ' . $text;
+                }
+            }
+        }
+    }
+}
+check('jede feste Formular-Beschriftung (caption/confirm/label/suffix) hat eine deutsche Fassung', $festOhne, [], (string)count($festOhne));
 check('Platzhalter passen (Werte = %s im englischen und deutschen Text)', $platz, []);
 $deutschLeer = array_keys(array_filter($de, fn ($v) => !is_string($v) || $v === ''));
 check('keine leere deutsche Fassung', $deutschLeer, []);

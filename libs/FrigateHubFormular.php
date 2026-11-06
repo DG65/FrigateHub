@@ -173,8 +173,8 @@ trait FrigateHubFormular
         foreach ($this->frigatehubZweck() as $zeile) {
             $items[] = ['type' => 'Label', 'caption' => $zeile];
         }
-        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckPurposeIntro($id);'];
-        return ['type' => 'ExpansionPanel', 'name' => 'PurposeIntroPanel', 'expanded' => true, 'caption' => FrigateHubText::t('👋  What is this module for?'), 'items' => $items];
+        $items[] = ['type' => 'Button', 'caption' => 'Got it – don\'t show again', 'onClick' => $this->frigatehubPrefix() . '_AckPurposeIntro($id);'];
+        return ['type' => 'ExpansionPanel', 'name' => 'PurposeIntroPanel', 'expanded' => true, 'caption' => '👋  What is this module for?', 'items' => $items];
     }
 
     protected function formNeu(): ?array
@@ -200,7 +200,7 @@ trait FrigateHubFormular
                 $items[] = ['type' => 'Label', 'caption' => FrigateHubText::wert($zeile)];
             }
         }
-        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'];
+        $items[] = ['type' => 'Button', 'caption' => 'Got it – don\'t show again', 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'];
         $keys = array_keys($offen);
         return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🆕  New up to version %s', end($keys)), 'items' => $items];
     }
@@ -215,8 +215,8 @@ trait FrigateHubFormular
         foreach ($this->frigatehubDoku() as $zeile) {
             $items[] = ['type' => 'Label', 'caption' => $zeile];
         }
-        $items[] = ['type' => 'Button', 'caption' => FrigateHubText::t('Guide on GitHub'), 'onClick' => "echo '" . self::$FRIGATEHUB_REPO_URL . "';", 'link' => true];
-        return ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('📖  Documentation & help'), 'items' => $items];
+        $items[] = ['type' => 'Button', 'caption' => 'Guide on GitHub', 'onClick' => "echo '" . self::$FRIGATEHUB_REPO_URL . "';", 'link' => true];
+        return ['type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '📖  Documentation & help', 'items' => $items];
     }
 
     protected function formRueckmeldung(): ?array
@@ -226,11 +226,11 @@ trait FrigateHubFormular
         }
         return [
             'type' => 'ExpansionPanel', 'name' => 'ForumHintPanel', 'expanded' => true,
-            'caption' => FrigateHubText::t('💬  Feedback'),
+            'caption' => '💬  Feedback',
             'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('🧪 FrigateHub is new. Is your camera working? Is something missing? Feel free to post in the Symcon forum — with Frigate version, number of cameras and an excerpt from the panel “Received messages”.')],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('Go to the forum thread'), 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('Got it – don\'t show again'), 'onClick' => $this->frigatehubPrefix() . '_AckForumHint($id);'],
+                ['type' => 'Label', 'caption' => '🧪 FrigateHub is new. Is your camera working? Is something missing? Feel free to post in the Symcon forum — with Frigate version, number of cameras and an excerpt from the panel “Received messages”.'],
+                ['type' => 'Button', 'caption' => 'Go to the forum thread', 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
+                ['type' => 'Button', 'caption' => 'Got it – don\'t show again', 'onClick' => $this->frigatehubPrefix() . '_AckForumHint($id);'],
             ],
         ];
     }
@@ -240,14 +240,14 @@ trait FrigateHubFormular
     {
         return [
             'type' => 'ExpansionPanel', 'expanded' => false,
-            'caption' => FrigateHubText::t('🧡  About this module'),
+            'caption' => '🧡  About this module',
             'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Born out of genuine enthusiasm for my own installation — and a few evenings spent typing. Still: hobby software or not, this is intellectual property and real work went into it.')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('License: PolyForm Noncommercial 1.0.0 — free for private and non-commercial use; commercial use requires a separate license from the rights holder.')],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('View license text'), 'onClick' => "echo '" . self::$FRIGATEHUB_LICENSE_URL . "';", 'link' => true],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Commercial use or questions about the license? Just get in touch: dietmar@gureth.eu')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Do you like the module and would like to leave something anyway? I appreciate a small donation — completely voluntary, nothing expected in return.')],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('☕  Donate via PayPal'), 'onClick' => "echo '" . self::$FRIGATEHUB_PAYPAL_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => 'Born out of genuine enthusiasm for my own installation — and a few evenings spent typing. Still: hobby software or not, this is intellectual property and real work went into it.'],
+                ['type' => 'Label', 'caption' => 'License: PolyForm Noncommercial 1.0.0 — free for private and non-commercial use; commercial use requires a separate license from the rights holder.'],
+                ['type' => 'Button', 'caption' => 'View license text', 'onClick' => "echo '" . self::$FRIGATEHUB_LICENSE_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => 'Commercial use or questions about the license? Just get in touch: dietmar@gureth.eu'],
+                ['type' => 'Label', 'caption' => 'Do you like the module and would like to leave something anyway? I appreciate a small donation — completely voluntary, nothing expected in return.'],
+                ['type' => 'Button', 'caption' => '☕  Donate via PayPal', 'onClick' => "echo '" . self::$FRIGATEHUB_PAYPAL_URL . "';", 'link' => true],
             ],
         ];
     }
@@ -334,7 +334,8 @@ trait FrigateHubFormular
     /** Name eines Fachpanels für die Liste: Caption ohne Klammerzusatz. */
     protected static function formAufbauName(array $panel, string $k): string
     {
-        $name = trim((string)preg_replace('/\s*\(.*$/u', '', (string)($panel['caption'] ?? $k)));
+        // Listenwerte übersetzt die Konsole nicht (nur feste Beschriftungen): die Caption hier selbst übersetzen
+        $name = trim((string)preg_replace('/\s*\(.*$/u', '', FrigateHubText::t((string)($panel['caption'] ?? $k))));
         return !empty($panel['_aktionen']) ? FrigateHubText::t('%s (below with the actions)', $name) : $name;
     }
 
@@ -355,22 +356,22 @@ trait FrigateHubFormular
             'type' => 'ExpansionPanel', 'expanded' => false,
             'caption' => $aus === [] ? FrigateHubText::t('🪟  Form: layout') : FrigateHubText::t('🪟  Form: layout (%d hidden)', count($aus)),
             'items' => array_merge($ausZeile, [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Here you decide which sections are expanded when the configuration form opens and in which order they appear. Symcon does not remember expanding and collapsing itself, so this setting applies every time the form opens. It takes effect after “Apply” the next time the form is opened.')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('No tick means “default”: as the module intends (e.g. “Frigate camera” expanded as long as no camera is entered). The position is a number; with equal numbers the default order is kept. “Hidden” removes a section from the display without it losing anything: its settings are kept and keep working. If several ticks are set, “Hidden” wins over “Collapsed”, which wins over “Expanded”. The sections at the top (purpose, new, documentation) and at the bottom (feedback, about this module) stay where they are and cannot be hidden.')],
+                ['type' => 'Label', 'caption' => 'Here you decide which sections are expanded when the configuration form opens and in which order they appear. Symcon does not remember expanding and collapsing itself, so this setting applies every time the form opens. It takes effect after “Apply” the next time the form is opened.'],
+                ['type' => 'Label', 'caption' => 'No tick means “default”: as the module intends (e.g. “Frigate camera” expanded as long as no camera is entered). The position is a number; with equal numbers the default order is kept. “Hidden” removes a section from the display without it losing anything: its settings are kept and keep working. If several ticks are set, “Hidden” wins over “Collapsed”, which wins over “Expanded”. The sections at the top (purpose, new, documentation) and at the bottom (feedback, about this module) stay where they are and cannot be hidden.'],
                 [
-                    'type' => 'List', 'name' => 'FormLayout', 'caption' => FrigateHubText::t('Sections'), 'rowCount' => count($zeilen), 'add' => false, 'delete' => false,
+                    'type' => 'List', 'name' => 'FormLayout', 'caption' => 'Sections', 'rowCount' => count($zeilen), 'add' => false, 'delete' => false,
                     'loadValuesFromConfiguration' => false,
                     'values' => $zeilen,
                     'columns' => [
-                        ['caption' => FrigateHubText::t('Section'), 'name' => 'Panel', 'width' => 'auto', 'add' => ''],
-                        ['caption' => FrigateHubText::t('Key'), 'name' => 'Key', 'width' => '0px', 'visible' => false, 'add' => '', 'save' => true],
-                        ['caption' => FrigateHubText::t('Expanded'), 'name' => 'Opened', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => FrigateHubText::t('Collapsed'), 'name' => 'Closed', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => FrigateHubText::t('🙈 Hidden'), 'name' => 'Hidden', 'width' => '130px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
-                        ['caption' => FrigateHubText::t('Position'), 'name' => 'Pos', 'width' => '100px', 'add' => 1, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 1, 'maximum' => 99]],
+                        ['caption' => 'Section', 'name' => 'Panel', 'width' => 'auto', 'add' => ''],
+                        ['caption' => 'Key', 'name' => 'Key', 'width' => '0px', 'visible' => false, 'add' => '', 'save' => true],
+                        ['caption' => 'Expanded', 'name' => 'Opened', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => 'Collapsed', 'name' => 'Closed', 'width' => '110px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => '🙈 Hidden', 'name' => 'Hidden', 'width' => '130px', 'add' => false, 'edit' => ['type' => 'CheckBox']],
+                        ['caption' => 'Position', 'name' => 'Pos', 'width' => '100px', 'add' => 1, 'edit' => ['type' => 'NumberSpinner', 'minimum' => 1, 'maximum' => 99]],
                     ],
                 ],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('↩️ Reset to default'), 'onClick' => 'echo ' . $this->frigatehubPrefix() . '_ResetFormLayout($id);'],
+                ['type' => 'Button', 'caption' => '↩️ Reset to default', 'onClick' => 'echo ' . $this->frigatehubPrefix() . '_ResetFormLayout($id);'],
             ]),
         ];
     }
@@ -398,6 +399,10 @@ trait FrigateHubFormular
             $fachpanels,
             [$this->formRueckmeldung(), $this->formLizenz()]
         )));
-        return (string)json_encode(['elements' => $elements, 'actions' => $aktionen, 'status' => $status]);
+        $form = ['elements' => $elements, 'actions' => $aktionen, 'status' => $status];
+        if (FrigateHubText::$formularHaken !== null) {
+            $form = (FrigateHubText::$formularHaken)($form);
+        }
+        return (string)json_encode($form);
     }
 }

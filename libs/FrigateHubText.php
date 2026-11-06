@@ -20,6 +20,15 @@ final class FrigateHubText
         self::$uebersetzer = $uebersetzer;
     }
 
+    /**
+     * Nur für den Prüfstand: bildet nach, was Symcons Konsole mit einem Formular tut (feste caption/confirm/label/
+     * suffix-Texte über locale.json übersetzen, SUITE.md Store-Checkliste 25). Im Betrieb null — dort übersetzt die
+     * Konsole selbst, FrigateHub übersetzt im Formular nur Texte mit eingesetzten Werten.
+     *
+     * @var callable|null fn(array $form): array
+     */
+    public static $formularHaken = null;
+
     /** @var array<string,string> gemerkte Übersetzungen dieses Prozesses */
     private static $gemerkt = [];
 

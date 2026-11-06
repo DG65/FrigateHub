@@ -65,10 +65,10 @@ trait FrigateHubApi
         $p = $this->frigatehubPrefix();
         return [
             ['type' => 'Label', 'caption' => FrigateHubText::t('Frigate address: either Frigate\'s API without sign-in (port 5000, e.g. http://192.168.1.20:5000 — must be exposed in the Docker command) or the web interface with sign-in (port 8971, e.g. https://192.168.1.20:8971). %s', $hinweis)],
-            ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => FrigateHubText::t('Frigate address (http://…:5000 or https://…:8971)'), 'validate' => '^$|^https?://[^\\s/]+/?$'],
-            ['type' => 'Label', 'caption' => FrigateHubText::t('Port 8971 only: enter the Frigate user here; signing in happens in the panel “🔑 Sign in to Frigate”.')],
-            ['type' => 'ValidationTextBox', 'name' => 'ApiBenutzer', 'caption' => FrigateHubText::t('Frigate user')],
-            ['type' => 'CheckBox', 'name' => 'ZertifikatPruefen', 'caption' => FrigateHubText::t('Verify certificate (leave off for Frigate\'s own certificate)')],
+            ['type' => 'ValidationTextBox', 'name' => 'ApiUrl', 'caption' => 'Frigate address (http://…:5000 or https://…:8971)', 'validate' => '^$|^https?://[^\\s/]+/?$'],
+            ['type' => 'Label', 'caption' => 'Port 8971 only: enter the Frigate user here; signing in happens in the panel “🔑 Sign in to Frigate”.'],
+            ['type' => 'ValidationTextBox', 'name' => 'ApiBenutzer', 'caption' => 'Frigate user'],
+            ['type' => 'CheckBox', 'name' => 'ZertifikatPruefen', 'caption' => 'Verify certificate (leave off for Frigate\'s own certificate)'],
             ['type' => 'Label', 'name' => 'Anmeldestatus', 'caption' => $this->anmeldestatus()],
         ];
     }
@@ -80,13 +80,13 @@ trait FrigateHubApi
     {
         $p = $this->frigatehubPrefix();
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🔑  Sign in to Frigate (port 8971 only)'),
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔑  Sign in to Frigate (port 8971 only)',
             'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Enter the user in the field “Frigate user”, the password here, then “Sign in”. The password is not stored, only Frigate\'s access token, which is renewed automatically. Other FrigateHub instances with the same address share the sign-in.')],
-                ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => FrigateHubText::t('Password (not stored)')],
+                ['type' => 'Label', 'caption' => 'Enter the user in the field “Frigate user”, the password here, then “Sign in”. The password is not stored, only Frigate\'s access token, which is renewed automatically. Other FrigateHub instances with the same address share the sign-in.'],
+                ['type' => 'PasswordTextBox', 'name' => 'ApiPasswort', 'caption' => 'Password (not stored)'],
                 ['type' => 'RowLayout', 'items' => [
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Sign in'), 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Sign out'), 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
+                    ['type' => 'Button', 'caption' => 'Sign in', 'onClick' => 'echo ' . $p . '_Anmelden($id, $ApiBenutzer, $ApiPasswort);'],
+                    ['type' => 'Button', 'caption' => 'Sign out', 'onClick' => 'echo ' . $p . '_Abmelden($id);'],
                 ]],
             ],
         ];

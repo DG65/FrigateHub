@@ -593,7 +593,7 @@ class FrigateHubKamera extends IPSModule
         $id = $this->ohaInstanz();
         $stand = $this->ohaStand();
         $bereich = trim($this->ReadPropertyString('OhaBereich'));
-        $optionen = [['caption' => FrigateHubText::t('off (no coupling)'), 'value' => '']];
+        $optionen = [['caption' => 'off (no coupling)', 'value' => '']];
         if ($id === 0) {
             $status = FrigateHubText::t('ℹ️ OpenHomeAlarm is not installed — then there is nothing to do here. FrigateHub works just the same without it.');
         } elseif ($stand === null || !$stand['ok']) {
@@ -610,28 +610,28 @@ class FrigateHubKamera extends IPSModule
             $optionen[] = ['caption' => FrigateHubText::t('Area %s (currently not reported)', $bereich), 'value' => $bereich];
         }
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🛡️  OpenHomeAlarm (optional)'),
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🛡️  OpenHomeAlarm (optional)',
             'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Optional cooperation with the alarm system OpenHomeAlarm (Burki24). You set up sensors in OpenHomeAlarm (e.g. "Alert" or a zone counter of this camera), notifications with image via FRIG_MeldungMitSchnappschuss as alarm action. Here only: what this camera does when an area is armed or disarmed.')],
+                ['type' => 'Label', 'caption' => 'Optional cooperation with the alarm system OpenHomeAlarm (Burki24). You set up sensors in OpenHomeAlarm (e.g. "Alert" or a zone counter of this camera), notifications with image via FRIG_MeldungMitSchnappschuss as alarm action. Here only: what this camera does when an area is armed or disarmed.'],
                 ['type' => 'Label', 'name' => 'OhaStatus', 'caption' => $status],
-                ['type' => 'Select', 'name' => 'OhaBereich', 'caption' => FrigateHubText::t('Area'), 'options' => $optionen],
-                ['type' => 'Select', 'name' => 'OhaBeiScharf', 'caption' => FrigateHubText::t('When armed'), 'options' => [
-                    ['caption' => FrigateHubText::t('do nothing'), 'value' => 0],
-                    ['caption' => FrigateHubText::t('switch on recording'), 'value' => 1],
-                    ['caption' => FrigateHubText::t('switch on object detection'), 'value' => 2],
-                    ['caption' => FrigateHubText::t('switch on recording and object detection'), 'value' => 3],
+                ['type' => 'Select', 'name' => 'OhaBereich', 'caption' => 'Area', 'options' => $optionen],
+                ['type' => 'Select', 'name' => 'OhaBeiScharf', 'caption' => 'When armed', 'options' => [
+                    ['caption' => 'do nothing', 'value' => 0],
+                    ['caption' => 'switch on recording', 'value' => 1],
+                    ['caption' => 'switch on object detection', 'value' => 2],
+                    ['caption' => 'switch on recording and object detection', 'value' => 3],
                 ]],
-                ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => FrigateHubText::t('Switch off again when disarming')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Switching happens only on an actual change (armed only after the exit delay), not when applying. Frigate confirms the new state, the variables follow.')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Report alerts (external alarm event interface of OpenHomeAlarm): FrigateHub reports every new Frigate alert of this camera as a confirmed event. Whether it becomes an alarm is decided by OpenHomeAlarm — only if the source\'s area is armed in an enabled mode. Enter the same source ID in OpenHomeAlarm.')],
-                ['type' => 'ValidationTextBox', 'name' => 'OhaQuelle', 'caption' => FrigateHubText::t('Source ID (empty = do not report), e.g. frigate-haustuer'), 'validate' => '^$|^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$'],
-                ['type' => 'Select', 'name' => 'OhaMelden', 'caption' => FrigateHubText::t('Report on'), 'options' => [
-                    ['caption' => FrigateHubText::t('nothing'), 'value' => 0],
-                    ['caption' => FrigateHubText::t('Frigate alert (severity "alert")'), 'value' => 1],
-                    ['caption' => FrigateHubText::t('Frigate alert and detection'), 'value' => 2],
+                ['type' => 'CheckBox', 'name' => 'OhaBeiUnscharf', 'caption' => 'Switch off again when disarming'],
+                ['type' => 'Label', 'caption' => 'Switching happens only on an actual change (armed only after the exit delay), not when applying. Frigate confirms the new state, the variables follow.'],
+                ['type' => 'Label', 'caption' => 'Report alerts (external alarm event interface of OpenHomeAlarm): FrigateHub reports every new Frigate alert of this camera as a confirmed event. Whether it becomes an alarm is decided by OpenHomeAlarm — only if the source\'s area is armed in an enabled mode. Enter the same source ID in OpenHomeAlarm.'],
+                ['type' => 'ValidationTextBox', 'name' => 'OhaQuelle', 'caption' => 'Source ID (empty = do not report), e.g. frigate-haustuer', 'validate' => '^$|^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$'],
+                ['type' => 'Select', 'name' => 'OhaMelden', 'caption' => 'Report on', 'options' => [
+                    ['caption' => 'nothing', 'value' => 0],
+                    ['caption' => 'Frigate alert (severity "alert")', 'value' => 1],
+                    ['caption' => 'Frigate alert and detection', 'value' => 2],
                 ]],
                 ['type' => 'Label', 'name' => 'OhaQuellenStatus', 'caption' => $this->ohaQuellenStatus()],
-                ['type' => 'Button', 'caption' => FrigateHubText::t('Check connection (only when disarmed)'), 'onClick' => 'echo FRIG_OhaVerbindungPruefen($id);'],
+                ['type' => 'Button', 'caption' => 'Check connection (only when disarmed)', 'onClick' => 'echo FRIG_OhaVerbindungPruefen($id);'],
             ],
         ];
     }
@@ -655,69 +655,69 @@ class FrigateHubKamera extends IPSModule
         $kamera = $this->kamera();
         return [
             'kamera' => [
-                'type' => 'ExpansionPanel', 'expanded' => $kamera === '', 'caption' => FrigateHubText::t('📷  Frigate camera'),
+                'type' => 'ExpansionPanel', 'expanded' => $kamera === '', 'caption' => '📷  Frigate camera',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('The camera ID from the Frigate configuration (section cameras:), not the display name. Case matters, e.g. "haustuer" or "Door-Cam".')],
-                    ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => FrigateHubText::t('Camera ID')],
-                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => FrigateHubText::t('MQTT prefix (Frigate: mqtt.topic_prefix, default "frigate")')],
+                    ['type' => 'Label', 'caption' => 'The camera ID from the Frigate configuration (section cameras:), not the display name. Case matters, e.g. "haustuer" or "Door-Cam".'],
+                    ['type' => 'ValidationTextBox', 'name' => 'Camera', 'caption' => 'Camera ID'],
+                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT prefix (Frigate: mqtt.topic_prefix, default "frigate")'],
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
                     ...$this->apiFormular(FrigateHubText::t('Optional, but recommended: without an address, switches only arrive when Frigate reports them via MQTT, and snapshots only as a crop.')),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Query state now'), 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
+                    ['type' => 'Button', 'caption' => 'Query state now', 'onClick' => 'echo FRIG_ZustandAnfordern($id);'],
                 ],
             ],
             'schnappschuss' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🖼️  Snapshot'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖼️  Snapshot',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('The media object "Snapshot" shows the image of the last detection (Frigate: snapshots enabled). With a Frigate address it comes in full size, otherwise as a crop via MQTT (size in Frigate under mqtt: height/crop). With an address the current camera image can also be fetched.')],
+                    ['type' => 'Label', 'caption' => 'The media object "Snapshot" shows the image of the last detection (Frigate: snapshots enabled). With a Frigate address it comes in full size, otherwise as a crop via MQTT (size in Frigate under mqtt: height/crop). With an address the current camera image can also be fetched.'],
                     ['type' => 'Label', 'name' => 'Bildstatus', 'caption' => $this->bildstatus()],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Fetch current camera image'), 'onClick' => 'echo FRIG_BildHolen($id);'],
+                    ['type' => 'Button', 'caption' => 'Fetch current camera image', 'onClick' => 'echo FRIG_BildHolen($id);'],
                 ],
             ],
             'sensor' => $this->sensorPanel(),
             'einstellungen' => $this->einstellungenPanel(),
             'anmeldung' => $this->apiAnmeldePanel(),
             'meldungen' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🔔  Push and notifications'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🔔  Push and notifications',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('Reports every new alert of this camera to the targets, once per alert. What counts as an alert is set in Frigate (review: alerts: labels / required_zones). Without a target, push stays off.')],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('Push messages (tile visualization, WebFront) cannot include an image; tapping opens this camera. Entered as SMTP instance, the notification arrives as an e-mail with the current camera image (frames around detected objects).')],
+                    ['type' => 'Label', 'caption' => 'Reports every new alert of this camera to the targets, once per alert. What counts as an alert is set in Frigate (review: alerts: labels / required_zones). Without a target, push stays off.'],
+                    ['type' => 'Label', 'caption' => 'Push messages (tile visualization, WebFront) cannot include an image; tapping opens this camera. Entered as SMTP instance, the notification arrives as an e-mail with the current camera image (frames around detected objects).'],
                     $this->pushZielListe(),
-                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => FrigateHubText::t('Sound'), 'options' => $this->tonOptionen()],
-                    ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => FrigateHubText::t('Minimum interval between two notifications'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
-                    ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => FrigateHubText::t('Follow up the alert with Frigate\'s AI assessment (GenAI) and report suspicious detections')],
+                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Sound', 'options' => $this->tonOptionen()],
+                    ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => 'Minimum interval between two notifications', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                    ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => 'Follow up the alert with Frigate\'s AI assessment (GenAI) and report suspicious detections'],
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Send test message'), 'onClick' => 'echo FRIG_PushTesten($id);'],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('For alarm systems and rules (e.g. OpenHomeAlarm, DG65-Toolkit Automat, scripts): FRIG_MeldungMitSchnappschuss($id, "Text", true) sends a notification with the current camera image to the same targets — in Symcon actions as "Run instance function". Empty text: "Last object"; false instead of true: last snapshot instead of live image.')],
+                    ['type' => 'Button', 'caption' => 'Send test message', 'onClick' => 'echo FRIG_PushTesten($id);'],
+                    ['type' => 'Label', 'caption' => 'For alarm systems and rules (e.g. OpenHomeAlarm, DG65-Toolkit Automat, scripts): FRIG_MeldungMitSchnappschuss($id, "Text", true) sends a notification with the current camera image to the same targets — in Symcon actions as "Run instance function". Empty text: "Last object"; false instead of true: last snapshot instead of live image.'],
                 ],
             ],
             'kachel' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🖥️  Tile and IPSView'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Tile and IPSView',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('This instance is also a tile for the tile visualization: live image, alert, counters, the latest events with preview image, snapshot and clip on tap as well as switches for detection, recording and snapshots. Live image, preview images and clips need the Frigate address.')],
-                    ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => FrigateHubText::t('Reload live image every (0 = only on tap)'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
-                    ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => FrigateHubText::t('Frame detected objects in the live image')],
-                    ['type' => 'CheckBox', 'name' => 'Zeitstempel', 'caption' => FrigateHubText::t('Frigate\'s timestamp in the live image (tile, notification image, "Fetch current camera image") — off if the camera already shows the time itself')],
-                    ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => FrigateHubText::t('Live video if Frigate\'s go2rtc has a stream for the camera')],
+                    ['type' => 'Label', 'caption' => 'This instance is also a tile for the tile visualization: live image, alert, counters, the latest events with preview image, snapshot and clip on tap as well as switches for detection, recording and snapshots. Live image, preview images and clips need the Frigate address.'],
+                    ['type' => 'NumberSpinner', 'name' => 'KachelLiveTakt', 'caption' => 'Reload live image every (0 = only on tap)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 60],
+                    ['type' => 'CheckBox', 'name' => 'KachelRahmen', 'caption' => 'Frame detected objects in the live image'],
+                    ['type' => 'CheckBox', 'name' => 'Zeitstempel', 'caption' => 'Frigate\'s timestamp in the live image (tile, notification image, "Fetch current camera image") — off if the camera already shows the time itself'],
+                    ['type' => 'CheckBox', 'name' => 'KachelVideo', 'caption' => 'Live video if Frigate\'s go2rtc has a stream for the camera'],
                     ['type' => 'Label', 'name' => 'Videostatus', 'caption' => $this->videostatus()],
                     ['type' => 'Label', 'caption' => FrigateHubText::t('The images go through the WebHook %s with a secret key of this instance. If an image address was passed on, a new key invalidates it.', $this->hookPfad())],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('IPSView or browser: the same interface is available as a standalone page. In IPSView create a web page element (WebView) and enter the address from "Show address for IPSView" (replace <Symcon-IP> with the address of the Symcon server, 3777 is Symcon\'s default port).')],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Show address for IPSView'), 'onClick' => 'echo FRIG_SeiteAdresse($id);'],
-                    ['type' => 'CheckBox', 'name' => 'SeiteBedienung', 'caption' => FrigateHubText::t('Switches (detection, recording, snapshots) can be operated on the standalone page')],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('⚠️ The page is reachable without Symcon login: whoever knows the address with key sees the camera. Do not pass on the address; if in doubt, renew the key (then enter the new address in IPSView). Alternatively use the instance\'s variables directly in IPSView, then the IPSView login applies.')],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Renew tile key'), 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
+                    ['type' => 'Label', 'caption' => 'IPSView or browser: the same interface is available as a standalone page. In IPSView create a web page element (WebView) and enter the address from "Show address for IPSView" (replace <Symcon-IP> with the address of the Symcon server, 3777 is Symcon\'s default port).'],
+                    ['type' => 'Button', 'caption' => 'Show address for IPSView', 'onClick' => 'echo FRIG_SeiteAdresse($id);'],
+                    ['type' => 'CheckBox', 'name' => 'SeiteBedienung', 'caption' => 'Switches (detection, recording, snapshots) can be operated on the standalone page'],
+                    ['type' => 'Label', 'caption' => '⚠️ The page is reachable without Symcon login: whoever knows the address with key sees the camera. Do not pass on the address; if in doubt, renew the key (then enter the new address in IPSView). Alternatively use the instance\'s variables directly in IPSView, then the IPSView login applies.'],
+                    ['type' => 'Button', 'caption' => 'Renew tile key', 'onClick' => 'echo FRIG_KachelSchluesselErneuern($id);'],
                 ],
             ],
             'openhomealarm' => $this->ohaFormular(),
             'zonen' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🗺️  Zones'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🗺️  Zones',
                 'items' => [
                     ['type' => 'Label', 'caption' => $this->zonenstatus()],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Forget learned zones'), 'onClick' => 'echo FRIG_ZonenVergessen($id);'],
+                    ['type' => 'Button', 'caption' => 'Forget learned zones', 'onClick' => 'echo FRIG_ZonenVergessen($id);'],
                 ],
             ],
             'nachrichten' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('📨  Received messages'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '📨  Received messages',
                 'items' => $this->nachrichtenLabels(),
             ],
         ];
@@ -726,8 +726,8 @@ class FrigateHubKamera extends IPSModule
     public function GetConfigurationForm()
     {
         $status = [
-            ['code' => 102, 'icon' => 'active', 'caption' => FrigateHubText::t('Ready')],
-            ['code' => 104, 'icon' => 'inactive', 'caption' => FrigateHubText::t('Please enter the camera ID from Frigate')],
+            ['code' => 102, 'icon' => 'active', 'caption' => 'Ready'],
+            ['code' => 104, 'icon' => 'inactive', 'caption' => 'Please enter the camera ID from Frigate'],
         ];
         $teile = $this->formAufbauTeilen($this->frigatehubFachpanels());
         return $this->frigatehubFormular($teile['elements'], $teile['actions'], $status);
@@ -1277,7 +1277,7 @@ class FrigateHubKamera extends IPSModule
     {
         $liste = json_decode($this->GetBuffer('Topics'), true);
         if (!is_array($liste) || $liste === []) {
-            return [['type' => 'Label', 'caption' => FrigateHubText::t('ℹ️ Nothing received since the last restart.')]];
+            return [['type' => 'Label', 'caption' => 'ℹ️ Nothing received since the last restart.']];
         }
         ksort($liste);
         $out = [['type' => 'Label', 'caption' => FrigateHubText::t('%d topics since the last restart (time, topic, content):', count($liste))]];

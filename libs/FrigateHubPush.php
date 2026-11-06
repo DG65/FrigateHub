@@ -112,9 +112,9 @@ trait FrigateHubPush
     /** Formularliste der Meldeziele (Kachel-Visualisierung, WebFront, E-Mail/SMTP). */
     private function pushZielListe(): array
     {
-        return ['type' => 'List', 'name' => 'PushZiele', 'caption' => FrigateHubText::t('Targets (tile visualization, WebFront or email/SMTP)'), 'add' => true, 'delete' => true, 'rowCount' => 3,
+        return ['type' => 'List', 'name' => 'PushZiele', 'caption' => 'Targets (tile visualization, WebFront or email/SMTP)', 'add' => true, 'delete' => true, 'rowCount' => 3,
             'columns' => [[
-                'caption' => FrigateHubText::t('Target'), 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
+                'caption' => 'Target', 'name' => 'Ziel', 'width' => 'auto', 'add' => 0,
                 'edit' => ['type' => 'SelectInstance', 'validModules' => [self::KACHEL_GUID, self::WEBFRONT_GUID, self::SMTP_GUID]],
             ]],
         ];

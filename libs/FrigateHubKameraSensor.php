@@ -384,20 +384,20 @@ trait FrigateHubKameraSensor
     protected function sensorPanel(): array
     {
         return [
-            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🧠  Camera as sensor'),
+            'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🧠  Camera as sensor',
             'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('Turns the camera into sensors for automations and alarm systems. The variables are only created once Frigate delivers the data — whatever Frigate does not detect (license plates, faces, states, speed, speech) must be set up there.')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('"… stationary since": when an object came to a standstill (Frigate "stationary"), per object type and per zone, e.g. "Carport: Car stationary since". "-" = none stationary. If a package was lying there and disappears, the camera sets "Package removed".')],
-                ['type' => 'NumberSpinner', 'name' => 'VerweilSekunden', 'caption' => FrigateHubText::t('Loitering: this long in a zone (0 = off)'), 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
-                ['type' => 'ValidationTextBox', 'name' => 'VerweilKlassen', 'caption' => FrigateHubText::t('Loitering applies to (Frigate object types, comma-separated, empty = all)')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('"<Zone>: loitering" is a better alarm trigger than "person detected": walking past does not trigger it, someone who stops in front of the door does.')],
-                ['type' => 'CheckBox', 'name' => 'Tageszaehler', 'caption' => FrigateHubText::t('Daily counters ("Today: People", "Today: Alerts" …), reset to 0 at midnight')],
-                ['type' => 'NumberSpinner', 'name' => 'SabotageMinuten', 'caption' => FrigateHubText::t('Image check (covered, moved, continuous motion) every (0 = off)'), 'suffix' => 'min', 'minimum' => 0, 'maximum' => 60],
-                ['type' => 'CheckBox', 'name' => 'SabotageMelden', 'caption' => FrigateHubText::t('Report an abnormal image to the targets under "Push and notifications"')],
-                ['type' => 'Label', 'caption' => FrigateHubText::t('The image check learns per hour of the day what the image normally looks like and only reports after three abnormal checks in a row — changes in light and weather do not count. After an intentional rebuild use "Learn view anew".')],
+                ['type' => 'Label', 'caption' => 'Turns the camera into sensors for automations and alarm systems. The variables are only created once Frigate delivers the data — whatever Frigate does not detect (license plates, faces, states, speed, speech) must be set up there.'],
+                ['type' => 'Label', 'caption' => '"… stationary since": when an object came to a standstill (Frigate "stationary"), per object type and per zone, e.g. "Carport: Car stationary since". "-" = none stationary. If a package was lying there and disappears, the camera sets "Package removed".'],
+                ['type' => 'NumberSpinner', 'name' => 'VerweilSekunden', 'caption' => 'Loitering: this long in a zone (0 = off)', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
+                ['type' => 'ValidationTextBox', 'name' => 'VerweilKlassen', 'caption' => 'Loitering applies to (Frigate object types, comma-separated, empty = all)'],
+                ['type' => 'Label', 'caption' => '"<Zone>: loitering" is a better alarm trigger than "person detected": walking past does not trigger it, someone who stops in front of the door does.'],
+                ['type' => 'CheckBox', 'name' => 'Tageszaehler', 'caption' => 'Daily counters ("Today: People", "Today: Alerts" …), reset to 0 at midnight'],
+                ['type' => 'NumberSpinner', 'name' => 'SabotageMinuten', 'caption' => 'Image check (covered, moved, continuous motion) every (0 = off)', 'suffix' => 'min', 'minimum' => 0, 'maximum' => 60],
+                ['type' => 'CheckBox', 'name' => 'SabotageMelden', 'caption' => 'Report an abnormal image to the targets under "Push and notifications"'],
+                ['type' => 'Label', 'caption' => 'The image check learns per hour of the day what the image normally looks like and only reports after three abnormal checks in a row — changes in light and weather do not count. After an intentional rebuild use "Learn view anew".'],
                 ['type' => 'RowLayout', 'items' => [
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Check image now'), 'onClick' => 'echo FRIG_BildPruefen($id);'],
-                    ['type' => 'Button', 'caption' => FrigateHubText::t('Learn view anew'), 'onClick' => 'echo FRIG_BildNeuLernen($id);', 'confirm' => FrigateHubText::t('Discard learned views and learn anew?')],
+                    ['type' => 'Button', 'caption' => 'Check image now', 'onClick' => 'echo FRIG_BildPruefen($id);'],
+                    ['type' => 'Button', 'caption' => 'Learn view anew', 'onClick' => 'echo FRIG_BildNeuLernen($id);', 'confirm' => 'Discard learned views and learn anew?'],
                 ]],
             ],
         ];

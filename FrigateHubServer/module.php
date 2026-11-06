@@ -727,51 +727,51 @@ class FrigateHubServer extends IPSModule
         return [
             'uebersicht' => $this->uebersichtPanel(),
             'kachel' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🖥️  Tile and IPSView'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🖥️  Tile and IPSView',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('This instance is also an overview tile of all cameras of this Frigate installation: live image per camera, alarm, persons, disrupted connection; plus Birdseye if Frigate provides it. A tap enlarges. The images need the Frigate address.')],
-                    ['type' => 'NumberSpinner', 'name' => 'KachelTakt', 'caption' => FrigateHubText::t('Reload live images every'), 'suffix' => 's', 'minimum' => 1, 'maximum' => 60],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('IPSView or browser: enter the address from "Show address for IPSView" as a web page element (replace <Symcon-IP>). Reachable without a Symcon login, therefore only with a key; a new key invalidates old addresses.')],
+                    ['type' => 'Label', 'caption' => 'This instance is also an overview tile of all cameras of this Frigate installation: live image per camera, alarm, persons, disrupted connection; plus Birdseye if Frigate provides it. A tap enlarges. The images need the Frigate address.'],
+                    ['type' => 'NumberSpinner', 'name' => 'KachelTakt', 'caption' => 'Reload live images every', 'suffix' => 's', 'minimum' => 1, 'maximum' => 60],
+                    ['type' => 'Label', 'caption' => 'IPSView or browser: enter the address from "Show address for IPSView" as a web page element (replace <Symcon-IP>). Reachable without a Symcon login, therefore only with a key; a new key invalidates old addresses.'],
                     ['type' => 'RowLayout', 'items' => [
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Show address for IPSView'), 'onClick' => 'echo FRIGS_SeiteAdresse($id);'],
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Renew tile key'), 'onClick' => 'echo FRIGS_KachelSchluesselErneuern($id);'],
+                        ['type' => 'Button', 'caption' => 'Show address for IPSView', 'onClick' => 'echo FRIGS_SeiteAdresse($id);'],
+                        ['type' => 'Button', 'caption' => 'Renew tile key', 'onClick' => 'echo FRIGS_KachelSchluesselErneuern($id);'],
                     ]],
                 ],
             ],
             'anmeldung' => $this->apiAnmeldePanel(),
             'server' => [
-                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🖥️  Frigate server'),
+                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🖥️  Frigate server',
                 'items' => [
-                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => FrigateHubText::t('MQTT prefix (Frigate: mqtt.topic_prefix, default "frigate")')],
+                    ['type' => 'ValidationTextBox', 'name' => 'TopicPrefix', 'caption' => 'MQTT prefix (Frigate: mqtt.topic_prefix, default "frigate")'],
                     ['type' => 'Label', 'name' => 'Empfangsstatus', 'caption' => $this->empfangsstatus()],
                     ...$this->apiFormular(FrigateHubText::t('Optional: with an address, the values are available right after applying instead of only with the next statistics via MQTT.')),
                     ['type' => 'Label', 'name' => 'Abgleichstatus', 'caption' => $this->abgleichstatus()],
-                    ['type' => 'CheckBox', 'name' => 'LeistungAlsVariablen', 'caption' => FrigateHubText::t('Performance values additionally as variables (CPU, memory, GPU, inference time, version, uptime, storage used) — for archive and charts')],
+                    ['type' => 'CheckBox', 'name' => 'LeistungAlsVariablen', 'caption' => 'Performance values additionally as variables (CPU, memory, GPU, inference time, version, uptime, storage used) — for archive and charts'],
                     ['type' => 'Label', 'caption' => FrigateHubText::t('For other modules: FRIGS_GetCameras($id) returns all cameras with the variables for sensors and switches (contract %s). FRIGS_MeldungLetzteKamera($id, "Text", true) sends the image of the camera with the most recent alarm — a single alarm action for all cameras.', self::VERTRAG)],
                     ['type' => 'RowLayout', 'items' => [
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Query values now'), 'onClick' => 'echo FRIGS_ZustandAnfordern($id);'],
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('🔄 Restart Frigate'), 'onClick' => 'echo FRIGS_Neustarten($id);',
-                            'confirm' => FrigateHubText::t('Restart Frigate now? Detection and recording pause for about 1–2 minutes.')],
+                        ['type' => 'Button', 'caption' => 'Query values now', 'onClick' => 'echo FRIGS_ZustandAnfordern($id);'],
+                        ['type' => 'Button', 'caption' => '🔄 Restart Frigate', 'onClick' => 'echo FRIGS_Neustarten($id);',
+                            'confirm' => 'Restart Frigate now? Detection and recording pause for about 1–2 minutes.'],
                     ]],
                 ],
             ],
             'waechter' => [
-                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => FrigateHubText::t('🎥  Recording monitor'),
+                'type' => 'ExpansionPanel', 'expanded' => false, 'caption' => '🎥  Recording monitor',
                 'items' => [
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('Checks every minute via Frigate\'s API whether Frigate is really recording and reports if not — even if Frigate itself reports "running". Detects: Frigate no longer responds (3 min), write errors when saving recordings (e.g. disconnected USB drive), a changed recording storage (drive missing, Frigate writes to the system drive), alarms without recording and stalled continuous recording.')],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('Needs the Frigate address. The monitor reads write errors from Frigate\'s log; on port 8971 the Frigate user needs the "admin" role for this. If Symcon runs on the same machine as Frigate, nothing can warn when that machine fails.')],
-                    ['type' => 'CheckBox', 'name' => 'WaechterAktiv', 'caption' => FrigateHubText::t('Monitor recording')],
+                    ['type' => 'Label', 'caption' => 'Checks every minute via Frigate\'s API whether Frigate is really recording and reports if not — even if Frigate itself reports "running". Detects: Frigate no longer responds (3 min), write errors when saving recordings (e.g. disconnected USB drive), a changed recording storage (drive missing, Frigate writes to the system drive), alarms without recording and stalled continuous recording.'],
+                    ['type' => 'Label', 'caption' => 'Needs the Frigate address. The monitor reads write errors from Frigate\'s log; on port 8971 the Frigate user needs the "admin" role for this. If Symcon runs on the same machine as Frigate, nothing can warn when that machine fails.'],
+                    ['type' => 'CheckBox', 'name' => 'WaechterAktiv', 'caption' => 'Monitor recording'],
                     ['type' => 'Label', 'name' => 'Waechterstatus', 'caption' => $this->waechterstatus()],
                     ['type' => 'Label', 'name' => 'Speicherstand', 'caption' => $this->speicherstand()],
-                    ['type' => 'Label', 'caption' => FrigateHubText::t('A message on a fault, a daily reminder while it persists, and an all-clear. Without a target, faults only appear in the variables "Recording OK" and "Recording state" and in the message log.')],
+                    ['type' => 'Label', 'caption' => 'A message on a fault, a daily reminder while it persists, and an all-clear. Without a target, faults only appear in the variables "Recording OK" and "Recording state" and in the message log.'],
                     $this->pushZielListe(),
-                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => FrigateHubText::t('Sound'), 'options' => $this->tonOptionen()],
+                    ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Sound', 'options' => $this->tonOptionen()],
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
                     ['type' => 'RowLayout', 'items' => [
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Check now'), 'onClick' => 'echo FRIGS_AufnahmePruefen($id);'],
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Send test message'), 'onClick' => 'echo FRIGS_PushTesten($id);'],
-                        ['type' => 'Button', 'caption' => FrigateHubText::t('Accept current storage'), 'onClick' => 'echo FRIGS_SpeicherUebernehmen($id);',
-                            'confirm' => FrigateHubText::t('Memorize the current recording storage as correct? Only after an intended drive replacement.')],
+                        ['type' => 'Button', 'caption' => 'Check now', 'onClick' => 'echo FRIGS_AufnahmePruefen($id);'],
+                        ['type' => 'Button', 'caption' => 'Send test message', 'onClick' => 'echo FRIGS_PushTesten($id);'],
+                        ['type' => 'Button', 'caption' => 'Accept current storage', 'onClick' => 'echo FRIGS_SpeicherUebernehmen($id);',
+                            'confirm' => 'Memorize the current recording storage as correct? Only after an intended drive replacement.'],
                     ]],
                 ],
             ],
@@ -781,7 +781,7 @@ class FrigateHubServer extends IPSModule
     public function GetConfigurationForm()
     {
         $status = [
-            ['code' => 102, 'icon' => 'active', 'caption' => FrigateHubText::t('Ready')],
+            ['code' => 102, 'icon' => 'active', 'caption' => 'Ready'],
         ];
         $teile = $this->formAufbauTeilen($this->frigatehubFachpanels());
         return $this->frigatehubFormular($teile['elements'], $teile['actions'], $status);
@@ -879,8 +879,8 @@ class FrigateHubServer extends IPSModule
             }
         }
         if ($stats === null) {
-            return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => FrigateHubText::t('📊  Overview'), 'items' => [
-                ['type' => 'Label', 'caption' => FrigateHubText::t('ℹ️ No statistics from Frigate yet. They arrive via MQTT every minute by default; with a Frigate address immediately on opening.')],
+            return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '📊  Overview', 'items' => [
+                ['type' => 'Label', 'caption' => 'ℹ️ No statistics from Frigate yet. They arrive via MQTT every minute by default; with a Frigate address immediately on opening.'],
             ]];
         }
         $u = FrigateHubServerWerte::uebersicht($stats);
@@ -890,20 +890,20 @@ class FrigateHubServer extends IPSModule
         }
         if ($u['kameras'] !== []) {
             $items[] = [
-                'type' => 'List', 'name' => 'KameraUebersicht', 'caption' => FrigateHubText::t('Cameras'), 'rowCount' => min(8, max(2, count($u['kameras']))),
+                'type' => 'List', 'name' => 'KameraUebersicht', 'caption' => 'Cameras', 'rowCount' => min(8, max(2, count($u['kameras']))),
                 'add' => false, 'delete' => false,
                 'columns' => [
-                    ['caption' => FrigateHubText::t('Camera'), 'name' => 'kamera', 'width' => 'auto'],
-                    ['caption' => FrigateHubText::t('Frames/s'), 'name' => 'bilder', 'width' => '110px'],
-                    ['caption' => FrigateHubText::t('Detections/s'), 'name' => 'erkennungen', 'width' => '120px'],
-                    ['caption' => FrigateHubText::t('Connection'), 'name' => 'verbindung', 'width' => '120px'],
-                    ['caption' => FrigateHubText::t('Reconnects/h'), 'name' => 'neu', 'width' => '150px'],
-                    ['caption' => FrigateHubText::t('Stalls/h'), 'name' => 'aussetzer', 'width' => '110px'],
+                    ['caption' => 'Camera', 'name' => 'kamera', 'width' => 'auto'],
+                    ['caption' => 'Frames/s', 'name' => 'bilder', 'width' => '110px'],
+                    ['caption' => 'Detections/s', 'name' => 'erkennungen', 'width' => '120px'],
+                    ['caption' => 'Connection', 'name' => 'verbindung', 'width' => '120px'],
+                    ['caption' => 'Reconnects/h', 'name' => 'neu', 'width' => '150px'],
+                    ['caption' => 'Stalls/h', 'name' => 'aussetzer', 'width' => '110px'],
                 ],
                 'values' => $u['kameras'],
             ];
         }
-        return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => FrigateHubText::t('📊  Overview'), 'items' => $items];
+        return ['type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '📊  Overview', 'items' => $items];
     }
 
     private function empfangsstatus(): string

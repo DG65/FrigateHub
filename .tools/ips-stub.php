@@ -759,3 +759,21 @@ abstract class IPSModule
 require_once __DIR__ . '/../libs/FrigateHubText.php';
 IPSTestState::useLocale(dirname(__DIR__) . '/libs', getenv('FRIGATEHUB_SPRACHE') ?: 'de');
 FrigateHubText::setzen(fn (string $t): string => IPSTestState::$locale[$t] ?? $t);
+
+// Konsole nachbilden: Symcon übersetzt feste Formulartexte selbst (exakte Treffer in locale.json, SUITE.md Punkt 25)
+FrigateHubText::$formularHaken = function (array $form): array {
+    $los = function ($x) use (&$los) {
+        if (!is_array($x)) {
+            return $x;
+        }
+        foreach ($x as $k => $v) {
+            if (in_array($k, ['caption', 'confirm', 'label', 'suffix'], true) && is_string($v)) {
+                $x[$k] = IPSTestState::$locale[$v] ?? $v;
+            } elseif (is_array($v)) {
+                $x[$k] = $los($v);
+            }
+        }
+        return $x;
+    };
+    return $los($form);
+};

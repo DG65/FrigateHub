@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.1 (Build 41) — 06.11.2026
+
+- **Formular nicht selbst übersetzen (Store-Checkliste 25, SUITE.md):** 160 feste Formulartexte (`caption`, `confirm`, `label`, `suffix`) stehen wieder als englische Quelltexte im Formular; die Konsole übersetzt sie selbst über `locale.json` (Symcon-Review WPModbusHub 06.11.2026: „Das ist nicht erforderlich. Das macht die Konsole selbst“). Selbst übersetzt werden nur noch Texte mit eingesetzten Werten, Statuszeilen, Variablennamen, Meldungen, Kacheln und die Panelnamen in der Liste „Formular: Aufbau“ (Listenwerte übersetzt die Konsole nicht).
+- Prüfstände: `FrigateHubText::$formularHaken` bildet im Stub die Konsolen-Übersetzung nach (im Betrieb leer); `test-englisch.php` prüft, dass jede feste Formular-Beschriftung eine deutsche Fassung in `locale.json` hat.
+
 ## 0.19.0 (Build 40) — 05.11.2026
 
 - **Ganzes Ereignis abspielen (Kachel):** Ein abgeschlossenes Ereignis spielt die Aufnahme des ganzen Zeitraums (5 s davor bis 5 s danach, `/api/<kamera>/start/…/end/…/clip.mp4`) statt nur des Clips des ersten Objekts. Anlass Dietmar 05.11.2026: Alarm 13:09:17–13:10:32, Frigate verlor dieselbe Person nach 3 s und führte sie als zweites Objekt weiter — die Kachel spielte 9 s statt 69 s. Läuft das Ereignis noch, bleibt es beim Objekt-Clip. `reviewEintrag()` liefert dazu alle Objekte (`ereignisse`).

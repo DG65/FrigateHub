@@ -62,7 +62,7 @@ class FrigateHubKonfigurator extends IPSModule
         [$status, $werte] = $this->suchen();
         $fach = [
             [
-                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🔎  Cameras in Frigate'),
+                'type' => 'ExpansionPanel', 'expanded' => true, 'caption' => '🔎  Cameras in Frigate',
                 'items' => [
                     ...$this->apiFormular(FrigateHubText::t('Address and user are passed on to every camera created; the cameras share the login.')),
                     ['type' => 'Label', 'name' => 'Suchstatus', 'caption' => $status],
@@ -75,12 +75,12 @@ class FrigateHubKonfigurator extends IPSModule
                         'delete'   => false,
                         'sort'     => ['column' => 'name', 'direction' => 'ascending'],
                         'columns'  => [
-                            ['caption' => FrigateHubText::t('Name'), 'name' => 'name', 'width' => 'auto'],
-                            ['caption' => FrigateHubText::t('Camera ID'), 'name' => 'kamera', 'width' => '180px'],
-                            ['caption' => FrigateHubText::t('Detection'), 'name' => 'erkennung', 'width' => '110px'],
-                            ['caption' => FrigateHubText::t('Resolution'), 'name' => 'aufloesung', 'width' => '170px'],
-                            ['caption' => FrigateHubText::t('Zones'), 'name' => 'zonen', 'width' => '80px'],
-                            ['caption' => FrigateHubText::t('State'), 'name' => 'zustand', 'width' => '200px'],
+                            ['caption' => 'Name', 'name' => 'name', 'width' => 'auto'],
+                            ['caption' => 'Camera ID', 'name' => 'kamera', 'width' => '180px'],
+                            ['caption' => 'Detection', 'name' => 'erkennung', 'width' => '110px'],
+                            ['caption' => 'Resolution', 'name' => 'aufloesung', 'width' => '170px'],
+                            ['caption' => 'Zones', 'name' => 'zonen', 'width' => '80px'],
+                            ['caption' => 'State', 'name' => 'zustand', 'width' => '200px'],
                         ],
                         'values'   => $werte,
                     ],
@@ -88,8 +88,8 @@ class FrigateHubKonfigurator extends IPSModule
             ],
         ];
         $status = [
-            ['code' => 102, 'icon' => 'active', 'caption' => FrigateHubText::t('Ready')],
-            ['code' => 104, 'icon' => 'inactive', 'caption' => FrigateHubText::t('Please enter the Frigate address')],
+            ['code' => 102, 'icon' => 'active', 'caption' => 'Ready'],
+            ['code' => 104, 'icon' => 'inactive', 'caption' => 'Please enter the Frigate address'],
         ];
         // Zwei Fachpanels, kein Formular-Aufbau (SUITE.md 3a erst ab drei)
         $fach[] = $this->apiAnmeldePanel();
