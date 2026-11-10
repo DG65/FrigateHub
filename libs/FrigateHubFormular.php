@@ -14,8 +14,19 @@ declare(strict_types=1);
 
 trait FrigateHubFormular
 {
+    // Bitte um Rückmeldung je Version, steht in „Was ist neu" mit Forums-Knopf (0.20.1). Der Kasten erscheint
+    // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
+    // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
+    private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.20.0' => '💬 Does one of your cameras see a mowing or vacuum robot? Please tell me in the forum whether the false alerts are gone — and whether every real alert still comes through.',
+    ];
+    private static $FRIGATEHUB_NEWS_BITTE_ALLGEMEIN = '💬 Is FrigateHub working for you? Questions, ideas and problems are welcome in the forum thread — even a short note helps.';
+
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.20.1' => [
+            '• 💬 “What\'s new” now links to the forum thread.',
+        ],
         '0.20.0' => [
             '• 🤖 New: robots in the image (panel “Robots in the image” of every camera instance) — a mowing or vacuum robot no longer triggers false alerts while it is out of its station. Works with every robot from RoboHub and with Frigate+ (object “robot_lawnmower”). An upright person, a recognized face and vehicles always alert. Off by default.',
         ],
@@ -203,7 +214,18 @@ trait FrigateHubFormular
                 $items[] = ['type' => 'Label', 'caption' => FrigateHubText::wert($zeile)];
             }
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Got it – don\'t show again', 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'];
+        $bitte = self::$FRIGATEHUB_NEWS_BITTE_ALLGEMEIN;
+        foreach (array_reverse(array_keys($offen)) as $version) {
+            if (isset(self::$FRIGATEHUB_NEWS_BITTE[$version])) {
+                $bitte = self::$FRIGATEHUB_NEWS_BITTE[$version];
+                break;
+            }
+        }
+        $items[] = ['type' => 'Label', 'caption' => FrigateHubText::wert($bitte)];
+        $items[] = ['type' => 'RowLayout', 'items' => [
+            ['type' => 'Button', 'caption' => 'Go to the forum thread', 'onClick' => "echo '" . self::$FRIGATEHUB_FORUM_URL . "';", 'link' => true],
+            ['type' => 'Button', 'caption' => 'Got it – don\'t show again', 'onClick' => $this->frigatehubPrefix() . '_AckNews($id);'],
+        ]];
         $keys = array_keys($offen);
         return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'expanded' => true, 'caption' => FrigateHubText::t('🆕  New up to version %s', end($keys)), 'items' => $items];
     }

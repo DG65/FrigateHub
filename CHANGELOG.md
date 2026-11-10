@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.1 (Build 43) — 10.11.2026
+
+- **„Was ist neu“ mit Forums-Knopf:** Der Kasten erscheint nach jedem Update wieder und enthält jetzt eine Bitte um Rückmeldung mit Knopf „Zum Forum-Thema“. Die Bitte ist je Version wählbar (`$FRIGATEHUB_NEWS_BITTE`, gezeigt wird die der neuesten ungesehenen Version, sonst eine allgemeine); zu 0.20.0 die Frage nach Mäh-/Saugrobotern im Bild. Hintergrund: Der Rückmeldungs-Hinweis verschwindet nach „Verstanden“ für immer, neue Funktionen erreichten so nur Forumsleser.
+
 ## 0.20.0 (Build 42) — 10.11.2026
 
 - **Roboter im Bild (neu, mit RoboHub abgestimmt 10.11.2026):** Ein fahrender Mäh- oder Saugroboter löst keinen Fehlalarm mehr aus. Zuordnung je Kamera im neuen Panel „Roboter im Bild“: aus (Standard), alle Mähroboter, alle Saugroboter, alle Roboter oder ausgewählte. RoboHub-Roboter findet FrigateHub selbst über die Modul-GUID von RoboHubGeraet und liest nur `ROBO_GetActivity()` (Vertrag `robot_activity` 1.x: `outsideStation`, `since`, `pollIntervalS`, `validUntil`) — keine Verknüpfung, kein Nachrichten-Abo. Aktiv = außerhalb der Station, Nachlauf max(60 s, 2 × Abfrageabstand) ab `since`. Veraltet (`validUntil` vorbei), unbekannt oder anderer Hauptvertrag → keine Unterdrückung.
