@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 (Build 42) — 10.11.2026
+
+- **Roboter im Bild (neu, mit RoboHub abgestimmt 10.11.2026):** Ein fahrender Mäh- oder Saugroboter löst keinen Fehlalarm mehr aus. Zuordnung je Kamera im neuen Panel „Roboter im Bild“: aus (Standard), alle Mähroboter, alle Saugroboter, alle Roboter oder ausgewählte. RoboHub-Roboter findet FrigateHub selbst über die Modul-GUID von RoboHubGeraet und liest nur `ROBO_GetActivity()` (Vertrag `robot_activity` 1.x: `outsideStation`, `since`, `pollIntervalS`, `validUntil`) — keine Verknüpfung, kein Nachrichten-Abo. Aktiv = außerhalb der Station, Nachlauf max(60 s, 2 × Abfrageabstand) ab `since`. Veraltet (`validUntil` vorbei), unbekannt oder anderer Hauptvertrag → keine Unterdrückung.
+- **Regeln (`FrigateHubRoboter::bewerten()`):** Unterdrückt wird ein Review nur, wenn JEDES Objekt darin als Roboter-Fehldeutung gilt. Mit Frigate+ (`robot_lawnmower`, fahrend) zählt die Überdeckung mit dem Mäher-Rahmen (Person ≥ 50 %, sonst ≥ 30 %); sonst nur flache Rahmen (Breite ≥ Höhe) bei aktivem RoboHub-Roboter. Nie unterdrückt: aufrechte Person, erkanntes Gesicht (`sub_label`), Fahrzeuge, Objekte ohne bekannten Rahmen. Der Mäher selbst ist nie ein Alarm. Ein geparkter Mäher (stationary) gibt keinen Rahmen frei.
+- **Wirkung:** Push, OpenHomeAlarm-Ereignis, Variable „Alarm“ (damit auch der Melder in `FRIGS_GetCameras()`) und der Tageszähler „Alarme“ bleiben still; Aufzeichnung, Erkennung und Objekt-Variablen unverändert. Neue Variable „Nicht gemeldet (Roboter)“ mit Text und Grund. Kommt beim update desselben Reviews ein aufrechter Mensch dazu, wird der Alarm nachgeholt. Mit Zuordnung setzt `review_status` ALERT die Variable „Alarm“ nur, solange kein Roboter möglich ist — sonst entscheidet das Review.
+- `robot_lawnmower` in der Objektauswahl von „In Frigate einstellen“ und in den Objektnamen („Mähroboter“).
+- Prüfstand `.tools/test-roboter.php` (64 Prüfungen, Gegenprobe ohne Unterdrückung: 6 rot).
+
 ## 0.19.1 (Build 41) — 06.11.2026
 
 - **Formular nicht selbst übersetzen (Store-Checkliste 25, SUITE.md):** 160 feste Formulartexte (`caption`, `confirm`, `label`, `suffix`) stehen wieder als englische Quelltexte im Formular; die Konsole übersetzt sie selbst über `locale.json` (Symcon-Review WPModbusHub 06.11.2026: „Das ist nicht erforderlich. Das macht die Konsole selbst“). Selbst übersetzt werden nur noch Texte mit eingesetzten Werten, Statuszeilen, Variablennamen, Meldungen, Kacheln und die Panelnamen in der Liste „Formular: Aufbau“ (Listenwerte übersetzt die Konsole nicht).

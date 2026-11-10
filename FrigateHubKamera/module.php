@@ -12,6 +12,7 @@ require_once __DIR__ . '/../libs/FrigateHubOha.php';
 require_once __DIR__ . '/../libs/FrigateHubPush.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraSensor.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraEinstellungen.php';
+require_once __DIR__ . '/../libs/FrigateHubKameraRoboter.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -33,6 +34,7 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubPush;
     use FrigateHubKameraSensor;
     use FrigateHubKameraEinstellungen;
+    use FrigateHubKameraRoboter;
     use FrigateHubKachel {
         MessageSink as private kachelMessageSink;
     }
@@ -120,6 +122,7 @@ class FrigateHubKamera extends IPSModule
 
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
         $this->sensorRegistrieren();
+        $this->roboterRegistrieren();
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -215,7 +218,10 @@ class FrigateHubKamera extends IPSModule
             case 'pruefstatus':
                 // NONE, DETECTION oder ALERT
                 $p = strtoupper(trim($payload));
-                $this->SetValue('Alarm', $p === 'ALERT');
+                // Mit Roboter im Bild entscheidet erst das Review (mit Objekten), ob es ein Alarm ist
+                if ($p !== 'ALERT' || !$this->roboterMoeglich()) {
+                    $this->SetValue('Alarm', $p === 'ALERT');
+                }
                 $this->SetValue('Erkennung', $p === 'ALERT' || $p === 'DETECTION');
                 break;
 
@@ -675,6 +681,7 @@ class FrigateHubKamera extends IPSModule
                 ],
             ],
             'sensor' => $this->sensorPanel(),
+            'roboter' => $this->roboterPanel(),
             'einstellungen' => $this->einstellungenPanel(),
             'anmeldung' => $this->apiAnmeldePanel(),
             'meldungen' => [
@@ -1056,6 +1063,7 @@ class FrigateHubKamera extends IPSModule
         $this->zonenLernen(FrigateHubTopics::zonenAusEvent($after));
         $this->eigeneObjekteMerken([(string)($after['id'] ?? '')]);
         $typ = (string)($e['type'] ?? '');
+        $this->roboterEvent($typ, $after);
         if ($typ === 'new' || $typ === 'end') {
             $this->SetValue('LetztesObjekt', FrigateHubTopics::eventText($after));
             $this->WriteAttributeString('LetzteEventId', (string)($after['id'] ?? ''));
@@ -1076,18 +1084,27 @@ class FrigateHubKamera extends IPSModule
         $typ = (string)($r['type'] ?? '');
         if ($typ === 'new' || $typ === 'update') {
             $text = FrigateHubTopics::reviewText($after);
-            if ((string)($after['severity'] ?? '') === 'alert') {
-                if ($typ === 'new') {
+            $id = (string)($after['id'] ?? '');
+            // Roboter im Bild: nur Fehldeutungen eines aktiven Roboters werden nicht gemeldet
+            $roboter = $this->roboterUnterdruecken($after);
+            if ($roboter !== null) {
+                $this->SetValue('LetzteErkennung', $text);
+                $this->roboterProtokoll($text, $roboter);
+            } elseif ((string)($after['severity'] ?? '') === 'alert') {
+                if ($this->roboterAlarmZaehlen($id, $typ)) {
                     $this->sensorAlarm();
                 }
+                if ($this->roboterAn()) {
+                    $this->SetValue('Alarm', true);
+                }
                 $this->SetValue('LetzterAlarm', $text);
-                $this->alarmMelden((string)($after['id'] ?? ''), $text);
+                $this->alarmMelden($id, $text);
             } else {
                 $this->SetValue('LetzteErkennung', $text);
             }
-        }
-        if ($typ === 'new' || $typ === 'update') {
-            $this->ohaMelden((string)($after['id'] ?? ''), (string)($after['severity'] ?? ''));
+            if ($roboter === null) {
+                $this->ohaMelden($id, (string)($after['severity'] ?? ''));
+            }
         }
         // Nach dem Alarm-Push: die KI-Einschätzung kommt meist mit einem späteren update/end
         $ki = FrigateHubTopics::reviewKi($after);

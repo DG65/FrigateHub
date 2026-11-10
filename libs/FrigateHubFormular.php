@@ -16,6 +16,9 @@ trait FrigateHubFormular
 {
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.20.0' => [
+            '• 🤖 New: robots in the image (panel “Robots in the image” of every camera instance) — a mowing or vacuum robot no longer triggers false alerts while it is out of its station. Works with every robot from RoboHub and with Frigate+ (object “robot_lawnmower”). An upright person, a recognized face and vehicles always alert. Off by default.',
+        ],
         '0.19.0' => [
             '• 🎞 New: an event in the tile plays the whole period with all objects (previously only the clip of the first object), with the course per object as in Frigate below it — tap an entry to jump to that moment in the video.',
             '• 🔧 Image check without false alarms at dusk: “moved” is only judged in daylight and only by the pattern (brightness, contrast and infrared no longer count), also against the neighbouring hours.',

@@ -76,6 +76,7 @@ class FrigateHubTopics
         'raccoon'       => 'Raccoons',
         'umbrella'      => 'Umbrellas',
         'waste_bin'     => 'Waste bins',
+        'robot_lawnmower' => 'Robot lawnmowers',
         'on_demand'     => 'Manual events',
     ];
 
@@ -86,7 +87,7 @@ class FrigateHubTopics
         'license_plate' => 'License plate', 'package' => 'Package', 'dog' => 'Dog', 'cat' => 'Cat',
         'bird' => 'Bird', 'horse' => 'Horse', 'deer' => 'Deer', 'fox' => 'Fox', 'bear' => 'Bear',
         'squirrel' => 'Squirrel', 'rabbit' => 'Rabbit', 'raccoon' => 'Raccoon',
-        'umbrella' => 'Umbrella', 'waste_bin' => 'Waste bin',
+        'umbrella' => 'Umbrella', 'waste_bin' => 'Waste bin', 'robot_lawnmower' => 'Robot lawnmower',
         // Manuell in der Frigate-Oberfläche (oder per API) ausgelöstes Ereignis, kein Objekt.
         'on_demand' => 'manually triggered',
     ];

@@ -152,6 +152,19 @@ only the pattern — brightness and contrast do not count (sun, dusk, backlight)
 checked for this. Only three suspicious checks in a row raise a report. After an intended change click
 “Learn view anew”.
 
+## Robots in the image
+
+Frigate often takes a mowing robot outdoors or a vacuum robot indoors for an animal or a person. In the
+panel **“Robots in the image”** of every camera instance, choose which robots can appear in the image
+(default: none). While an assigned robot is out of its station (and shortly after), FrigateHub does not
+report such false detections as an alert — push, OpenHomeAlarm and the “Alert” variable stay quiet,
+recording continues. What was not reported is shown in “Not reported (robot)”.
+
+- **Sources:** every robot from the RoboHub module (found automatically, RoboHub with
+  `ROBO_GetActivity()`) and Frigate+ with the object `robot_lawnmower`.
+- **Never suppressed:** an upright person (taller than wide), a recognized face, vehicles, and anything
+  while the robot state is unknown or outdated. When in doubt, FrigateHub alerts.
+
 ## Configure Frigate from Symcon
 
 Many settings can be changed without opening Frigate's interface: panel **⚙️ Configure in Frigate**

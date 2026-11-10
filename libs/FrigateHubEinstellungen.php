@@ -20,7 +20,7 @@ class FrigateHubEinstellungen
 {
     /** Objektarten zur Auswahl: Frigates Standardmodell (COCO) plus Frigate+-Klassen; weitere frei eintragbar. */
     public const OBJEKTE = ['person', 'car', 'motorcycle', 'bicycle', 'bus', 'truck', 'boat', 'dog', 'cat', 'bird', 'horse',
-        'sheep', 'cow', 'bear', 'package', 'face', 'license_plate'];
+        'sheep', 'cow', 'bear', 'package', 'face', 'license_plate', 'robot_lawnmower'];
 
     /** Geräusche zur Auswahl (Frigates Audio-Modell, häufigste); weitere frei eintragbar. */
     public const GERAEUSCHE = ['speech', 'yell', 'scream', 'bark', 'fire_alarm', 'smoke_detector', 'glass', 'siren', 'car_alarm', 'doorbell', 'knock', 'crying', 'baby_cry'];

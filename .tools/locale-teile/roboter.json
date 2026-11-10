@@ -1,0 +1,23 @@
+{
+  "Not reported (robot)": "Nicht gemeldet (Roboter)",
+  "%s – robot active: %s": "%s – Roboter aktiv: %s",
+  "No RoboHub robot found. Without RoboHub, only Frigate+ (object \"robot_lawnmower\") helps.": "Kein RoboHub-Roboter gefunden. Ohne RoboHub hilft nur Frigate+ (Objekt „robot_lawnmower“).",
+  "ℹ️ %d robot(s) from RoboHub found. If one of them can appear in this camera's image, choose it above.": "ℹ️ %d Roboter aus RoboHub gefunden. Kann einer davon im Bild dieser Kamera auftauchen, oben auswählen.",
+  "%d robot(s) from RoboHub found.": "%d Roboter aus RoboHub gefunden.",
+  "⚠️ This RoboHub version does not provide ROBO_GetActivity() yet — please update RoboHub.": "⚠️ Diese RoboHub-Version bietet ROBO_GetActivity() noch nicht — bitte RoboHub aktualisieren.",
+  "Robot lawnmower": "Mähroboter",
+  "Robot lawnmowers": "Mähroboter",
+  "🤖  Robots in the image": "🤖  Roboter im Bild",
+  "A mowing robot outdoors or a vacuum robot indoors is often taken for an animal or a person by Frigate. If a robot assigned here is out of its station (and one minute after it returns), FrigateHub does not report such false detections as an alert — push, OpenHomeAlarm and the \"Alert\" variable stay quiet. Recording continues.": "Einen Mähroboter draußen oder einen Saugroboter drinnen hält Frigate oft für ein Tier oder einen Menschen. Ist ein hier zugeordneter Roboter außerhalb seiner Station (und noch eine Minute nach der Rückkehr), meldet FrigateHub solche Fehlerkennungen nicht als Alarm — Push, OpenHomeAlarm und die Variable „Alarm“ bleiben still. Aufgezeichnet wird weiter.",
+  "Never suppressed: an upright person (taller than wide), a recognized face, vehicles, and anything while the robot state is unknown or outdated. Only flat detections (wider than tall) are suppressed — that is what robot misdetections look like. With Frigate+ (object \"robot_lawnmower\"), only detections overlapping the mower.": "Nie unterdrückt: ein aufrechter Mensch (höher als breit), ein erkanntes Gesicht, Fahrzeuge und alles, solange der Roboterzustand unbekannt oder veraltet ist. Unterdrückt werden nur flache Erkennungen (breiter als hoch) — so sehen Roboter-Fehlerkennungen aus. Mit Frigate+ (Objekt „robot_lawnmower“) nur Erkennungen, die den Mäher überdecken.",
+  "Robots in this camera's image": "Roboter im Bild dieser Kamera",
+  "none (off)": "keine (aus)",
+  "all mowing robots": "alle Mähroboter",
+  "all vacuum robots": "alle Saugroboter",
+  "all robots": "alle Roboter",
+  "selected robots": "ausgewählte Roboter",
+  "Selected robots (only for \"selected robots\")": "Ausgewählte Roboter (nur bei „ausgewählte Roboter“)",
+  "Consider": "Berücksichtigen",
+  "Robot": "Roboter",
+  "• 🤖 New: robots in the image (panel “Robots in the image” of every camera instance) — a mowing or vacuum robot no longer triggers false alerts while it is out of its station. Works with every robot from RoboHub and with Frigate+ (object “robot_lawnmower”). An upright person, a recognized face and vehicles always alert. Off by default.": "• 🤖 Neu: Roboter im Bild (Panel „Roboter im Bild“ jeder Kamera-Instanz) — ein Mäh- oder Saugroboter löst keine Fehlalarme mehr aus, solange er außerhalb seiner Station ist. Geht mit jedem Roboter aus RoboHub und mit Frigate+ (Objekt „robot_lawnmower“). Ein aufrechter Mensch, ein erkanntes Gesicht und Fahrzeuge melden immer. Standardmäßig aus."
+}

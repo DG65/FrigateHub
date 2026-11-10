@@ -212,6 +212,19 @@ benachbarten Stunden und vergleicht dabei nur das Muster — Helligkeit und Kont
 Dämmerung, Gegenlicht). Infrarotbilder werden darauf nicht geprüft. Erst drei auffällige Prüfungen in
 Folge melden. Nach einem gewollten Umbau „Ansicht neu lernen".
 
+## Roboter im Bild
+
+Ein Mähroboter draußen oder ein Saugroboter drinnen wird von Frigate oft als Tier oder Mensch erkannt.
+Im Panel **„Roboter im Bild“** jeder Kamera-Instanz stellt man ein, welche Roboter im Bild auftauchen
+können (Standard: keine). Ist ein zugeordneter Roboter außerhalb seiner Station (und noch kurz danach),
+meldet FrigateHub solche Fehlerkennungen nicht als Alarm — Push, OpenHomeAlarm und die Variable „Alarm“
+bleiben still, aufgezeichnet wird weiter. Was nicht gemeldet wurde, steht in „Nicht gemeldet (Roboter)“.
+
+- **Quellen:** jeder Roboter aus dem Modul RoboHub (wird automatisch gefunden, ab RoboHub mit
+  `ROBO_GetActivity()`) und Frigate+ mit dem Objekt `robot_lawnmower`.
+- **Nie unterdrückt:** ein aufrechter Mensch (höher als breit), ein erkanntes Gesicht, Fahrzeuge und
+  alles, solange der Roboterzustand unbekannt oder veraltet ist. Im Zweifel meldet FrigateHub.
+
 ## In Frigate einstellen
 
 Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: Panel

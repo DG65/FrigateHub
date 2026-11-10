@@ -102,6 +102,10 @@
   aufgezeichnete Stücke aneinander (`retain.mode: motion` verwirft Stillstand) → Videostelle über `/api/<kamera>/recordings`.
 - Bildprüfung (0.19.0): „verstellt“ nur bei Farbbild (Tag) gegen `tagansicht` der Stunde ±1, Korrelation < 0,45; kalibriert an
   58 Door-Cam-Bildern 28.10.–05.11. (Tag 0,63–0,99, gespiegelt 0,26, verschoben 0,17; Farbe IR 0–3,5, Tag 8–16).
+- Roboter im Bild (0.20.0): Logik rein in `libs/FrigateHubRoboter.php`, Trait `FrigateHubKameraRoboter`. Vertrag `robot_activity`
+  1.x von RoboHub (`ROBO_GetActivity($id)`, abgestimmt 10.11.2026, Konzept Nextcloud/Claude/FrigateHub-Roboter-Konzept.md),
+  Discovery über RoboHubGeraet-GUID `{631DA85B-5985-4C25-B222-E47FDD49E302}`. Frigate+ kennt `robot_lawnmower`, kein Sauger-Objekt
+  (Doku 10.11.2026). Rahmen der Objekte im Puffer `RoboterBoxen` (10 min), weil Reviews nur IDs tragen. Grundsatz: im Zweifel melden.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
