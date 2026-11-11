@@ -257,6 +257,22 @@ Boden liegt und sich nicht mehr bewegt – etwa nach einem Sturz auf der Treppe,
 Menschen erkennt Frigates Modell schlechter als stehende. Das ist ein Hinweis, kein Notrufsystem. Kameras in
 Wohnräumen berühren die Privatsphäre – nur einschalten, wo alle Betroffenen einverstanden sind.
 
+## Licht bei Erkennung
+
+Ab 0.23 schaltet FrigateHub auf Wunsch ein Licht ein, sobald Frigate eine Person erkennt, und nach der
+Nachlaufzeit zurück in den Zustand von vorher. Panel „💡 Licht bei Erkennung“ der Kamera-Instanz:
+
+- **Eigenes Weißlicht der Kamera** (Hikvision und Annke mit Smart-Hybridlicht oder ColorVu): „an“ stellt den
+  Lichtmodus auf Weißlicht, „aus“ zurück auf den Modus von vorher. Den Kamerazugang übernimmt ein Knopf aus
+  Frigates Konfiguration (dieselben Daten, mit denen Frigate den Stream holt) oder man trägt ihn von Hand ein.
+  Das Passwort steht nur in der Instanz, nie im Formular oder Protokoll.
+- **Beliebige Symcon-Variable**, z. B. die Hoflampe oder ein Dimmer: FrigateHub schaltet sie an und danach auf
+  den alten Wert zurück. War sie schon an, bleibt sie unberührt.
+
+Objekte (Standard `person`), Zonen, Nachlaufzeit und „nur bei Dunkelheit“ (Symcon-Standort) sind einstellbar.
+Die Variable „Licht bei Erkennung“ schaltet auch von Hand. Jedes Schalten des Kameralichts ist eine
+Einstellungsänderung in der Kamera – deshalb standardmäßig nur bei Dunkelheit. Standardmäßig aus.
+
 ## In Frigate einstellen
 
 Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: Panel

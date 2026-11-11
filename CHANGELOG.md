@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.23.0 (Build 46) — 12.11.2026
+
+- **Licht bei Erkennung (neu, Auftrag Dietmar 12.11.2026):** Panel „Licht bei Erkennung“ je Kamera, standardmäßig aus. Frigate erkennt eine Person (Objekte und Zonen wählbar) → Licht an, nach der Nachlaufzeit (Standard 60 s) zurück in den Zustand von vorher. Standardmäßig nur bei Dunkelheit (Symcon-Standort, Variable `IsDay`; ohne Standort-Modul immer).
+- **Zwei Arten Licht, herstellerneutral:** das eigene Weißlicht der Kamera (Hikvision/Annke, ISAPI `/ISAPI/Image/channels/1/supplementLight`, „an“ = `colorVuWhiteLight`, „aus“ = Modus von vorher) oder eine beliebige Symcon-Variable (Schalter oder Dimmer, `RequestAction`, danach zurück auf den alten Wert; war sie schon an, bleibt sie unberührt).
+- Kamerazugang per Knopf „Kamerazugang aus Frigate übernehmen“ (aus `/api/config/raw`, Eingänge und go2rtc-Streams der Kamera, `%2F` → `/`) oder von Hand; Passwort nur im Attribut `LichtZugang`, nie in Property, Formular oder Protokoll.
+- Variable „Licht bei Erkennung“ (Boolean, schaltbar: von Hand an bleibt an bis aus). Geparkte Autos halten das Licht nicht an, Fehlerkennungen zählen nicht, verlorene Objekte nach 150 s. Gescheitertes Zurückschalten wird alle 30 s wiederholt, auch nach einem Symcon-Neustart.
+- Live geprüft 12.11.2026 an der Annke I91DQ (Firmware V5.7.3): Modi `eventIntelligence,colorVuWhiteLight,irLight,close`, PUT auf Weißlicht 200 OK in 72 ms und zurück, übrige Lichteinstellungen unverändert. Standort-Modul-GUID `{45E97A63-F870-408A-B259-2933F7EABF74}` mit `IsDay` bestätigt. Das Modul selbst ist live noch nicht gelaufen.
+- Logik rein in `libs/FrigateHubLicht.php`, Trait `FrigateHubKameraLicht`; Prüfstand `.tools/test-licht.php` (49 Prüfungen, Gegenproben rot).
+
 ## 0.22.0 (Build 45) — 11.11.2026
 
 - **Film nach dem Foto (neu, Auftrag Dietmar 11.11.2026):** Im Panel „Push und Meldungen“ Auswahl „Film für E-Mail-Ziele“: aus (Standard), bewegtes Bild (GIF) oder Videoclip (MP4), Länge 5–60 s (Standard 15) ab 3 s vor der Meldung. Symcon hängt je E-Mail genau ein Medienobjekt an (`SMTP_SendMailMedia`, Doku geprüft 11.11.2026), deshalb bleibt das Foto die sofortige erste Meldung und der Film folgt als zweite E-Mail nur an die SMTP-Ziele.

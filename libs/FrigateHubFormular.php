@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.23.0' => '💬 Does your camera have a white light, or did you connect a yard light? Please tell me in the forum whether “Light on detection” switches reliably — and which camera you use.',
         '0.22.0' => '💬 Have you tried the film by e-mail? Please tell me in the forum whether GIF or clip arrives and plays in your mail program — and how long it took.',
         '0.21.0' => '💬 Have you switched on “Person lying / fall”? Please tell me in the forum which camera watches which area and whether it reported correctly — false alarms too.',
         '0.20.0' => '💬 Does one of your cameras see a mowing or vacuum robot? Please tell me in the forum whether the false alerts are gone — and whether every real alert still comes through.',
@@ -26,6 +27,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.23.0' => [
+            '• 💡 New: light on detection (panel “Light on detection” of every camera instance) — switches the camera\'s own white light (Hikvision/Annke) or any Symcon variable on when Frigate detects a person, and back after the run-on time. Only in the dark by default; off by default.',
+        ],
         '0.22.0' => [
             '• 🎞 New: film after the photo (panel “Push and notifications”) — e-mail targets can additionally receive a short moving image (GIF) or video clip (MP4) of the alert, also for “Person lying / fall”. Off by default.',
         ],

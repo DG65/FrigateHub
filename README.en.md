@@ -137,6 +137,15 @@ to the same targets – usable as an action in alarm systems and rules.
 
 Switches only take a value once Frigate confirms it.
 
+
+## Light on detection
+
+From 0.23 FrigateHub can switch a light on as soon as Frigate detects a person, and back to its previous
+state after the run-on time (panel “💡 Light on detection”): either the camera's own white light (Hikvision and
+Annke with smart hybrid light or ColorVu, via ISAPI; access taken over from Frigate's configuration with one
+click, password stored only in the instance) or any Symcon variable such as the yard light or a dimmer.
+Objects, zones, run-on time and “only when dark” (Symcon location) are configurable. Off by default.
+
 ## Camera as a sensor
 
 | Variable | Meaning | Frigate needs |

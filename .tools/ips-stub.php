@@ -49,6 +49,7 @@ class IPSTestState
     public static array $sentPackets  = [];
     public static array $debug        = [];
     public static array $logMessages  = [];
+    public static array $aktionen     = [];
 
     /** Fremde Variablen anderer Instanzen: objectId => ['instance'=>int,'ident'=>string,'value'=>mixed] */
     public static array $objects = [];
@@ -84,6 +85,7 @@ class IPSTestState
         self::$sentPackets       = [];
         self::$debug             = [];
         self::$logMessages       = [];
+        self::$aktionen          = [];
         self::$objects           = [];
         self::$visualization     = null;
         self::$registeredMessages = [];
@@ -158,6 +160,24 @@ function IPS_GetObjectIDByIdent(string $ident, int $parentId)
         }
     }
     return false;
+}
+
+function IPS_VariableExists(int $id): bool
+{
+    return isset(IPSTestState::$objects[$id]);
+}
+
+function GetValueBoolean(int $id): bool
+{
+    return (bool)(IPSTestState::$objects[$id]['value'] ?? false);
+}
+
+/** Wie eine Variable mit Standardaktion: setzt den Wert und merkt sich den Aufruf. */
+function RequestAction(int $id, $wert): bool
+{
+    IPSTestState::$aktionen[] = [$id, $wert];
+    IPSTestState::$objects[$id]['value'] = $wert;
+    return true;
 }
 
 function GetValue(int $objectId)
@@ -316,7 +336,9 @@ function IPS_GetObject(int $id): array
 
 function IPS_GetVariable(int $id): array
 {
-    return ['VariableID' => $id, 'VariableUpdated' => IPSTestState::$objects[$id]['updated'] ?? 0, 'VariableChanged' => IPSTestState::$objects[$id]['updated'] ?? 0];
+    $w = IPSTestState::$objects[$id]['value'] ?? null;
+    $typ = is_bool($w) ? 0 : (is_int($w) ? 1 : (is_float($w) ? 2 : 3));
+    return ['VariableID' => $id, 'VariableType' => $typ, 'VariableUpdated' => IPSTestState::$objects[$id]['updated'] ?? 0, 'VariableChanged' => IPSTestState::$objects[$id]['updated'] ?? 0];
 }
 
 /**

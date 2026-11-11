@@ -107,11 +107,12 @@
   Discovery über RoboHubGeraet-GUID `{631DA85B-5985-4C25-B222-E47FDD49E302}`. Frigate+ kennt `robot_lawnmower`, kein Sauger-Objekt
   (Doku 10.11.2026). Rahmen der Objekte im Puffer `RoboterBoxen` (10 min), weil Reviews nur IDs tragen. Grundsatz: im Zweifel melden.
 - Person liegt / Sturz (0.21.0): Logik rein in `libs/FrigateHubNotfall.php`, Trait `FrigateHubKameraNotfall`, Standard aus.
-- Film nach dem Foto (0.22.0): `libs/FrigateHubFilm.php` + Trait `FrigateHubKameraFilm`; zweite E-Mail (GIF/MP4) nur an SMTP-Ziele, weil Symcon je Mail genau ein Medium anhängt. Live noch ungetestet (Medium Typ Dokument, gecacht).
   Frigate-Quellcode dev 11.11.2026: `frigate/events` kommt bei `path_update` (Fußpunkt bewegt sich ~5 % der Bilddiagonale),
   Zonen-/Stationär-Wechsel, Punktbesserung (≤ alle 5 s) und spätestens alle 60 s; `path_data` = [[x, y normiert], frame_time],
   y = Unterkante, ungekürzt. Audio-Labels: yell (enthält Schreien), crying, groan, gasp, thump, bang, smash, breaking, slam.
   Konzept Nextcloud/Claude/FrigateHub-Notfall-Konzept.md. Schwellen ungetestet an echten Stürzen — erst messen, dann anpassen.
+- Film nach dem Foto (0.22.0): `libs/FrigateHubFilm.php` + Trait `FrigateHubKameraFilm`; zweite E-Mail (GIF/MP4) nur an SMTP-Ziele, weil Symcon je Mail genau ein Medium anhängt. Live noch ungetestet (Medium Typ Dokument, gecacht).
+- Licht bei Erkennung (0.23.0): `libs/FrigateHubLicht.php` + Trait `FrigateHubKameraLicht`. Kameralicht über ISAPI `supplementLight` (Annke I91DQ live 12.11.: Modi eventIntelligence/colorVuWhiteLight/irLight/close, PUT ganzer XML-Inhalt mit neuem Modus, Digest). Kamera hat KEIN Zoom/PTZ (PTZCtrl 500, Fokus fest). Kamerazugang aus `/api/config/raw` (go2rtc braucht `/` im Passwort als `%2F`). Standort-Modul `{45E97A63-…}` Variable `IsDay`.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 
