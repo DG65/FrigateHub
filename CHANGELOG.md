@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.21.0 (Build 44) — 11.11.2026
+
+- **Person liegt / Sturz (neu, Auftrag Dietmar 11.11.2026):** Panel „Person liegt / Sturz“ je Kamera, standardmäßig aus. Logik rein in `libs/FrigateHubNotfall.php`, Trait `FrigateHubKameraNotfall`. Liegend = Rahmen Breite ≥ 1,2 × Höhe, reglos = `stationary` oder 15 s ohne Meldung (Frigate meldet jede Bewegung des Fußpunkts, `path_update`, Quellcode dev geprüft 11.11.2026). Notfall nach Wartezeit (Standard 60 s), nach Sturz/Hilferuf schon nach 15 s.
+- **Sturz:** zuletzt aufrecht (Höhe ≥ 1,5 × Breite) und binnen 4 s liegend, Oberkante fällt um ≥ 40 % der alten Höhe. **Schneller Sturz (Leiter/Treppe):** Fußpunkt aus `path_data` fällt ≥ 15 % der Bildhöhe in ≤ 1,5 s.
+- **Geräusche:** yell/scream, crying, groan, gasp, whimper, thump, bang, smash, breaking, slam aus Frigates Geräuscherkennung (±60 s ums Hinlegen) verkürzen die Wartezeit.
+- Liegend verlorene Personen (das Modell erkennt Liegende schlechter) bleiben beobachtet, bis an der Stelle wieder eine aufrechte Person erscheint. Variablen „Notfall“ (0–3) und „Notfall: letzter Befund“, Push „🆘“ ohne Mindestabstand einmal je Person, `FRIG_NotfallQuittieren()`, Timer `Notfall` (5 s) nur solange jemand liegt.
+- „Was ist neu“ fragt im Forum nach Erfahrungen mit der neuen Erkennung.
+- Prüfstand `.tools/test-notfall.php` (42 Prüfungen).
+
 ## 0.20.1 (Build 43) — 10.11.2026
 
 - **„Was ist neu“ mit Forums-Knopf:** Der Kasten erscheint nach jedem Update wieder und enthält jetzt eine Bitte um Rückmeldung mit Knopf „Zum Forum-Thema“. Die Bitte ist je Version wählbar (`$FRIGATEHUB_NEWS_BITTE`, gezeigt wird die der neuesten ungesehenen Version, sonst eine allgemeine); zu 0.20.0 die Frage nach Mäh-/Saugrobotern im Bild. Hintergrund: Der Rückmeldungs-Hinweis verschwindet nach „Verstanden“ für immer, neue Funktionen erreichten so nur Forumsleser.

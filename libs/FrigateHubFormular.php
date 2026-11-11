@@ -18,12 +18,16 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.21.0' => '💬 Have you switched on “Person lying / fall”? Please tell me in the forum which camera watches which area and whether it reported correctly — false alarms too.',
         '0.20.0' => '💬 Does one of your cameras see a mowing or vacuum robot? Please tell me in the forum whether the false alerts are gone — and whether every real alert still comes through.',
     ];
     private static $FRIGATEHUB_NEWS_BITTE_ALLGEMEIN = '💬 Is FrigateHub working for you? Questions, ideas and problems are welcome in the forum thread — even a short note helps.';
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.21.0' => [
+            '• 🆘 New: person lying / fall (panel “Person lying / fall” of every camera instance) — reports when a person lies on the ground and no longer moves, e.g. after a fall on the stairs or from a ladder. A fall just before or a call for help shortens the waiting time. A hint, not an emergency call system; off by default.',
+        ],
         '0.20.1' => [
             '• 💬 “What\'s new” now links to the forum thread.',
         ],

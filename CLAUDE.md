@@ -106,6 +106,11 @@
   1.x von RoboHub (`ROBO_GetActivity($id)`, abgestimmt 10.11.2026, Konzept Nextcloud/Claude/FrigateHub-Roboter-Konzept.md),
   Discovery über RoboHubGeraet-GUID `{631DA85B-5985-4C25-B222-E47FDD49E302}`. Frigate+ kennt `robot_lawnmower`, kein Sauger-Objekt
   (Doku 10.11.2026). Rahmen der Objekte im Puffer `RoboterBoxen` (10 min), weil Reviews nur IDs tragen. Grundsatz: im Zweifel melden.
+- Person liegt / Sturz (0.21.0): Logik rein in `libs/FrigateHubNotfall.php`, Trait `FrigateHubKameraNotfall`, Standard aus.
+  Frigate-Quellcode dev 11.11.2026: `frigate/events` kommt bei `path_update` (Fußpunkt bewegt sich ~5 % der Bilddiagonale),
+  Zonen-/Stationär-Wechsel, Punktbesserung (≤ alle 5 s) und spätestens alle 60 s; `path_data` = [[x, y normiert], frame_time],
+  y = Unterkante, ungekürzt. Audio-Labels: yell (enthält Schreien), crying, groan, gasp, thump, bang, smash, breaking, slam.
+  Konzept Nextcloud/Claude/FrigateHub-Notfall-Konzept.md. Schwellen ungetestet an echten Stürzen — erst messen, dann anpassen.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

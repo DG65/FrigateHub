@@ -225,6 +225,28 @@ bleiben still, aufgezeichnet wird weiter. Was nicht gemeldet wurde, steht in „
 - **Nie unterdrückt:** ein aufrechter Mensch (höher als breit), ein erkanntes Gesicht, Fahrzeuge und
   alles, solange der Roboterzustand unbekannt oder veraltet ist. Im Zweifel meldet FrigateHub.
 
+## Person liegt / Sturz
+
+Im Panel **„Person liegt / Sturz“** jeder Kamera-Instanz (standardmäßig aus) meldet FrigateHub, wenn eine Person am
+Boden liegt und sich nicht mehr bewegt – etwa nach einem Sturz auf der Treppe, von der Leiter oder im Garten.
+
+- **Erkennung:** Der Rahmen der Person wird flach (Breite ≥ 1,2 × Höhe) und bleibt ruhig (Frigate meldet „stationär“
+  oder 15 s lang keine Bewegung). Nach der Wartezeit (Standard 60 s) wird daraus ein Notfall.
+- **Sturz:** War die Person Sekunden vorher noch aufrecht und fällt die Oberkante des Rahmens deutlich, gilt das als
+  Sturz. Fällt der Fußpunkt sehr schnell (≥ 15 % der Bildhöhe in 1,5 s – typisch für Leiter oder Treppe), als
+  schneller Sturz. Dann genügen 15 s.
+- **Geräusche:** Ein Hilferuf oder Aufprall aus Frigates Geräuscherkennung (yell, crying, groan, gasp, thump, bang,
+  smash, breaking) verkürzt die Wartezeit ebenfalls auf 15 s. Dafür müssen diese Geräusche in Frigate unter
+  `audio: listen:` eingetragen sein.
+- **Zonen:** Am besten auf Zonen beschränken, in denen sich niemand hinlegt (Treppe, Flur, Einfahrt, Garage).
+- **Ergebnis:** Variable „Notfall“ (0 alles gut, 1 Person liegt, 2 möglicher Sturz, 3 Notfall), Text in „Notfall:
+  letzter Befund“, Push an die Push-Ziele ohne Mindestabstand. `FRIG_NotfallQuittieren($id)` bestätigt, dass sich
+  jemand kümmert; steht die Person wieder auf, ist alles zurückgesetzt.
+
+**Grenzen:** Eine Kamera sieht weder Puls noch Atmung oder Bewusstsein und nur ihren Bildausschnitt. Liegende
+Menschen erkennt Frigates Modell schlechter als stehende. Das ist ein Hinweis, kein Notrufsystem. Kameras in
+Wohnräumen berühren die Privatsphäre – nur einschalten, wo alle Betroffenen einverstanden sind.
+
 ## In Frigate einstellen
 
 Viele Einstellungen lassen sich ändern, ohne Frigates Oberfläche zu öffnen: Panel

@@ -165,6 +165,27 @@ recording continues. What was not reported is shown in “Not reported (robot)�
 - **Never suppressed:** an upright person (taller than wide), a recognized face, vehicles, and anything
   while the robot state is unknown or outdated. When in doubt, FrigateHub alerts.
 
+## Person lying / fall
+
+In the panel **“Person lying / fall”** of every camera instance (off by default), FrigateHub reports when a person lies
+on the ground and no longer moves – e.g. after a fall on the stairs, from a ladder or in the garden.
+
+- **Detection:** the person's frame turns flat (width ≥ 1.2 × height) and stays still (Frigate reports “stationary” or
+  no movement for 15 s). After the waiting time (default 60 s) this becomes an emergency.
+- **Fall:** if the person was upright seconds before and the top of the frame drops clearly, it counts as a fall. If
+  the feet drop very fast (≥ 15 % of the image height in 1.5 s – typical for a ladder or stairs), as a fast fall. Then
+  15 s are enough.
+- **Sounds:** a call for help or an impact from Frigate's audio detection (yell, crying, groan, gasp, thump, bang,
+  smash, breaking) also shortens the waiting time to 15 s. These sounds must be listed in Frigate under `audio: listen:`.
+- **Zones:** best limited to zones where nobody lies down (stairs, hallway, driveway, garage).
+- **Result:** variable “Emergency” (0 all clear, 1 person lying, 2 possible fall, 3 emergency), text in “Emergency: last
+  finding”, push to the push targets without minimum interval. `FRIG_NotfallQuittieren($id)` confirms that someone
+  takes care of it; when the person stands up again, everything is reset.
+
+**Limits:** a camera sees neither pulse, breathing nor consciousness, and only its field of view. Frigate's model
+detects lying people less reliably than standing ones. This is a hint, not an emergency call system. Cameras in living
+areas affect privacy – only switch on where everyone concerned agrees.
+
 ## Configure Frigate from Symcon
 
 Many settings can be changed without opening Frigate's interface: panel **⚙️ Configure in Frigate**

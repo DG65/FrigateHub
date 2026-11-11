@@ -13,6 +13,7 @@ require_once __DIR__ . '/../libs/FrigateHubPush.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraSensor.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraEinstellungen.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraRoboter.php';
+require_once __DIR__ . '/../libs/FrigateHubKameraNotfall.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -35,6 +36,7 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubKameraSensor;
     use FrigateHubKameraEinstellungen;
     use FrigateHubKameraRoboter;
+    use FrigateHubKameraNotfall;
     use FrigateHubKachel {
         MessageSink as private kachelMessageSink;
     }
@@ -123,6 +125,7 @@ class FrigateHubKamera extends IPSModule
         $this->RegisterTimer('Abgleich', 0, 'FRIG_ZustandAnfordern($_IPS[\'TARGET\']);');
         $this->sensorRegistrieren();
         $this->roboterRegistrieren();
+        $this->notfallRegistrieren();
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -158,6 +161,7 @@ class FrigateHubKamera extends IPSModule
         $this->kachelUebernehmen();
 
         $this->sensorUebernehmen();
+        $this->notfallUebernehmen();
         $kamera = $this->kamera();
         if ($kamera === '') {
             $this->SetReceiveDataFilter(FrigateHubTopics::sperrfilter());
@@ -257,6 +261,7 @@ class FrigateHubKamera extends IPSModule
                     $ident = FrigateHubTopics::ident('Geraeusch', $d['typ']);
                     $this->variableAnlegen($ident, $d['name'], VARIABLETYPE_BOOLEAN, self::anzeigeJaNein(FrigateHubText::t('detected'), FrigateHubText::t('silent')), self::POS_GERAEUSCH);
                     $this->SetValue($ident, $wert);
+                    $this->notfallGeraeusch((string)$d['typ'], $wert);
                 }
                 break;
 
@@ -682,6 +687,7 @@ class FrigateHubKamera extends IPSModule
             ],
             'sensor' => $this->sensorPanel(),
             'roboter' => $this->roboterPanel(),
+            'notfall' => $this->notfallPanel(),
             'einstellungen' => $this->einstellungenPanel(),
             'anmeldung' => $this->apiAnmeldePanel(),
             'meldungen' => [
@@ -1069,6 +1075,7 @@ class FrigateHubKamera extends IPSModule
             $this->WriteAttributeString('LetzteEventId', (string)($after['id'] ?? ''));
         }
         $this->sensorEvent($typ, $after);
+        $this->notfallEvent($typ, $after);
     }
 
     private function reviewVerarbeiten(string $payload): void
