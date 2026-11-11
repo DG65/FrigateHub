@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.0 (Build 45) — 11.11.2026
+
+- **Film nach dem Foto (neu, Auftrag Dietmar 11.11.2026):** Im Panel „Push und Meldungen“ Auswahl „Film für E-Mail-Ziele“: aus (Standard), bewegtes Bild (GIF) oder Videoclip (MP4), Länge 5–60 s (Standard 15) ab 3 s vor der Meldung. Symcon hängt je E-Mail genau ein Medienobjekt an (`SMTP_SendMailMedia`, Doku geprüft 11.11.2026), deshalb bleibt das Foto die sofortige erste Meldung und der Film folgt als zweite E-Mail nur an die SMTP-Ziele.
+- **Quellen (Frigate v0.18.2 `frigate/api/media.py`, geprüft 11.11.2026):** GIF über `/api/<kamera>/start/<a>/end/<b>/preview.gif` aus den Vorschaubildern (klein, ~8 Bilder/s), 5 s nach Filmende; liegt der Start vor der laufenden vollen Stunde, ab dem 2. Versuch ab Stundenbeginn (die Stunden-Vorschau entsteht erst am Stundenende). Clip über `/api/<kamera>/start/<a>/end/<b>/clip.mp4` aus den Aufnahmen ohne Umrechnung, 25 s nach Filmende (Aufnahme-Abschnitte). Bis zu 3 Versuche im Abstand von 30 s, über 15 MB wird nicht verschickt. API-Zeitlimit für diese Abrufe 30 s statt 5 s.
+- Medienobjekte „Meldungsfilm (GIF)“ bzw. „Meldungsclip“ (Typ Dokument, versteckt angelegt, gecacht). Ein offener Film wird von einem weiteren Alarm nicht ersetzt. Auch der Notfall-Push („Person liegt / Sturz“) und die Probemeldung schicken den Film. Status im Formular, Timer `Film`, `FRIG_FilmSenden()`.
+- Logik rein in `libs/FrigateHubFilm.php`, Trait `FrigateHubKameraFilm`; 27 neue Prüfungen in `.tools/test-frigatehub.php`.
+- „Was ist neu“ fragt im Forum, ob GIF oder Clip ankommen und abspielen.
+
 ## 0.21.0 (Build 44) — 11.11.2026
 
 - **Person liegt / Sturz (neu, Auftrag Dietmar 11.11.2026):** Panel „Person liegt / Sturz“ je Kamera, standardmäßig aus. Logik rein in `libs/FrigateHubNotfall.php`, Trait `FrigateHubKameraNotfall`. Liegend = Rahmen Breite ≥ 1,2 × Höhe, reglos = `stationary` oder 15 s ohne Meldung (Frigate meldet jede Bewegung des Fußpunkts, `path_update`, Quellcode dev geprüft 11.11.2026). Notfall nach Wartezeit (Standard 60 s), nach Sturz/Hilferuf schon nach 15 s.

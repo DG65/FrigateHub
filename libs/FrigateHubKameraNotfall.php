@@ -55,6 +55,8 @@ trait FrigateHubKameraNotfall
             if ($this->ReadPropertyBoolean('NotfallPush') && $this->pushZiele() !== []) {
                 // Ohne Mindestabstand: ein Notfall wartet nicht auf die Pause nach einem Einbruchsalarm
                 $this->pushSenden('🆘 ' . IPS_GetName($this->InstanceID), $text, true);
+                // Film ab kurz vor dem Hinlegen (zeigt den Sturz)
+                $this->filmVormerken((float)time() - $lage['dauer'] - 5, '🆘 ' . IPS_GetName($this->InstanceID), $text);
             }
         }
         $this->notfallTimer();

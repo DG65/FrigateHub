@@ -171,6 +171,16 @@ Push-Nachrichten können kein Bild mitschicken — Antippen öffnet die Kamera-K
 in der Meldung will, trägt zusätzlich eine **SMTP-Instanz** als Ziel ein: Dann kommt jede Meldung
 als E-Mail mit dem aktuellen Kamerabild (Rahmen um erkannte Objekte).
 
+**Film nach dem Foto (ab 0.22):** Unter „Film für E-Mail-Ziele“ lässt sich zusätzlich ein kurzes
+**bewegtes Bild (GIF)** oder ein **Videoclip (MP4)** vom Alarm schicken, Länge 5–60 s ab 3 s vor dem
+Alarm. Eine E-Mail aus Symcon trägt genau einen Anhang (`SMTP_SendMailMedia`). Deshalb kommt das Foto
+weiterhin sofort, der Film als zweite E-Mail, sobald Frigate ihn liefern kann: das GIF wenige Sekunden
+nach der Filmlänge, der Clip etwa eine halbe Minute danach, weil Frigate die Aufnahme in Abschnitten
+schreibt. Das GIF ist klein und spielt in fast jedem Mailprogramm direkt ab. Der Clip hat volle
+Auflösung, braucht eingeschaltete Aufzeichnung und wird über 15 MB nicht verschickt. Liefert Frigate
+noch nichts, versucht FrigateHub es bis zu dreimal im Abstand von 30 s. Auch „Person liegt / Sturz“
+schickt den Film, beginnend kurz vor dem Hinlegen. Standardmäßig aus, braucht die Frigate-Adresse.
+
 **Meldung mit Schnappschuss für Alarmanlagen und Regeln:**
 `FRIG_MeldungMitSchnappschuss($id, "Text", true)` schickt eine Meldung mit dem aktuellen
 Kamerabild an dieselben Ziele. In Symcon-Aktionen („Instanzfunktion ausführen") lässt sie sich

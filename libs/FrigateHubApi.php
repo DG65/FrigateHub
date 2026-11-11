@@ -26,6 +26,9 @@ trait FrigateHubApi
     /** Art des letzten Fehlschlags, sprachneutral: '', 'https' (http auf https-Port), 'abgelaufen', 'anmeldung' (401). */
     private string $apiFehlerArt = '';
 
+    /** Sekunden für eine API-Antwort (Film: Frigate setzt GIF/Clip erst zusammen, dafür länger). */
+    private int $apiZeitlimit = 5;
+
     /** Takt, in dem das Token aufgefrischt wird (ms). Muss unter Frigates refresh_time liegen. */
     private static int $FRIGATEHUB_AUFFRISCHEN = 600000;
 
@@ -368,7 +371,7 @@ trait FrigateHubApi
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_TIMEOUT        => $this->apiZeitlimit,
             CURLOPT_HTTPHEADER     => array_values($kopf),
             CURLOPT_HEADERFUNCTION => function ($ch, string $zeile) use (&$cookies): int {
                 if (preg_match('/^set-cookie:\s*([^=;\s]+)=([^;\r\n]*)/i', $zeile, $m)) {

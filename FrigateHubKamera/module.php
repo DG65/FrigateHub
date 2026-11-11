@@ -14,6 +14,7 @@ require_once __DIR__ . '/../libs/FrigateHubKameraSensor.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraEinstellungen.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraRoboter.php';
 require_once __DIR__ . '/../libs/FrigateHubKameraNotfall.php';
+require_once __DIR__ . '/../libs/FrigateHubKameraFilm.php';
 
 /**
  * Eine Frigate-Kamera, angebunden über MQTT (Symcons MQTT-Server oder MQTT-Client darüber).
@@ -37,6 +38,7 @@ class FrigateHubKamera extends IPSModule
     use FrigateHubKameraEinstellungen;
     use FrigateHubKameraRoboter;
     use FrigateHubKameraNotfall;
+    use FrigateHubKameraFilm;
     use FrigateHubKachel {
         MessageSink as private kachelMessageSink;
     }
@@ -126,6 +128,7 @@ class FrigateHubKamera extends IPSModule
         $this->sensorRegistrieren();
         $this->roboterRegistrieren();
         $this->notfallRegistrieren();
+        $this->filmRegistrieren();
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -162,6 +165,7 @@ class FrigateHubKamera extends IPSModule
 
         $this->sensorUebernehmen();
         $this->notfallUebernehmen();
+        $this->filmUebernehmen();
         $kamera = $this->kamera();
         if ($kamera === '') {
             $this->SetReceiveDataFilter(FrigateHubTopics::sperrfilter());
@@ -396,6 +400,8 @@ class FrigateHubKamera extends IPSModule
     public function PushTesten(): string
     {
         $text = $this->pushSenden('🔔 ' . IPS_GetName($this->InstanceID), FrigateHubText::t('Test message from FrigateHub – this is what an alert looks like.'), true);
+        // Film der letzten Sekunden: zeigt, wie die zweite E-Mail aussieht
+        $this->filmVormerken((float)time() - max(FrigateHubFilm::SEKUNDEN_MIN, $this->ReadPropertyInteger('PushFilmSekunden')), IPS_GetName($this->InstanceID), FrigateHubText::t('Test message from FrigateHub – this is what an alert looks like.'));
         $this->UpdateFormField('Pushstatus', 'caption', $this->pushstatus());
         return $text;
     }
@@ -699,6 +705,7 @@ class FrigateHubKamera extends IPSModule
                     ['type' => 'Select', 'name' => 'PushTon', 'caption' => 'Sound', 'options' => $this->tonOptionen()],
                     ['type' => 'NumberSpinner', 'name' => 'PushPause', 'caption' => 'Minimum interval between two notifications', 'suffix' => 's', 'minimum' => 0, 'maximum' => 3600],
                     ['type' => 'CheckBox', 'name' => 'PushKI', 'caption' => 'Follow up the alert with Frigate\'s AI assessment (GenAI) and report suspicious detections'],
+                    ...$this->filmFormular(),
                     ['type' => 'Label', 'name' => 'Pushstatus', 'caption' => $this->pushstatus()],
                     ['type' => 'Button', 'caption' => 'Send test message', 'onClick' => 'echo FRIG_PushTesten($id);'],
                     ['type' => 'Label', 'caption' => 'For alarm systems and rules (e.g. OpenHomeAlarm, DG65-Toolkit Automat, scripts): FRIG_MeldungMitSchnappschuss($id, "Text", true) sends a notification with the current camera image to the same targets — in Symcon actions as "Run instance function". Empty text: "Last object"; false instead of true: last snapshot instead of live image.'],
@@ -1208,6 +1215,7 @@ class FrigateHubKamera extends IPSModule
         }
         $this->WriteAttributeString('LetzterPush', (string)json_encode(['id' => $id, 'zeit' => time()]));
         $this->pushSenden('🚨 ' . IPS_GetName($this->InstanceID), $text, true);
+        $this->filmVormerken((float)time(), IPS_GetName($this->InstanceID), $text);
     }
 
     private function senden(string $topic, string $payload): bool

@@ -426,12 +426,12 @@ $alle = labels($form['elements']);
 check('Zweck-Panel oben', $form['elements'][0]['name'] ?? null, 'PurposeIntroPanel');
 check('News-Panel danach', $form['elements'][1]['name'] ?? null, 'NewsPanel');
 $news = json_encode($form['elements'][1] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-check('News: Bitte der neuesten Version mit Bitte (0.21.0, Person liegt)', strpos($news, 'Hast du „Person liegt / Sturz“ eingeschaltet') !== false && strpos($news, 'Sieht eine deiner Kameras') === false, true);
+check('News: Bitte der neuesten Version mit Bitte (0.22.0, Film)', strpos($news, 'Hast du den Film per E-Mail ausprobiert') !== false && strpos($news, 'Person liegt / Sturz“ eingeschaltet') === false, true);
 check('News: Forums-Knopf', strpos($news, 'community.symcon.de/t/144813') !== false, true);
 check('News: Verstanden-Knopf bleibt', strpos($news, '_AckNews($id);') !== false, true);
 $k->WriteAttributeString('SeenNews', '0.19.9');
 $news2 = json_encode($k->form()['elements'][1] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-check('News: mehrere offen → nur die Bitte der neuesten', [strpos($news2, 'Person liegt / Sturz“ eingeschaltet') !== false, strpos($news2, 'Sieht eine deiner Kameras') === false], [true, true]);
+check('News: mehrere offen → nur die Bitte der neuesten', [strpos($news2, 'Hast du den Film per E-Mail ausprobiert') !== false, strpos($news2, 'Sieht eine deiner Kameras') === false], [true, true]);
 $k->WriteAttributeString('SeenNews', '');
 check('Lizenz-Panel unten', end($form['elements'])['caption'] ?? null, '🧡  Über dieses Modul');
 check('Empfangsstatus live', count(array_filter($alle, fn ($l) => strpos($l, '✅ Zuletzt Nachricht von Frigate') === 0)), 1);
@@ -682,6 +682,92 @@ $gepusht = [];
 $text = $m->MeldungMitSchnappschuss('x', false);
 check('Kachel lehnt Ziel-Objekt ab: Rückfall ohne Ziel', [array_column($gepusht, 6), strpos($text, '✅') === 0], [[22, 0], true]);
 TestPush::$zielAblehnen = false;
+
+/* =================================================================== Film nach dem Foto (0.22.0) */
+
+$F = 'FrigateHubFilm';
+$a = $F::auftrag($F::GIF, 1800000000.0, 15, 1800000000.0, 'Haustür', 'Person');
+check('Film: Fenster ab 3 s vor dem Alarm', [$a['start'], $a['ende'], $a['faellig']], [1799999997, 1800000012, 1800000017]);
+$c = $F::auftrag($F::MP4, 1800000000.0, 500, 1800000000.0, 'x', 'y');
+check('Film: Clip begrenzt auf 60 s, holt 25 s nach Ende', [$c['ende'] - $c['start'], $c['faellig'] - $c['ende']], [60, 25]);
+check('Film: Ereignis in der Vergangenheit → sofort fällig', $F::auftrag($F::GIF, 1000.0, 15, 5000.0, '', '')['faellig'], 5000);
+check('Film: GIF-Pfad', $F::pfad('Door Cam', $a, 1800000000.0), '/api/Door%20Cam/start/1799999997/end/1800000012/preview.gif');
+check('Film: Clip-Pfad', $F::pfad('Door-Cam', $c, 1800000000.0), '/api/Door-Cam/start/1799999997/end/1800000057/clip.mp4');
+$stunde = 1800000000 - (1800000000 % 3600);
+$ueber = ['art' => $F::GIF, 'start' => $stunde - 5, 'ende' => $stunde + 10, 'versuch' => 1];
+check('Film: GIF über die volle Stunde, 2. Versuch ab Stundenbeginn', $F::pfad('c', $ueber, (float)$stunde + 20), '/api/c/start/' . $stunde . '/end/' . ($stunde + 10) . '/preview.gif');
+check('Film: 1. Versuch unverändert', $F::pfad('c', ['versuch' => 0] + $ueber, (float)$stunde + 20), '/api/c/start/' . ($stunde - 5) . '/end/' . ($stunde + 10) . '/preview.gif');
+$n = $F::nochmal($a, 1800000020.0);
+check('Film: neuer Versuch in 30 s', [$n['versuch'], $n['faellig']], [1, 1800000050]);
+check('Film: nach 3 Versuchen aufgeben', $F::nochmal($F::nochmal($n, 0.0), 0.0), null);
+check('Film: GIF erkannt', [$F::pruefen($F::GIF, 'GIF89a...'), $F::pruefen($F::GIF, '<html>'), $F::pruefen($F::GIF, '')], ['', 'not a GIF', 'empty']);
+check('Film: MP4 erkannt', [$F::pruefen($F::MP4, "\0\0\0\x20ftypisom"), $F::pruefen($F::MP4, 'GIF89a')], ['', 'not an MP4']);
+check('Film: zu groß', $F::pruefen($F::MP4, "\0\0\0\x20ftyp" . str_repeat('x', $F::MAX_BYTES)), 'too large');
+
+// Kamera: Alarm → Foto sofort, Film per Timer an die SMTP-Ziele
+$f = new TestKamera(23);
+IPSTestState::$instances[23] = ['InstanceID' => 23, 'Name' => 'Garten', 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$f->Create();
+$f->props(['Camera' => 'Garden', 'ApiUrl' => 'http://127.0.0.1:5000', 'PushZiele' => json_encode([['Ziel' => 30], ['Ziel' => 33]]), 'PushPause' => 0]);
+$f->ApplyChanges();
+check('Film: Standard aus', [$f->ReadPropertyInteger('PushFilm'), $f->timers['Film']['interval']], [0, 0]);
+$review = function (string $id) use ($f): void {
+    $f->ReceiveData(paket('frigate/reviews', (string)json_encode(['type' => 'new', 'before' => [], 'after' => [
+        'id' => $id, 'camera' => 'Garden', 'severity' => 'alert', 'start_time' => time(),
+        'data' => ['objects' => ['person'], 'zones' => [], 'audio' => [], 'sub_labels' => []]]])));
+};
+$gepusht = [];
+$review('f1');
+check('Film aus: kein Timer, nur die gewohnten Meldungen', [$f->timers['Film']['interval'], array_column($gepusht, 0)], [0, ['VISU', 'MAILTEXT']]);
+check('Film: Formular hat Auswahl und Status', [strpos(json_encode($f->form(), JSON_UNESCAPED_UNICODE), 'Film für E-Mail-Ziele (zweite E-Mail nach dem Foto)') !== false,
+    in_array('Noch kein Film verschickt.', labels($f->form()['elements']), true)], [true, true]);
+
+$f->props(['PushFilm' => FrigateHubFilm::GIF, 'PushFilmSekunden' => 10]);
+$f->ApplyChanges();
+$gepusht = [];
+$review('f2');
+check('Film GIF: Timer etwa 12 s (10 s Film − 3 s Vorlauf + 5 s Puffer)', in_array($f->timers['Film']['interval'], [11000, 12000, 13000], true), true);
+check('Film GIF: Foto-Meldung kommt trotzdem sofort', array_column($gepusht, 0), ['VISU', 'MAILTEXT']);
+$review('f3');
+$auftrag = json_decode($f->GetBuffer('Film'), true);
+check('Film: zweiter Alarm überschreibt den offenen Auftrag nicht', $auftrag['text'] !== '' && strpos($auftrag['titel'], 'Garten') !== false, true);
+$pfad = FrigateHubFilm::pfad('Garden', $auftrag, (float)time());
+TestKamera::$api = [$pfad => 'GIF89a' . str_repeat('x', 2000)];
+$gepusht = [];
+$status = $f->FilmSenden();
+$gif = @IPS_GetObjectIDByIdent('Meldungsgif', 23);
+check('Film GIF: nur an SMTP, mit Medium', [array_column($gepusht, 0), $gepusht[0][1] ?? null, $gepusht[0][4] ?? null, strpos($gepusht[0][2] ?? '', '🎞 ') === 0], [['MAIL'], 33, $gif, true]);
+check('Film GIF: Medium als Dokument .gif, versteckt', [IPSTestState::$media[$gif]['type'], substr(IPSTestState::$media[$gif]['file'], -4), IPSTestState::$media[$gif]['hidden'] ?? null], [5, '.gif', true]);
+check('Film GIF: Text nennt Länge', strpos($gepusht[0][3], 'Bewegtes Bild von 10 s im Anhang.') !== false, true);
+check('Film GIF: Status ✅, Timer aus, Auftrag erledigt', [strpos($status, '✅') === 0, $f->timers['Film']['interval'], $f->GetBuffer('Film')], [true, 0, '']);
+
+$f->props(['PushFilm' => FrigateHubFilm::MP4]);
+$f->ApplyChanges();
+$review('f4');
+TestKamera::$api = [];
+$gepusht = [];
+$f->FilmSenden();
+check('Film MP4: noch nicht da → neuer Versuch in 30 s, keine Mail', [$f->timers['Film']['interval'], $gepusht], [30000, []]);
+$auftrag = json_decode($f->GetBuffer('Film'), true);
+TestKamera::$api = [FrigateHubFilm::pfad('Garden', $auftrag, (float)time()) => "\0\0\0\x20ftypisom" . str_repeat('x', 5000)];
+$f->FilmSenden();
+$clip = @IPS_GetObjectIDByIdent('Meldungsclip', 23);
+check('Film MP4: zweiter Versuch klappt, eigenes Medium .mp4', [array_column($gepusht, 0), $gepusht[0][4] ?? null, substr(IPSTestState::$media[$clip]['file'], -4)], [['MAIL'], $clip, '.mp4']);
+$review('f5');
+TestKamera::$api = [];
+$f->FilmSenden();
+$f->FilmSenden();
+$gepusht = [];
+$status = $f->FilmSenden();
+check('Film: nach 3 Versuchen aufgegeben, Status ⛔', [strpos($status, '⛔') === 0, $f->GetBuffer('Film'), $gepusht, $f->timers['Film']['interval']], [true, '', [], 0]);
+$f->props(['PushZiele' => json_encode([['Ziel' => 30]])]);
+$f->ApplyChanges();
+$review('f6');
+check('Film: ohne SMTP-Ziel nichts vorgemerkt', [$f->GetBuffer('Film'), $f->timers['Film']['interval']], ['', 0]);
+$f->props(['PushFilm' => FrigateHubFilm::AUS, 'PushZiele' => json_encode([['Ziel' => 33]])]);
+$f->ApplyChanges();
+check('Film: Ausschalten löscht Timer', $f->timers['Film']['interval'], 0);
+TestKamera::$api = [];
 
 /* =================================================================== OpenHomeAlarm (optional) */
 

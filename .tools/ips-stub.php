@@ -33,6 +33,7 @@ define('VARIABLE_PRESENTATION_ENUMERATION', 'ENUMERATION');
 define('VARIABLE_PRESENTATION_VALUE_INPUT', 'VALUE_INPUT');
 define('VARIABLE_PRESENTATION_DATE_TIME', 'DATE_TIME');
 define('MEDIATYPE_IMAGE', 1);
+define('MEDIATYPE_DOCUMENT', 5);
 define('KR_READY', 10103);
 define('IPS_KERNELMESSAGE', 10100);
 
@@ -213,6 +214,13 @@ function IPS_SetIdent(int $id, string $ident): void
 function IPS_SetMediaFile(int $id, string $file, bool $mustExist): void
 {
     IPSTestState::$media[$id]['file'] = $file;
+}
+
+function IPS_SetHidden(int $id, bool $hidden): void
+{
+    if (isset(IPSTestState::$media[$id])) {
+        IPSTestState::$media[$id]['hidden'] = $hidden;
+    }
 }
 
 function IPS_SetMediaCached(int $id, bool $cached): void

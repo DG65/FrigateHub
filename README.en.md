@@ -124,6 +124,14 @@ notification. What counts as an alert is set in Frigate (`review: alerts: labels
 Push notifications cannot carry an image – tapping opens the camera tile; an SMTP target sends the
 current camera image by e-mail.
 
+**Film after the photo (from 0.22):** “Film for e-mail targets” additionally sends a short **moving
+image (GIF)** or **video clip (MP4)** of the alert, 5–60 s starting 3 s before it. A Symcon e-mail
+carries exactly one attachment, so the photo still arrives immediately and the film follows as a second
+e-mail as soon as Frigate can deliver it (GIF a few seconds after the film length, clip about half a
+minute later). The GIF is small and plays directly in most mail programs; the clip has full resolution,
+needs recording enabled and is not sent above 15 MB. “Person lying / fall” sends the film too. Off by
+default, needs the Frigate address.
+
 `FRIG_MeldungMitSchnappschuss($id, "Text", true)` sends a notification with the current camera image
 to the same targets – usable as an action in alarm systems and rules.
 
