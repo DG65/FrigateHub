@@ -112,7 +112,8 @@
   y = Unterkante, ungekürzt. Audio-Labels: yell (enthält Schreien), crying, groan, gasp, thump, bang, smash, breaking, slam.
   Konzept Nextcloud/Claude/FrigateHub-Notfall-Konzept.md. Schwellen ungetestet an echten Stürzen — erst messen, dann anpassen.
 - Film nach dem Foto (0.22.0): `libs/FrigateHubFilm.php` + Trait `FrigateHubKameraFilm`; zweite E-Mail (GIF/MP4) nur an SMTP-Ziele, weil Symcon je Mail genau ein Medium anhängt. Live noch ungetestet (Medium Typ Dokument, gecacht).
-- Licht bei Erkennung (0.23.0): `libs/FrigateHubLicht.php` + Trait `FrigateHubKameraLicht`. Kameralicht über ISAPI `supplementLight` (Annke I91DQ live 12.11.: Modi eventIntelligence/colorVuWhiteLight/irLight/close, PUT ganzer XML-Inhalt mit neuem Modus, Digest). Kamera hat KEIN Zoom/PTZ (PTZCtrl 500, Fokus fest). Kamerazugang aus `/api/config/raw` (go2rtc braucht `/` im Passwort als `%2F`). Standort-Modul `{45E97A63-…}` Variable `IsDay`.
+- Licht bei Erkennung (0.23.0): `libs/FrigateHubLicht.php` + Trait `FrigateHubKameraLicht`. Kameralicht über ISAPI `supplementLight` (Annke I91DQ live 12.11.: Modi eventIntelligence/colorVuWhiteLight/irLight/close, PUT ganzer XML-Inhalt mit neuem Modus, Digest). Zoom NICHT über ISAPI-PTZCtrl (500), aber über ONVIF: Frigate meldet `zoom`/`focus` (12.11. live; Datenblatt: Motor-Varioobjektiv 2,8–12 mm). Keine Sirene/kein Blitzlicht beim Dome I91DQ (AudioAlarm/whiteLightAlarm notSupport). Kamerazugang aus `/api/config/raw` (go2rtc braucht `/` im Passwort als `%2F`). Standort-Modul `{45E97A63-…}` Variable `IsDay`.
+- Kachel-Farbschema (0.23.1): `farbschema()` in beiden module.html liest `--card-color`/`--content-color` (SUITE.md Stolperstein 30, Vorlage RoboHub 0.37.6), Klasse `hell` auf `<html>`; `prefers-color-scheme` nur Rückfall.
 - Schalter: `RequestAction` sendet `…/set` (QoS 0, nie retain) und setzt den Wert NICHT; der kommt
   über `…/state`. Ident→Schlüssel im Attribut `Schalter`.
 

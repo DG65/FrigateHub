@@ -14,12 +14,10 @@
             --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        @media (prefers-color-scheme: light) {
-            :root {
-                --box: rgba(20, 30, 45, .06);
-                --text: #1b2430;
-                --textmuted: #5c6b7a;
-            }
+        :root.hell {
+            --box: rgba(20, 30, 45, .06);
+            --text: #1b2430;
+            --textmuted: #5c6b7a;
         }
 
         html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
@@ -28,7 +26,7 @@
         .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
         body.eigen { background: #15191e; }
         body.eigen .wrap, body.eigen .gross .oben { padding-top: 10px; }
-        @media (prefers-color-scheme: light) { body.eigen { background: #f4f6f8; } }
+        :root.hell body.eigen { background: #f4f6f8; }
         .kopf { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--textmuted); min-height: 18px; }
         .kopf b { color: var(--text); font-size: 14px; }
         .raster { flex: 1 1 auto; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); grid-auto-rows: minmax(90px, 1fr); overflow: auto; }
@@ -62,6 +60,35 @@
     </div>
 
     <script>
+        // Hell/dunkel aus Symcons Kartenfarbe (html-sdk setzt --card-color/--content-color auf :root, SUITE.md
+        // Stolperstein 30); prefers-color-scheme passt nicht zur Visualisierung. Rückfall: Geräteeinstellung.
+        function helligkeit(wert) {
+            var t = String(wert || '').trim();
+            var rgb = t.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i);
+            if (rgb) { return (0.299 * rgb[1] + 0.587 * rgb[2] + 0.114 * rgb[3]) / 255; }
+            var h = t.replace(/^#/, '');
+            if (!/^[0-9a-f]+$/i.test(h)) { return null; }
+            if (h.length === 3) { h = h.replace(/(.)/g, '$1$1'); }
+            // 8-stellig: führendes „ff" = AARRGGBB (Flutter-Farbe, deckend), sonst RRGGBBAA
+            if (h.length === 8) { h = /^ff/i.test(h) ? h.slice(2) : h.slice(0, 6); }
+            if (h.length !== 6) { return null; }
+            var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        }
+        function farbschema() {
+            var hell = null;
+            try {
+                var cs = getComputedStyle(document.documentElement);
+                var karte = helligkeit(cs.getPropertyValue('--card-color'));
+                var text = helligkeit(cs.getPropertyValue('--content-color'));
+                if (karte !== null) { hell = karte >= 0.5; } else if (text !== null) { hell = text < 0.5; }
+            } catch (e) { /* ohne Symcon-Variablen */ }
+            if (hell === null && window.matchMedia) { hell = window.matchMedia('(prefers-color-scheme: light)').matches; }
+            document.documentElement.classList.toggle('hell', !!hell);
+        }
+        farbschema();
+        window.addEventListener('load', farbschema);
+        setInterval(farbschema, 5000);
         var daten = null;
         var timer = null;
         var gross = null;          // Kamera in der Großansicht ('' = Birdseye)

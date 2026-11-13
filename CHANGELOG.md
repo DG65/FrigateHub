@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.1 (Build 47) — 13.11.2026
+
+- **Kacheln hell/dunkel nach Symcons Visualisierung (SUITE.md Stolperstein 30):** Kamera- und Server-Kachel lesen das Farbschema aus Symcons Kartenfarbe (`--card-color`, ersatzweise `--content-color`, die html-sdk.js auf `:root` setzt) statt aus der Geräteeinstellung (`prefers-color-scheme`). Vorher konnte bei heller Visualisierung und dunklem Gerät (oder umgekehrt) helle Schrift auf hellem Grund stehen. 8-stellige Werte mit führendem `ff` gelten als AARRGGBB, auch `rgb()` wird gelesen; ohne Symcon-Variablen (eigenständige Seite für IPSView) bleibt die Geräteeinstellung der Rückfall. Prüfung alle 5 s, damit ein Wechsel des Schemas ohne Neuladen greift.
+
 ## 0.23.0 (Build 46) — 12.11.2026
 
 - **Licht bei Erkennung (neu, Auftrag Dietmar 12.11.2026):** Panel „Licht bei Erkennung“ je Kamera, standardmäßig aus. Frigate erkennt eine Person (Objekte und Zonen wählbar) → Licht an, nach der Nachlaufzeit (Standard 60 s) zurück in den Zustand von vorher. Standardmäßig nur bei Dunkelheit (Symcon-Standort, Variable `IsDay`; ohne Standort-Modul immer).
