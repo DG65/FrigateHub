@@ -615,5 +615,39 @@ $enDaten = $k->daten()['texte'] ?? [];
 check('Kachel-Daten: Übersetzungstabelle dabei, Sprache deutsch', [count($enDaten) === count($enKachel), $enDaten['language code: en'] ?? null, $enDaten['📅 Archive'] ?? null],
     [true, getenv('FRIGATEHUB_SPRACHE') === 'en' ? 'language code: en' : 'de', getenv('FRIGATEHUB_SPRACHE') === 'en' ? '📅 Archive' : '📅 Archiv']);
 
+
+/* =================================================================== Zeitleiste der Übersichtskachel (0.24.0) */
+
+$Z = 'FrigateHubZeitleiste';
+$j = 1800000000;
+check('Fenster: gültig', $Z::fenster(($j - 3600) . '-' . $j, $j), [$j - 3600, $j]);
+check('Fenster: zu lang, verkehrt, Zukunft', [$Z::fenster(($j - 100000) . '-' . $j, $j), $Z::fenster($j . '-' . ($j - 5), $j), $Z::fenster(($j + 10) . '-' . ($j + 20), $j)], [null, null, null]);
+check('Fenster: Ende höchstens 60 s nach jetzt', $Z::fenster(($j - 60) . '-' . ($j + 3600), $j), [$j - 60, $j + 60]);
+check('Fenster: Unsinn', $Z::fenster('1-2;x', $j), null);
+$stuecke = [['start_time' => 100.2, 'end_time' => 110.1], ['start_time' => 110.5, 'end_time' => 120.0], ['start_time' => 150, 'end_time' => 160], ['start_time' => 300, 'duration' => 10], ['kaputt' => 1]];
+check('Abdeckung: kleine Lücken zusammen, große getrennt, Dauer statt Ende', $Z::abdeckung($stuecke, 0, 1000), [[100, 120], [150, 160], [300, 310]]);
+check('Abdeckung: am Fenster abgeschnitten', $Z::abdeckung($stuecke, 105, 155), [[105, 120], [150, 155]]);
+$rev = [
+    ['id' => '1800000000.1-abc', 'start_time' => 1799999000.5, 'end_time' => 1799999030.2, 'severity' => 'alert', 'data' => ['objects' => ['person'], 'zones' => ['Weg']]],
+    ['id' => '1799990000.1-def', 'start_time' => 1799990000, 'end_time' => null, 'severity' => 'detection', 'data' => ['objects' => ['car']]],
+    ['id' => 'kaputt', 'start_time' => 1],
+];
+$ev = $Z::ereignisse($rev, $j - 20000, $j);
+check('Ereignisse: sortiert, Alarm erkannt, laufend ohne Ende, Zonen', [count($ev), $ev[0]['s'], $ev[0]['e'], $ev[0]['a'], $ev[1]['a'], $ev[1]['e'], $ev[1]['z']], [2, 1799990000, null, false, true, 1799999031, ['Weg']]);
+check('Ereignisse: Text mit Objekt', strpos($ev[1]['t'], 'Person') !== false, true);
+check('Ereignisse: beendetes außerhalb fällt weg, laufendes bleibt', array_column($Z::ereignisse($rev, $j - 500, $j), 'id'), ['1799990000.1-def']);
+
+$jetzt = time();
+$von = $jetzt - 3600;
+TestKachel::$api['/api/Door-Cam/recordings?after=' . $von . '&before=' . $jetzt] = [['start_time' => $von + 10, 'end_time' => $von + 20], ['start_time' => $von + 21, 'end_time' => $von + 30]];
+TestKachel::$api['/api/review?cameras=Door-Cam&after=' . $von . '&before=' . $jetzt . '&limit=1000'] = [['id' => ($von + 100) . '.5-xyz', 'start_time' => $von + 100, 'end_time' => $von + 110, 'severity' => 'alert', 'data' => ['objects' => ['person']]]];
+$a = $k->hook(['k' => $k->ReadAttributeString('HookSchluessel'), 'zeitleiste' => $von . '-' . $jetzt]);
+$z = json_decode($a['inhalt'], true);
+check('Hook Zeitleiste: Aufnahme und Ereignis', [$a['code'], $z['aufnahme'], count($z['ereignisse']), $z['ereignisse'][0]['a'] ?? null], [200, [[$von + 10, $von + 30]], 1, true]);
+check('Hook Zeitleiste: falsches Fenster 404', $k->hook(['k' => $k->ReadAttributeString('HookSchluessel'), 'zeitleiste' => 'x'])['code'], 404);
+check('Hook Zeitleiste: ohne Schlüssel 403', $k->hook(['zeitleiste' => $von . '-' . $jetzt])['code'], 403);
+$zg = json_decode($k->KachelZugang(), true);
+check('KachelZugang: Hook, Schlüssel, Fähigkeiten', [$zg['hook'], $zg['k'] === $k->ReadAttributeString('HookSchluessel'), array_keys($zg)], ['/hook/frigatehub1', true, ['hook', 'k', 'api', 'video', 'ptz']]);
+
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

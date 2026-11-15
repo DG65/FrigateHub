@@ -93,8 +93,12 @@ instance therefore checks every minute via Frigate's API (needs the Frigate addr
 Notifications go to the tile visualization, WebFront or e-mail: on every new fault, as a daily
 reminder and as all-clear. After an intended disk change click “Accept current storage”.
 
-**Overview of all cameras:** The **Frigate server** instance is also a tile with the live images of
-all cameras of this Frigate instance and Birdseye, if Frigate provides it.
+**Overview of all cameras with timeline (from 0.24):** The **Frigate server** instance is also a tile for all
+cameras: a grid with the live images, each camera large (live video if the camera instance supports it) and a
+timeline with one lane per camera — grey = recording, blue = detection, red = alert. Zoom 24 h, 6 h, 1 h, 10 min
+(also mouse wheel and two fingers), drag to go back in time. Tap a lane to play that camera's recording from
+that moment, tap an event to play it; “● Live” returns to live. On a new alert the tile shows the camera large
+for 60 seconds. Also available as a standalone page for IPSView.
 
 **IPSView and browser:** The same interface is available as a standalone page
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<key>` – embed it in IPSView as a web page

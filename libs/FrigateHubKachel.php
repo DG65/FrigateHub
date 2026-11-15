@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/FrigateHubZeitleiste.php';
+
 /**
  * Kachel der Frigate-Kamera (HTML-SDK, module.html) und der WebHook, über den sie ihre Bilder holt.
  *
@@ -120,6 +122,10 @@ trait FrigateHubKachel
         }
         if (isset($get['ablauf'])) {
             $this->hookAblauf((string)$get['ablauf'], (string)($get['bereich'] ?? ''));
+            return;
+        }
+        if (isset($get['zeitleiste'])) {
+            $this->hookZeitleiste((string)$get['zeitleiste']);
             return;
         }
         if (isset($get['zeitraum'])) {
@@ -330,6 +336,55 @@ trait FrigateHubKachel
         $stuecke = $z === null ? [] : FrigateHubTopics::stuecke((array)($this->apiHolen('/api/' . rawurlencode($this->kamera())
             . '/recordings?after=' . $z[0] . '&before=' . $z[1]) ?? []), $z[0], $z[1]);
         $this->hookAntwort(200, $json, (string)json_encode(['objekte' => $objekte, 'stuecke' => $stuecke], JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Zeitleiste der Übersichtskachel (0.24.0): Aufnahme-Abschnitte und Ereignisse im Fenster „von-bis".
+     * Die Kachel der Server-Instanz fragt jede Kamera über deren eigenen WebHook ab.
+     */
+    private function hookZeitleiste(string $fenster): void
+    {
+        $json = ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'];
+        $f = FrigateHubZeitleiste::fenster($fenster, time());
+        $kamera = $this->kamera();
+        if ($this->apiUrl() === '' || $kamera === '' || $f === null) {
+            $this->hookAntwort(404, $json, (string)json_encode(['aufnahme' => [], 'ereignisse' => []]));
+            return;
+        }
+        [$von, $bis] = $f;
+        // 26 h Daueraufnahme sind ~9300 Teilstücke, ~3 MB (live 15.11.2026: 0,4 s) — großzügiges Zeitlimit
+        $vorher = $this->apiZeitlimit;
+        $this->apiZeitlimit = 20;
+        $aufnahmen = $this->apiHolen('/api/' . rawurlencode($kamera) . '/recordings?after=' . $von . '&before=' . $bis);
+        $reviews = $this->apiHolen('/api/review?cameras=' . rawurlencode($kamera) . '&after=' . $von . '&before=' . $bis . '&limit=1000');
+        $this->apiZeitlimit = $vorher;
+        if ($aufnahmen === null && $reviews === null) {
+            $this->hookAntwort(502, $json, (string)json_encode(['fehler' => $this->apiFehlerText()], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        $this->hookAntwort(200, $json, (string)json_encode([
+            'von'        => $von,
+            'bis'        => $bis,
+            'aufnahme'   => FrigateHubZeitleiste::abdeckung((array)$aufnahmen, $von, $bis),
+            'ereignisse' => FrigateHubZeitleiste::ereignisse((array)$reviews, $von, $bis),
+        ], JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * FRIG_KachelZugang($id): WebHook-Adresse, Schlüssel und Livevideo-Fähigkeit dieser Kamera als JSON —
+     * für die Übersichtskachel der Server-Instanz, die Livevideo, Clips und Zeitleiste darüber holt.
+     */
+    public function KachelZugang(): string
+    {
+        $api = $this->apiUrl() !== '' && $this->kamera() !== '';
+        $ptz = json_decode($this->ReadAttributeString('Ptz'), true);
+        return (string)json_encode([
+            'hook'  => $this->hookPfad(),
+            'k'     => $this->ReadAttributeString('HookSchluessel'),
+            'api'   => $api,
+            'video' => $api && $this->ReadPropertyBoolean('KachelVideo') && $this->ReadAttributeString('Livestream') !== '',
+            'ptz'   => is_array($ptz) && $ptz !== [],
+        ]);
     }
 
     /** Aufnahme eines Zeitraums („start-ende", Unix-Sekunden) als Clip, wie hookClip. */

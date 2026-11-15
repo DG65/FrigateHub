@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.24.0 (Build 48) — 15.11.2026
+
+- **Neue Übersichtskachel (Stufe 1 „Videorekorder“, Auftrag Dietmar 15.11.2026):** Die Kachel der Server-Instanz zeigt alle Kameras (Raster), jede Kamera groß (Livevideo per WebRTC, sonst Livebild jede Sekunde, Umschalten zwischen den Kameras) und darunter eine **Zeitleiste** mit einer Spur je Kamera: Aufnahme (grau), Erkennungen (blau), Alarme (rot). Zoom 24 h / 6 h / 1 h / 10 min, Mausrad und zwei Finger, Ziehen in die Vergangenheit, „⏭“ zurück zu jetzt. Beim Öffnen die letzten 24 h.
+- **Wiedergabe:** Tipp auf eine Spur spielt die Aufnahme dieser Kamera ab der Stelle (Stücke à 60 s, laufen von selbst weiter), Tipp auf ein Ereignis dessen ganzen Zeitraum. Abspielpunkt in der Zeitleiste, „● Live“ zurück zum Livebild.
+- **Alarm:** Bei einem neuen Alarm springt die Kachel 60 s auf die Kamera mit Alarm (groß) und kehrt dann zurück; jede Bedienung beendet den Rücksprung. Während einer Wiedergabe springt sie nicht.
+- Technik: Die Kachel holt Livevideo, Clips und Zeitleiste über den WebHook der jeweiligen Kamera-Instanz (neu `FRIG_KachelZugang()` und Hook-Parameter `zeitleiste=von-bis`, höchstens 26 h). Logik in `libs/FrigateHubZeitleiste.php`. Live gemessen 15.11.2026: 26 h Daueraufnahme = ~9300 Teilstücke, 3,3 MB, 0,4 s; beim Folgen lädt die Kachel nur das neue Ende nach.
+- Prüfstand: 13 neue Prüfungen in `.tools/test-kachel.php`; Kachel im Browser mit nachgebauten Daten geprüft (Desktop und Handy, Zoom, Ziehen, Wiedergabe, Alarm-Sprung und Rückkehr nach 60 s).
+
 ## 0.23.1 (Build 47) — 13.11.2026
 
 - **Kacheln hell/dunkel nach Symcons Visualisierung (SUITE.md Stolperstein 30):** Kamera- und Server-Kachel lesen das Farbschema aus Symcons Kartenfarbe (`--card-color`, ersatzweise `--content-color`, die html-sdk.js auf `:root` setzt) statt aus der Geräteeinstellung (`prefers-color-scheme`). Vorher konnte bei heller Visualisierung und dunklem Gerät (oder umgekehrt) helle Schrift auf hellem Grund stehen. 8-stellige Werte mit führendem `ff` gelten als AARRGGBB, auch `rgb()` wird gelesen; ohne Symcon-Variablen (eigenständige Seite für IPSView) bleibt die Geräteeinstellung der Rückfall. Prüfung alle 5 s, damit ein Wechsel des Schemas ohne Neuladen greift.

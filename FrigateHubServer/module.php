@@ -39,7 +39,7 @@ class FrigateHubServer extends IPSModule
     private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person'];
 
     /** Alle Texte der Übersichtskachel (module.html, Funktion T); übersetzt in den Kacheldaten als „texte“. */
-    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s'];
+    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now'];
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -392,7 +392,17 @@ class FrigateHubServer extends IPSModule
         foreach ($this->kameraNamen() as $name) {
             $s = $stats['cameras'][$name] ?? [];
             $id = $instanzen[$name] ?? null;
+            // Zugang der Kamera-Instanz (WebHook + Schlüssel): Livevideo, Clips und Zeitleiste holt die Kachel dort
+            $zugang = null;
+            if ($id !== null && function_exists('FRIG_KachelZugang')) {
+                try {
+                    $zugang = json_decode((string)@FRIG_KachelZugang($id), true);
+                } catch (Throwable $e) {
+                    $zugang = null;
+                }
+            }
             $kameras[] = [
+                'zugang'     => is_array($zugang) ? $zugang : null,
                 'kamera'     => $name,
                 'name'       => $id !== null ? IPS_GetName($id) : $name,
                 'online'     => $wert($id, 'Online') ?? (is_numeric($s['camera_fps'] ?? null) ? (float)$s['camera_fps'] > 0 : null),
@@ -408,6 +418,8 @@ class FrigateHubServer extends IPSModule
             'k'          => $this->ReadAttributeString('HookSchluessel'),
             'api'        => $this->apiUrl() !== '',
             'takt'       => max(1, min(60, $this->ReadPropertyInteger('KachelTakt'))),
+            'alarmSprung' => 60,
+            'stunden'    => 24,
             'birdseye'   => $this->ReadAttributeBoolean('Birdseye'),
             'verfuegbar' => @$this->GetIDForIdent('Verfuegbar') !== false ? $this->GetValue('Verfuegbar') : null,
             'kameras'    => $kameras,

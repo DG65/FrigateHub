@@ -1,0 +1,8 @@
+{
+  "● Live": "● Live",
+  "Back to live": "Zurück zum Livebild",
+  "▦ All cameras": "▦ Alle Kameras",
+  "now": "jetzt",
+  "💬 How do you like the new overview tile with timeline? Please tell me in the forum what works and what you are missing — layouts to choose from and “follow a person” are next.": "💬 Wie gefällt dir die neue Übersichtskachel mit Zeitleiste? Schreib mir bitte im Forum, was gut läuft und was dir fehlt – als Nächstes kommen wählbare Ansichten und „Person folgen“.",
+  "• 🎞 New overview tile (Frigate server instance): all cameras, each camera large with live video, and a timeline with zoom (24 h to 10 min) showing recordings, detections and alerts of every camera. Tap the timeline to play the recording from that moment; on a new alert the tile shows the camera large for 60 seconds.": "• 🎞 Neue Übersichtskachel (Instanz Frigate-Server): alle Kameras, jede Kamera groß mit Livevideo und eine Zeitleiste mit Zoom (24 h bis 10 min) mit Aufnahmen, Erkennungen und Alarmen aller Kameras. Ein Tipp auf die Zeitleiste spielt die Aufnahme ab dieser Stelle; bei einem neuen Alarm zeigt die Kachel die Kamera 60 Sekunden lang groß."
+}

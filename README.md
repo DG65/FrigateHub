@@ -115,9 +115,19 @@ normal; das wertet der Wächter nicht als Fehler. Nach einem gewollten Plattenta
 „Aktuellen Speicher übernehmen". Läuft Symcon auf demselben Rechner wie Frigate, kann bei einem
 Ausfall des ganzen Rechners nichts warnen.
 
-**Übersicht aller Kameras:** Die Instanz **Frigate-Server** ist zugleich eine Kachel mit den
-Livebildern aller Kameras dieser Frigate-Instanz (Alarm, Personen, offline, gestörte Verbindung)
-und Birdseye, wenn Frigate es liefert; auch sie gibt es als eigenständige Seite für IPSView.
+**Übersicht aller Kameras mit Zeitleiste (ab 0.24):** Die Instanz **Frigate-Server** ist zugleich eine
+Kachel für alle Kameras dieser Frigate-Instanz:
+
+- **Raster** mit den Livebildern aller Kameras (Alarm, Personen, offline, gestörte Verbindung), Birdseye, wenn
+  Frigate es liefert. Ein Tipp zeigt die Kamera groß, mit Livevideo, wenn die Kamera-Instanz es kann.
+- **Zeitleiste** mit einer Spur je Kamera: graue Abschnitte = Aufnahme, blau = Erkennung, rot = Alarm.
+  Zoom 24 h, 6 h, 1 h, 10 min (auch Mausrad und zwei Finger), Ziehen blättert zurück, „⏭“ springt zu jetzt.
+- **Wiedergabe:** Ein Tipp auf eine Spur spielt die Aufnahme dieser Kamera ab dieser Stelle, ein Tipp auf ein
+  Ereignis dessen ganzen Zeitraum. „● Live“ führt zurück zum Livebild.
+- **Alarm:** Bei einem neuen Alarm zeigt die Kachel die Kamera 60 Sekunden groß und kehrt dann zurück.
+
+Livevideo, Aufnahmen und Ereignisse holt die Kachel über die Kamera-Instanzen; dafür braucht jede Kamera die
+Frigate-Adresse. Auch diese Kachel gibt es als eigenständige Seite für IPSView.
 
 **IPSView und Browser:** Dieselbe Oberfläche gibt es als eigenständige Seite
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<Schlüssel>` — in IPSView als

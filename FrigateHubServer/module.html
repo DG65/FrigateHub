@@ -3,19 +3,25 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         :root {
             --box: rgba(127, 135, 145, .16);
+            --spur: rgba(127, 135, 145, .14);
+            --aufnahme: rgba(150, 160, 172, .45);
             --text: #ffffff;
             --textmuted: #9fb0c0;
             --alarm: #e5484d;
-            --erkennung: #f5a524;
+            --erkennung: #3b8ae6;
+            --akzent: #2bb3c0;
             --ok: #3fb950;
             --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
         :root.hell {
             --box: rgba(20, 30, 45, .06);
+            --spur: rgba(20, 30, 45, .06);
+            --aufnahme: rgba(80, 95, 110, .35);
             --text: #1b2430;
             --textmuted: #5c6b7a;
         }
@@ -23,41 +29,76 @@
         html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
         body { font-family: var(--font); color: var(--text); }
         /* oben 46px frei: dort zeichnet Symcon Kacheltitel und Vergrößern-Knopf */
-        .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+        .wrap { box-sizing: border-box; height: 100%; padding: 46px 12px 8px; display: flex; flex-direction: column; gap: 6px; }
         body.eigen { background: #15191e; }
-        body.eigen .wrap, body.eigen .gross .oben { padding-top: 10px; }
+        body.eigen .wrap { padding-top: 10px; }
         :root.hell body.eigen { background: #f4f6f8; }
-        .kopf { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--textmuted); min-height: 18px; }
+        button { font: inherit; color: var(--text); background: var(--box); border: 0; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+        button.an { background: var(--akzent); color: #fff; }
+        button[hidden] { display: none; }
+        .kopf { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--textmuted); min-height: 22px; flex-wrap: wrap; }
         .kopf b { color: var(--text); font-size: 14px; }
-        .raster { flex: 1 1 auto; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); grid-auto-rows: minmax(90px, 1fr); overflow: auto; }
-        .zelle { position: relative; border-radius: 10px; overflow: hidden; background: #000; cursor: zoom-in; border: 2px solid transparent; }
+        .kopf .luecke { flex: 1 1 auto; }
+        .kopf .live { background: var(--alarm); color: #fff; }
+
+        .haupt { flex: 0 1 auto; min-height: 80px; position: relative; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+        .haupt.voll { flex: 1 1 auto; }
+        .raster { flex: 1 1 auto; display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-content: start; overflow: auto; }
+        .zelle { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; cursor: zoom-in; border: 2px solid transparent; }
         .zelle.alarm { border-color: var(--alarm); }
         .zelle.offline img { filter: grayscale(1) brightness(.5); }
         .zelle img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .zelle .name { position: absolute; left: 6px; bottom: 5px; right: 6px; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-size: 11px; }
-        .zelle .name span { background: rgba(0, 0, 0, .55); color: #fff; border-radius: 6px; padding: 1px 6px; }
-        .zelle .name .rot { background: var(--alarm); font-weight: 700; }
-        .zelle .name .gelb { background: var(--erkennung); color: #1b1300; }
+        .marken { position: absolute; left: 6px; bottom: 5px; right: 6px; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-size: 11px; pointer-events: none; }
+        .marken span { background: rgba(0, 0, 0, .55); color: #fff; border-radius: 6px; padding: 1px 6px; }
+        .marken .rot { background: var(--alarm); font-weight: 700; }
+        .marken .gelb { background: #f5a524; color: #1b1300; }
         .leer { color: var(--textmuted); font-size: 13px; padding: 8px; }
-        .gross { position: fixed; inset: 0; background: rgba(0, 0, 0, .92); display: flex; flex-direction: column; z-index: 10; }
-        .gross[hidden] { display: none; }
-        .gross .oben { display: flex; align-items: center; gap: 8px; padding: 46px 12px 10px; color: #fff; font-size: 13px; }
-        .gross .oben span { flex: 1 1 auto; }
-        .gross button { border: 1px solid rgba(255, 255, 255, .35); background: none; color: #fff; border-radius: 999px; padding: 4px 12px; font: inherit; cursor: pointer; }
-        .gross .inhalt { flex: 1 1 auto; position: relative; }
-        .gross img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+        .wahl { display: flex; gap: 5px; flex-wrap: wrap; font-size: 12px; }
+        .buehne { flex: 1 1 auto; position: relative; border-radius: 10px; overflow: hidden; background: #000; }
+        .buehne img, .buehne video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .buehne .zeit { position: absolute; left: 8px; top: 8px; font-size: 12px; color: #fff; background: rgba(0, 0, 0, .55); border-radius: 6px; padding: 2px 8px; pointer-events: none; }
+        .buehne .zeit.wg { background: rgba(43, 179, 192, .85); }
+        .buehne .hinweis { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 12px; color: #fff; pointer-events: none; }
+        .buehne .hinweis span { background: rgba(0, 0, 0, .6); border-radius: 6px; padding: 3px 10px; }
+
+        .zl { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; font-size: 11px; user-select: none; -webkit-user-select: none; }
+        .zlkopf { display: flex; align-items: center; gap: 4px; color: var(--textmuted); }
+        .zlkopf .luecke { flex: 1 1 auto; }
+        .zlkopf button { padding: 1px 8px; font-size: 11px; }
+        .spuren { position: relative; touch-action: none; cursor: grab; }
+        .spuren.zieht { cursor: grabbing; }
+        .spurzeile { display: flex; align-items: center; height: 18px; margin: 2px 0; }
+        .spurname { flex: 0 0 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--textmuted); padding-right: 6px; cursor: pointer; }
+        .spurname.aktiv { color: var(--text); font-weight: 600; }
+        .spur { position: relative; flex: 1 1 auto; height: 100%; background: var(--spur); border-radius: 4px; overflow: hidden; }
+        .auf { position: absolute; top: 6px; bottom: 6px; background: var(--aufnahme); border-radius: 2px; pointer-events: none; }
+        .ev { position: absolute; top: 2px; bottom: 2px; min-width: 3px; border-radius: 2px; background: var(--erkennung); }
+        .ev.alarm { background: var(--alarm); }
+        .kopfpunkt { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--akzent); pointer-events: none; }
+        .kopfpunkt[hidden] { display: none; }
+        .achse { position: relative; height: 13px; margin-left: 74px; color: var(--textmuted); }
+        .achse span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+        .tipp { position: absolute; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, .8); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 11px; white-space: nowrap; transform: translate(-50%, -100%); }
+        .tipp[hidden] { display: none; }
     </style>
 </head>
 
 <body>
     <div class="wrap">
         <div class="kopf" id="kopf"></div>
-        <div class="raster" id="raster"></div>
+        <div class="haupt" id="haupt"></div>
+        <div class="zl" id="zl">
+            <div class="zlkopf">
+                <span id="zlBereich"></span><span class="luecke"></span>
+                <button data-spanne="86400">24 h</button><button data-spanne="21600">6 h</button><button data-spanne="3600">1 h</button><button data-spanne="600">10 min</button>
+                <button id="zlJetzt">⏭</button>
+            </div>
+            <div class="spuren" id="spuren"></div>
+            <div class="achse" id="achse"></div>
+        </div>
     </div>
-    <div class="gross" id="gross" hidden>
-        <div class="oben"><span id="grossTitel"></span><button id="grossZu">✕</button></div>
-        <div class="inhalt"><img id="grossBild" alt=""></div>
-    </div>
+    <div class="tipp" id="tipp" hidden></div>
 
     <script>
         // Hell/dunkel aus Symcons Kartenfarbe (html-sdk setzt --card-color/--content-color auf :root, SUITE.md
@@ -89,24 +130,48 @@
         farbschema();
         window.addEventListener('load', farbschema);
         setInterval(farbschema, 5000);
+
+        /* ================================================================ Zustand */
         var daten = null;
-        var timer = null;
-        var gross = null;          // Kamera in der Großansicht ('' = Birdseye)
-        var letzte = {};           // zuletzt geladenes Bild je Kamera: beim Neuzeichnen sofort wieder zeigen
+        var modus = 'uebersicht';      // 'uebersicht' | 'kamera'
+        var aktiv = null;              // Kamera-ID in der Großansicht
+        var wg = null;                 // Wiedergabe: {kamera, von, bis, ereignis}
+        var auto = null;               // automatisch geöffnete Alarm-Ansicht: {kamera, timer}
+        var alarmVorher = {};          // Alarmzustand je Kamera beim letzten Datenstand
+        var letzte = {};               // zuletzt geladenes Rasterbild je Kamera
+        var rasterTimer = null, liveTimer = null, kopfTimer = null, zlTimer = null;
+        var pc = null;                 // WebRTC-Verbindung der Großansicht
+        var ansicht = { bis: Date.now() / 1000, spanne: 86400, folgen: true };
+        var zlDaten = {};              // je Kamera {von, bis, aufnahme, ereignisse, laedt}
 
         function el(id) { return document.getElementById(id); }
-
-        /** Kacheltext übersetzen (PHP liefert daten.texte: englisch → Sprache der Instanz); ohne Daten englisch. */
         function T(s, a) { var t = (daten && daten.texte && daten.texte[s]) || s; return a == null ? t : t.replace('%s', a); }
-
-        function bildUrl(kamera, h) {
-            return daten.hook + '?k=' + encodeURIComponent(daten.k) + (kamera === '' ? '&bild=birdseye' : '&bild=live&kamera=' + encodeURIComponent(kamera))
-                + '&h=' + h + '&t=' + Date.now();
+        function sprache() { return T('language code: en') === 'de' ? 'de-DE' : 'en-GB'; }
+        function jetzt() { return Date.now() / 1000; }
+        function kameraDaten(id) { return (daten && daten.kameras || []).filter(function (k) { return k.kamera === id; })[0] || null; }
+        function zugangUrl(k, param) {
+            var z = k && k.zugang;
+            if (!z || !z.hook) { return null; }
+            var u = z.hook + '?k=' + encodeURIComponent(z.k);
+            Object.keys(param).forEach(function (n) { u += '&' + n + '=' + encodeURIComponent(param[n]); });
+            return u;
         }
+        function uhrzeit(t, mitDatum) {
+            var d = new Date(t * 1000);
+            var o = { hour: '2-digit', minute: '2-digit' };
+            if (mitDatum) { o.day = '2-digit'; o.month = '2-digit'; }
+            return d.toLocaleString(sprache(), o);
+        }
+        function uhrzeitSek(t) { return new Date(t * 1000).toLocaleTimeString(sprache(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 
-        function zeichnen() {
-            document.body.classList.toggle('eigen', !!daten.eigen);
+        /* ================================================================ Kopf */
+        function kopfZeichnen() {
             var kopf = el('kopf');
+            // Nur bei Änderung neu bauen: sonst trifft ein Tipp womöglich einen gerade ersetzten Knopf
+            var schluessel = JSON.stringify([daten.name, daten.eigen, daten.verfuegbar, daten.kameras.length,
+                daten.kameras.filter(function (k) { return k.alarm; }).length, !!wg, modus]);
+            if (kopf.dataset.schluessel === schluessel) { return; }
+            kopf.dataset.schluessel = schluessel;
             kopf.textContent = '';
             if (daten.eigen && daten.name) {
                 var b = document.createElement('b');
@@ -119,16 +184,71 @@
             s.textContent = daten.verfuegbar === false ? T('⛔ Frigate not reachable') : T(daten.kameras.length === 1 ? '%s camera' : '%s cameras', daten.kameras.length)
                 + (alarme ? ' · 🚨 ' + T(alarme === 1 ? '%s alarm' : '%s alarms', alarme) : '');
             kopf.appendChild(s);
+            var l = document.createElement('span');
+            l.className = 'luecke';
+            kopf.appendChild(l);
+            if (wg) {
+                var live = document.createElement('button');
+                live.className = 'live';
+                live.textContent = T('● Live');
+                live.title = T('Back to live');
+                live.onclick = function () { benutzt(); wiedergabeEnde(); };
+                kopf.appendChild(live);
+            }
+            if (modus === 'kamera') {
+                var alle = document.createElement('button');
+                alle.textContent = T('▦ All cameras');
+                alle.onclick = function () { benutzt(); uebersicht(); };
+                kopf.appendChild(alle);
+            }
+        }
 
-            var raster = el('raster');
-            raster.textContent = '';
+        /* ================================================================ Übersicht (Raster) */
+        function uebersicht() {
+            wiedergabeStoppen();
+            liveStoppen();
+            modus = 'uebersicht';
+            aktiv = null;
+            hauptZeichnen();
+        }
+
+        function hauptZeichnen() {
+            kopfZeichnen();
+            var haupt = el('haupt');
+            haupt.textContent = '';
+            haupt.className = 'haupt' + (modus === 'kamera' ? ' voll' : '');
             if (!daten.api) {
                 var d = document.createElement('div');
                 d.className = 'leer';
                 d.textContent = T('Enter the Frigate address in the instance to see the live images.');
-                raster.appendChild(d);
+                haupt.appendChild(d);
                 return;
             }
+            if (modus === 'kamera') {
+                grossZeichnen(haupt);
+            } else {
+                rasterZeichnen(haupt);
+            }
+            zlZeichnen();
+        }
+
+        function marken(k) {
+            var n = document.createElement('div');
+            n.className = 'marken';
+            [[k.name, ''], [k.alarm ? T('🚨 Alarm') : '', 'rot'], [k.personen ? T(k.personen === 1 ? '%s person' : '%s people', k.personen) : '', ''],
+                [k.online === false ? T('offline') : '', 'rot'], [k.verbindung ? T('Connection %s', k.verbindung) : '', 'gelb']].forEach(function (t) {
+                if (!t[0]) { return; }
+                var sp = document.createElement('span');
+                sp.textContent = t[0];
+                if (t[1]) { sp.className = t[1]; }
+                n.appendChild(sp);
+            });
+            return n;
+        }
+
+        function rasterZeichnen(haupt) {
+            var raster = document.createElement('div');
+            raster.className = 'raster';
             var zellen = daten.kameras.slice();
             if (daten.birdseye) { zellen.unshift({ kamera: '', name: 'Birdseye', online: true }); }
             zellen.forEach(function (k) {
@@ -139,63 +259,571 @@
                 img.alt = '';
                 if (letzte[k.kamera]) { img.src = letzte[k.kamera]; }
                 z.appendChild(img);
-                var n = document.createElement('div');
-                n.className = 'name';
-                [[k.name, ''], [k.alarm ? T('🚨 Alarm') : '', 'rot'], [k.personen ? T(k.personen === 1 ? '%s person' : '%s people', k.personen) : '', ''],
-                    [k.online === false ? T('offline') : '', 'rot'], [k.verbindung ? T('Connection %s', k.verbindung) : '', 'gelb']].forEach(function (t) {
-                    if (!t[0]) { return; }
-                    var sp = document.createElement('span');
-                    sp.textContent = t[0];
-                    if (t[1]) { sp.className = t[1]; }
-                    n.appendChild(sp);
-                });
-                z.appendChild(n);
-                z.onclick = function () { grossOeffnen(k.kamera, k.name); };
+                z.appendChild(marken(k));
+                if (k.kamera !== '') { z.onclick = function () { benutzt(); kameraOeffnen(k.kamera); }; }
                 raster.appendChild(z);
             });
-            laden();
+            haupt.appendChild(raster);
+            rasterLaden();
         }
 
-        /** Alle sichtbaren Livebilder neu holen (nacheinander, damit der WebHook nicht überläuft). */
-        function laden() {
-            clearTimeout(timer);
-            if (!daten || !daten.api || document.hidden) { return; }
+        function serverBild(kamera, h) {
+            return daten.hook + '?k=' + encodeURIComponent(daten.k) + (kamera === '' ? '&bild=birdseye' : '&bild=live&kamera=' + encodeURIComponent(kamera))
+                + '&h=' + h + '&t=' + Date.now();
+        }
+
+        /** Rasterbilder nacheinander neu holen (der WebHook soll nicht überlaufen). */
+        function rasterLaden() {
+            clearTimeout(rasterTimer);
+            if (!daten || !daten.api || document.hidden || modus !== 'uebersicht') { return; }
             var liste = Array.prototype.slice.call(document.querySelectorAll('.zelle'));
             var h = Math.max(240, Math.min(720, Math.ceil(((liste[0] && liste[0].clientHeight) || 180) * (window.devicePixelRatio || 1) / 120) * 120));
             (function naechste(i) {
                 if (i >= liste.length) {
-                    timer = setTimeout(laden, (gross !== null ? Math.max(1, daten.takt / 2) : daten.takt) * 1000);
+                    rasterTimer = setTimeout(rasterLaden, daten.takt * 1000);
                     return;
                 }
                 var z = liste[i];
                 var vor = new Image();
-                vor.onload = function () { z.querySelector('img').src = vor.src; letzte[z.dataset.kamera] = vor.src; naechste(i + 1); };
+                vor.onload = function () { var img = z.querySelector('img'); if (img) { img.src = vor.src; } letzte[z.dataset.kamera] = vor.src; naechste(i + 1); };
                 vor.onerror = function () { naechste(i + 1); };
-                vor.src = bildUrl(z.dataset.kamera, h);
+                vor.src = serverBild(z.dataset.kamera, h);
             })(0);
-            if (gross !== null) {
-                var gb = new Image();
-                gb.onload = function () { el('grossBild').src = gb.src; };
-                gb.src = bildUrl(gross, 1080);
+        }
+
+        /* ================================================================ Großansicht */
+        function kameraOeffnen(kamera) {
+            if (wg && wg.kamera !== kamera) { wiedergabeStoppen(); }
+            liveStoppen();
+            modus = 'kamera';
+            aktiv = kamera;
+            hauptZeichnen();
+        }
+
+        function grossZeichnen(haupt) {
+            var wahl = document.createElement('div');
+            wahl.className = 'wahl';
+            daten.kameras.forEach(function (k) {
+                var b = document.createElement('button');
+                b.textContent = (k.alarm ? '🚨 ' : '') + k.name;
+                if (k.kamera === aktiv) { b.className = 'an'; }
+                b.onclick = function () { benutzt(); if (wg) { wiedergabeStarten(k.kamera, wgPosition(), null, null); } else { kameraOeffnen(k.kamera); } };
+                wahl.appendChild(b);
+            });
+            haupt.appendChild(wahl);
+            var buehne = document.createElement('div');
+            buehne.className = 'buehne';
+            buehne.id = 'buehne';
+            var zeit = document.createElement('div');
+            zeit.className = 'zeit';
+            zeit.id = 'buehneZeit';
+            var hinweis = document.createElement('div');
+            hinweis.className = 'hinweis';
+            hinweis.id = 'buehneHinweis';
+            haupt.appendChild(buehne);
+            if (wg) {
+                var v = document.createElement('video');
+                v.id = 'wgVideo';
+                v.controls = true;
+                v.autoplay = true;
+                v.playsInline = true;
+                v.muted = false;
+                buehne.appendChild(v);
+                buehne.appendChild(zeit);
+                buehne.appendChild(hinweis);
+                zeit.className = 'zeit wg';
+                wiedergabeLaden();
+            } else {
+                var img = document.createElement('img');
+                img.id = 'liveBild';
+                img.alt = '';
+                if (letzte[aktiv]) { img.src = letzte[aktiv]; }
+                buehne.appendChild(img);
+                buehne.appendChild(zeit);
+                buehne.appendChild(hinweis);
+                liveStarten();
             }
         }
 
-        function grossOeffnen(kamera, name) {
-            gross = kamera;
-            el('grossTitel').textContent = name;
-            el('grossBild').src = '';
-            el('gross').hidden = false;
-            laden();
+        function hinweis(text) {
+            var h = el('buehneHinweis');
+            if (!h) { return; }
+            h.textContent = '';
+            if (text) { var s = document.createElement('span'); s.textContent = text; h.appendChild(s); }
         }
 
-        el('grossZu').onclick = function () { gross = null; el('gross').hidden = true; laden(); };
-        document.addEventListener('visibilitychange', laden);
+        /* ---------------------------------------------------------------- Live */
+        function liveStarten() {
+            var k = kameraDaten(aktiv);
+            if (!k) { return; }
+            if (k.zugang && k.zugang.video && window.RTCPeerConnection) {
+                videoStarten(k);
+            }
+            liveBildLaden();
+            clearInterval(kopfTimer);
+            kopfTimer = setInterval(function () { var z = el('buehneZeit'); if (z && !wg) { z.textContent = T('Live') + ' · ' + uhrzeitSek(jetzt()); } }, 1000);
+        }
+
+        function liveBildLaden() {
+            clearTimeout(liveTimer);
+            if (modus !== 'kamera' || wg || document.hidden || el('liveVideo')) { return; }
+            var k = kameraDaten(aktiv);
+            var u = zugangUrl(k, { bild: 'live', h: 1080, t: Date.now() }) || serverBild(aktiv, 1080);
+            var vor = new Image();
+            vor.onload = function () { var img = el('liveBild'); if (img) { img.src = vor.src; } letzte[aktiv] = vor.src; liveTimer = setTimeout(liveBildLaden, 1000); };
+            vor.onerror = function () { liveTimer = setTimeout(liveBildLaden, 3000); };
+            vor.src = u;
+        }
+
+        function videoStarten(k) {
+            var verbindung = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
+            pc = verbindung;
+            verbindung.addTransceiver('video', { direction: 'recvonly' });
+            verbindung.addTransceiver('audio', { direction: 'recvonly' });
+            verbindung.ontrack = function (ev) {
+                if (pc !== verbindung || el('liveVideo')) { return; }
+                var v = document.createElement('video');
+                v.id = 'liveVideo';
+                v.autoplay = true;
+                v.playsInline = true;
+                v.muted = true;
+                v.srcObject = ev.streams[0];
+                v.addEventListener('playing', function () { var img = el('liveBild'); if (img) { img.remove(); } clearTimeout(liveTimer); });
+                var b = el('buehne');
+                if (b) { b.insertBefore(v, b.firstChild); }
+            };
+            verbindung.onconnectionstatechange = function () {
+                if (pc === verbindung && ['failed', 'closed'].indexOf(verbindung.connectionState) >= 0) { videoAufgeben(verbindung); }
+            };
+            verbindung.createOffer().then(function (angebot) {
+                return verbindung.setLocalDescription(angebot);
+            }).then(function () {
+                return iceFertig(verbindung);
+            }).then(function () {
+                return fetch(zugangUrl(k, { webrtc: 1 }), { method: 'POST', headers: { 'Content-Type': 'application/sdp' }, body: verbindung.localDescription.sdp });
+            }).then(function (antwort) {
+                if (!antwort.ok) { throw new Error('webrtc'); }
+                return antwort.text();
+            }).then(function (sdp) {
+                if (pc !== verbindung) { return; }
+                return verbindung.setRemoteDescription({ type: 'answer', sdp: sdp });
+            }).catch(function () { videoAufgeben(verbindung); });
+        }
+
+        function iceFertig(verbindung) {
+            return new Promise(function (fertig) {
+                if (verbindung.iceGatheringState === 'complete') { fertig(); return; }
+                var t = setTimeout(fertig, 2000);
+                verbindung.addEventListener('icegatheringstatechange', function () {
+                    if (verbindung.iceGatheringState === 'complete') { clearTimeout(t); fertig(); }
+                });
+            });
+        }
+
+        function videoAufgeben(verbindung) {
+            try { verbindung.close(); } catch (e) { }
+            if (pc === verbindung) { pc = null; }
+            var v = el('liveVideo');
+            if (v) { v.remove(); }
+            if (!el('liveBild') && el('buehne') && !wg) {
+                var img = document.createElement('img');
+                img.id = 'liveBild';
+                img.alt = '';
+                el('buehne').insertBefore(img, el('buehne').firstChild);
+            }
+            liveBildLaden();
+        }
+
+        function liveStoppen() {
+            clearTimeout(liveTimer);
+            clearInterval(kopfTimer);
+            if (pc) { try { pc.close(); } catch (e) { } pc = null; }
+        }
+
+        /* ---------------------------------------------------------------- Wiedergabe */
+        var STUECK = 60;
+
+        /** Aufnahme einer Kamera ab Zeitpunkt t (Sekunden) abspielen; mit Ereignis dessen ganzen Zeitraum. */
+        function wiedergabeStarten(kamera, t, ende, ereignis) {
+            liveStoppen();
+            var bis = ende ? Math.min(ende, t + 3600) : t + STUECK;
+            t = Math.floor(Math.min(t, jetzt() - 15));
+            bis = Math.ceil(Math.min(bis, jetzt()));
+            if (bis <= t) { bis = t + 10; }
+            wg = { kamera: kamera, von: t, bis: bis, ereignis: ereignis || null, weiter: !ende };
+            modus = 'kamera';
+            aktiv = kamera;
+            ansicht.folgen = false;
+            hauptZeichnen();
+        }
+
+        function wiedergabeLaden() {
+            var v = el('wgVideo');
+            var k = kameraDaten(wg.kamera);
+            var u = zugangUrl(k, { zeitraum: wg.von + '-' + wg.bis });
+            if (!v || !u) { hinweis(T('Frigate has no recording for this period.')); return; }
+            hinweis(T('Loading …'));
+            v.onloadeddata = function () { hinweis(''); };
+            v.onerror = function () { hinweis(T('Frigate has no recording for this period.')); };
+            v.onended = function () {
+                if (wg && wg.weiter && wg.bis < jetzt() - 20) {
+                    wg.von = wg.bis;
+                    wg.bis = Math.ceil(Math.min(wg.von + STUECK, jetzt()));
+                    wiedergabeLaden();
+                }
+            };
+            v.src = u;
+            var zeit = el('buehneZeit');
+            clearInterval(kopfTimer);
+            kopfTimer = setInterval(function () {
+                if (!wg || !el('wgVideo')) { return; }
+                var t = wgPosition();
+                if (zeit) { zeit.textContent = '⏪ ' + uhrzeit(t, Math.abs(jetzt() - t) > 86400) + ':' + ('0' + new Date(t * 1000).getSeconds()).slice(-2); }
+                kopfpunktSetzen(t);
+            }, 250);
+        }
+
+        function wgPosition() {
+            var v = el('wgVideo');
+            return wg ? wg.von + (v && isFinite(v.currentTime) ? v.currentTime : 0) : jetzt();
+        }
+
+        function wiedergabeStoppen() {
+            clearInterval(kopfTimer);
+            var v = el('wgVideo');
+            if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+            wg = null;
+        }
+
+        function wiedergabeEnde() {
+            var k = wg ? wg.kamera : aktiv;
+            wiedergabeStoppen();
+            ansicht.bis = jetzt();
+            ansicht.folgen = true;
+            if (k) { kameraOeffnen(k); } else { uebersicht(); }
+        }
+
+        /* ================================================================ Zeitleiste */
+        function zlVon() { return ansicht.bis - ansicht.spanne; }
+
+        function zlZeichnen() {
+            var spuren = el('spuren');
+            spuren.textContent = '';
+            var kameras = (daten.kameras || []).filter(function (k) { return k.zugang && k.zugang.api; });
+            el('zl').hidden = kameras.length === 0;
+            kameras.forEach(function (k) {
+                var zeile = document.createElement('div');
+                zeile.className = 'spurzeile';
+                var name = document.createElement('div');
+                name.className = 'spurname' + (k.kamera === aktiv ? ' aktiv' : '');
+                name.textContent = k.name;
+                name.title = k.name;
+                name.onclick = function () { benutzt(); kameraOeffnen(k.kamera); };
+                var spur = document.createElement('div');
+                spur.className = 'spur';
+                spur.dataset.kamera = k.kamera;
+                zeile.appendChild(name);
+                zeile.appendChild(spur);
+                spuren.appendChild(zeile);
+            });
+            var kp = document.createElement('div');
+            kp.className = 'kopfpunkt';
+            kp.id = 'kopfpunkt';
+            kp.hidden = true;
+            spuren.appendChild(kp);
+            zlInhalt();
+            zlLaden();
+        }
+
+        /** Markierungen und Achse für das aktuelle Fenster neu setzen (ohne Daten neu zu holen). */
+        function zlInhalt() {
+            var von = zlVon(), bis = ansicht.bis, spanne = ansicht.spanne;
+            var pos = function (t) { return (t - von) / spanne * 100; };
+            document.querySelectorAll('.spur').forEach(function (spur) {
+                spur.textContent = '';
+                var d = zlDaten[spur.dataset.kamera];
+                if (!d) { return; }
+                d.aufnahme.forEach(function (a) {
+                    if (a[1] < von || a[0] > bis) { return; }
+                    var e = document.createElement('div');
+                    e.className = 'auf';
+                    e.style.left = Math.max(0, pos(a[0])) + '%';
+                    e.style.width = Math.max(0.2, Math.min(100, pos(a[1])) - Math.max(0, pos(a[0]))) + '%';
+                    spur.appendChild(e);
+                });
+                d.ereignisse.forEach(function (ev) {
+                    var ende = ev.e || jetzt();
+                    if (ende < von || ev.s > bis) { return; }
+                    var e = document.createElement('div');
+                    e.className = 'ev' + (ev.a ? ' alarm' : '');
+                    e.style.left = Math.max(0, pos(ev.s)) + '%';
+                    e.style.width = Math.max(0, Math.min(100, pos(ende)) - Math.max(0, pos(ev.s))) + '%';
+                    e.dataset.s = ev.s;
+                    e.dataset.e = ev.e || '';
+                    e.dataset.text = uhrzeit(ev.s, spanne > 86400) + ' · ' + ev.t + (ev.z && ev.z.length ? ' · ' + ev.z.join(', ') : '');
+                    e.dataset.id = ev.id;
+                    spur.appendChild(e);
+                });
+            });
+            // Achse: runde Schritte je nach Spanne
+            var schritte = [60, 300, 600, 1800, 3600, 7200, 10800, 21600, 43200, 86400];
+            var breite = el('achse').clientWidth || 300;
+            var schritt = schritte.filter(function (s) { return spanne / s <= Math.max(2, breite / 60); })[0] || 86400;
+            var achse = el('achse');
+            achse.textContent = '';
+            var versatz = new Date().getTimezoneOffset() * 60;
+            for (var t = Math.ceil((von - versatz) / schritt) * schritt + versatz; t <= bis; t += schritt) {
+                var s = document.createElement('span');
+                s.style.left = pos(t) + '%';
+                s.textContent = uhrzeit(t, schritt >= 21600 && new Date(t * 1000).getHours() === 0);
+                achse.appendChild(s);
+            }
+            el('zlBereich').textContent = uhrzeit(von, true) + ' – ' + (ansicht.folgen ? T('now') : uhrzeit(bis, true));
+            document.querySelectorAll('[data-spanne]').forEach(function (b) { b.classList.toggle('an', Math.abs(b.dataset.spanne - spanne) < 1); });
+            el('zlJetzt').hidden = ansicht.folgen;
+            kopfpunktSetzen(wg ? wgPosition() : null);
+        }
+
+        function kopfpunktSetzen(t) {
+            var kp = el('kopfpunkt');
+            var spur = document.querySelector('.spur');
+            if (!kp || !spur) { return; }
+            if (t === null || t < zlVon() || t > ansicht.bis) { kp.hidden = true; return; }
+            kp.hidden = false;
+            kp.style.left = (spur.offsetLeft + (t - zlVon()) / ansicht.spanne * spur.clientWidth) + 'px';
+        }
+
+        /** Daten je Kamera holen, wenn das Fenster nicht abgedeckt ist; beim Folgen nur das neue Ende nachladen. */
+        function zlLaden(erzwingen) {
+            var von = Math.floor(zlVon()), bis = Math.ceil(ansicht.bis);
+            (daten.kameras || []).forEach(function (k) {
+                if (!k.zugang || !k.zugang.api) { return; }
+                var d = zlDaten[k.kamera];
+                if (d && d.laedt) { return; }
+                if (d && d.von <= von && d.bis > 0) {
+                    if (d.bis >= Math.min(bis, jetzt() - 60) && !erzwingen) { return; }
+                    if (d.bis >= jetzt() - 3600) { zlNachladen(k, d); return; }
+                }
+                // etwas Rand auf beiden Seiten, höchstens 26 h je Abfrage
+                var rand = Math.min(ansicht.spanne * 0.5, (93000 - ansicht.spanne) / 2);
+                var a = Math.floor(Math.max(von - Math.max(0, rand), jetzt() - 86400 * 400)), b = Math.ceil(Math.min(bis + Math.max(0, rand), jetzt() + 30));
+                if (b - a > 93000) { a = b - 93000; }
+                zlDaten[k.kamera] = d || { von: 0, bis: 0, aufnahme: [], ereignisse: [] };
+                zlDaten[k.kamera].laedt = true;
+                fetch(zugangUrl(k, { zeitleiste: a + '-' + b }), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+                    var neu = zlDaten[k.kamera];
+                    neu.laedt = false;
+                    if (!j || !Array.isArray(j.aufnahme)) { return; }
+                    neu.von = j.von; neu.bis = j.bis; neu.aufnahme = j.aufnahme; neu.ereignisse = j.ereignisse || [];
+                    zlInhalt();
+                }).catch(function () { zlDaten[k.kamera].laedt = false; });
+            });
+        }
+
+        /** Nur das Ende seit dem letzten Stand holen und anhängen (spart beim Folgen das ganze 24-h-Fenster). */
+        function zlNachladen(k, d) {
+            var a = Math.floor(d.bis - 300), b = Math.ceil(jetzt() + 30);
+            d.laedt = true;
+            fetch(zugangUrl(k, { zeitleiste: a + '-' + b }), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+                d.laedt = false;
+                if (!j || !Array.isArray(j.aufnahme)) { return; }
+                // Aufnahme: alte Abschnitte bis a behalten, neue anschließen (überlappende verschmelzen)
+                var auf = d.aufnahme.filter(function (x) { return x[0] < a; }).map(function (x) { return [x[0], Math.min(x[1], a)]; });
+                j.aufnahme.forEach(function (x) {
+                    var letzt = auf[auf.length - 1];
+                    if (letzt && x[0] - letzt[1] <= 15) { letzt[1] = Math.max(letzt[1], x[1]); } else { auf.push([x[0], x[1]]); }
+                });
+                var ids = {};
+                j.ereignisse.forEach(function (e) { ids[e.id] = true; });
+                d.ereignisse = d.ereignisse.filter(function (e) { return !ids[e.id]; }).concat(j.ereignisse);
+                d.aufnahme = auf;
+                d.bis = j.bis;
+                zlInhalt();
+            }).catch(function () { d.laedt = false; });
+        }
+
+        function zlTakt() {
+            clearTimeout(zlTimer);
+            zlTimer = setTimeout(function () {
+                if (daten && !document.hidden) {
+                    if (ansicht.folgen) { ansicht.bis = jetzt(); zlLaden(true); }
+                    zlInhalt();
+                }
+                zlTakt();
+            }, 60000);
+        }
+
+        /* ---------------------------------------------------------------- Bedienung der Zeitleiste */
+        function setzeFenster(bis, spanne) {
+            spanne = Math.max(300, Math.min(93000, spanne));
+            bis = Math.min(bis, jetzt());
+            ansicht.spanne = spanne;
+            ansicht.bis = bis;
+            ansicht.folgen = jetzt() - bis < 30;
+            if (ansicht.folgen) { ansicht.bis = jetzt(); }
+            zlInhalt();
+            clearTimeout(setzeFenster.t);
+            setzeFenster.t = setTimeout(function () { zlLaden(false); }, 250);
+        }
+
+        document.querySelectorAll('[data-spanne]').forEach(function (b) {
+            b.onclick = function () {
+                benutzt();
+                var s = Number(b.dataset.spanne);
+                // Mitte behalten, beim Folgen am rechten Rand bleiben
+                var mitte = ansicht.folgen ? jetzt() - s / 2 : (wg ? wgPosition() : zlVon() + ansicht.spanne / 2);
+                setzeFenster(mitte + s / 2, s);
+            };
+        });
+        el('zlJetzt').onclick = function () { benutzt(); setzeFenster(jetzt(), ansicht.spanne); };
+
+        var zeiger = {};
+        var zug = null;
+        function zeitBei(x) {
+            var spur = document.querySelector('.spur');
+            var r = spur.getBoundingClientRect();
+            return zlVon() + Math.max(0, Math.min(1, (x - r.left) / r.width)) * ansicht.spanne;
+        }
+        var sp = el('spuren');
+        sp.addEventListener('pointerdown', function (ev) {
+            if (ev.target.classList.contains('spurname')) { return; }
+            zeiger[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+            try { sp.setPointerCapture(ev.pointerId); } catch (e) { }
+            var ids = Object.keys(zeiger);
+            if (ids.length === 1) {
+                zug = { x0: ev.clientX, bis0: ansicht.bis, bewegt: false, ziel: ev.target };
+            } else if (ids.length === 2) {
+                var a = zeiger[ids[0]], b = zeiger[ids[1]];
+                zug = { pinch: Math.abs(a.x - b.x) || 1, spanne0: ansicht.spanne, mitteT: zeitBei((a.x + b.x) / 2), bewegt: true };
+            }
+        });
+        sp.addEventListener('pointermove', function (ev) {
+            var spur = document.querySelector('.spur');
+            if (zug && !zug.bewegt && !zug.pinch) { tippZeigen(ev); }
+            if (!zeiger[ev.pointerId] || !zug || !spur) { return; }
+            zeiger[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+            var ids = Object.keys(zeiger);
+            if (zug.pinch && ids.length === 2) {
+                var a = zeiger[ids[0]], b = zeiger[ids[1]];
+                var spanne = zug.spanne0 * zug.pinch / (Math.abs(a.x - b.x) || 1);
+                var anteil = ((a.x + b.x) / 2 - spur.getBoundingClientRect().left) / spur.clientWidth;
+                setzeFenster(zug.mitteT + (1 - anteil) * Math.max(300, Math.min(93000, spanne)), spanne);
+                return;
+            }
+            var dx = ev.clientX - zug.x0;
+            if (Math.abs(dx) > 5) { zug.bewegt = true; sp.classList.add('zieht'); el('tipp').hidden = true; }
+            if (zug.bewegt) { setzeFenster(zug.bis0 - dx / spur.clientWidth * ansicht.spanne, ansicht.spanne); }
+        });
+        function zeigerEnde(ev) {
+            var war = zug;
+            delete zeiger[ev.pointerId];
+            sp.classList.remove('zieht');
+            if (Object.keys(zeiger).length > 0) { return; }
+            zug = null;
+            if (!war || war.bewegt || war.pinch || ev.type === 'pointercancel') { return; }
+            benutzt();
+            var spur = war.ziel.closest ? war.ziel.closest('.spur') : null;
+            if (!spur) { return; }
+            if (war.ziel.classList.contains('ev')) {
+                var s = Number(war.ziel.dataset.s), e = war.ziel.dataset.e ? Number(war.ziel.dataset.e) : jetzt();
+                wiedergabeStarten(spur.dataset.kamera, s - 3, e + 2, war.ziel.dataset.id);
+            } else {
+                var t = zeitBei(ev.clientX);
+                if (jetzt() - t < 20) { kameraOeffnen(spur.dataset.kamera); return; }
+                wiedergabeStarten(spur.dataset.kamera, t, null, null);
+            }
+        }
+        sp.addEventListener('pointerup', zeigerEnde);
+        sp.addEventListener('pointercancel', zeigerEnde);
+        sp.addEventListener('pointerleave', function () { if (!zug) { el('tipp').hidden = true; } });
+        sp.addEventListener('wheel', function (ev) {
+            ev.preventDefault();
+            var spur = document.querySelector('.spur');
+            if (!spur) { return; }
+            var t = zeitBei(ev.clientX);
+            var anteil = (ev.clientX - spur.getBoundingClientRect().left) / spur.clientWidth;
+            var spanne = Math.max(300, Math.min(93000, ansicht.spanne * (ev.deltaY > 0 ? 1.25 : 0.8)));
+            setzeFenster(t + (1 - anteil) * spanne, spanne);
+        }, { passive: false });
+
+        function tippZeigen(ev) {
+            var tipp = el('tipp');
+            var spur = ev.target.closest ? ev.target.closest('.spur') : null;
+            if (!spur) { tipp.hidden = true; return; }
+            tipp.textContent = ev.target.classList.contains('ev') ? ev.target.dataset.text : uhrzeitSek(zeitBei(ev.clientX));
+            tipp.style.left = ev.clientX + 'px';
+            tipp.style.top = (spur.getBoundingClientRect().top - 4) + 'px';
+            tipp.hidden = false;
+        }
+        sp.addEventListener('mousemove', function (ev) { if (!zug) { tippZeigen(ev); } });
+
+        /* ================================================================ Alarm: 60 s groß zeigen */
+        /** Jede Bedienung beendet die automatische Alarm-Ansicht (sie springt dann nicht zurück). */
+        function benutzt() {
+            if (auto) { clearTimeout(auto.timer); auto = null; }
+        }
+
+        function alarmPruefen() {
+            var neu = null;
+            daten.kameras.forEach(function (k) {
+                if (k.alarm && alarmVorher[k.kamera] === false) { neu = neu || k.kamera; }
+                alarmVorher[k.kamera] = !!k.alarm;
+            });
+            if (!neu || wg) { return false; }
+            if (auto) { clearTimeout(auto.timer); }
+            var vorher = auto ? auto.vorher : { modus: modus, aktiv: aktiv };
+            auto = { kamera: neu, vorher: vorher, timer: setTimeout(function () {
+                var v = auto && auto.vorher;
+                auto = null;
+                if (!v || wg) { return; }
+                if (v.modus === 'kamera' && v.aktiv) { kameraOeffnen(v.aktiv); } else { uebersicht(); }
+            }, (daten.alarmSprung || 60) * 1000) };
+            kameraOeffnen(neu);
+            return true;
+        }
+
+        /* ================================================================ Daten von Symcon */
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) { return; }
+            if (modus === 'uebersicht') { rasterLaden(); } else if (!wg) { liveBildLaden(); }
+            if (ansicht.folgen) { ansicht.bis = jetzt(); }
+            zlLaden(true);
+        });
+        window.addEventListener('resize', function () { if (daten) { zlInhalt(); } });
 
         function handleMessage(nachricht) {
             var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;
             if (!neu || !neu.hook) { return; }
+            var erst = daten === null;
+            var kameraWechsel = !daten || JSON.stringify((daten.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }))
+                !== JSON.stringify((neu.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }));
             daten = neu;
-            zeichnen();
+            document.body.classList.toggle('eigen', !!daten.eigen);
+            if (erst) {
+                ansicht.spanne = Math.max(300, Math.min(93000, (daten.stunden || 24) * 3600));
+                daten.kameras.forEach(function (k) { alarmVorher[k.kamera] = !!k.alarm; });
+                zlTakt();
+            }
+            if (aktiv !== null && !kameraDaten(aktiv)) { wiedergabeStoppen(); liveStoppen(); modus = 'uebersicht'; aktiv = null; }
+            if (alarmPruefen()) { return; }
+            if (erst || kameraWechsel) { hauptZeichnen(); return; }
+            // Sonst nur Kopf und Marken auffrischen (Video und Zeitleiste laufen weiter)
+            kopfZeichnen();
+            if (modus === 'uebersicht') {
+                document.querySelectorAll('.zelle').forEach(function (z) {
+                    var k = kameraDaten(z.dataset.kamera);
+                    if (!k) { return; }
+                    z.classList.toggle('alarm', !!k.alarm);
+                    z.classList.toggle('offline', k.online === false);
+                    var m = z.querySelector('.marken');
+                    if (m) { z.replaceChild(marken(k), m); }
+                });
+            } else {
+                document.querySelectorAll('.wahl button').forEach(function (b, i) {
+                    var k = daten.kameras[i];
+                    if (k) { b.textContent = (k.alarm ? '🚨 ' : '') + k.name; }
+                });
+            }
         }
     </script>
 </body>
