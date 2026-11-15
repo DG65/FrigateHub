@@ -36,10 +36,10 @@ class FrigateHubServer extends IPSModule
     private const KAMERA_GUID = '{6BB54171-2F24-4653-9061-F2BC352A9D3B}';
 
     /** Variablen der Kamera-Instanzen, die die Übersichtskachel zeigt (Änderung → neu senden). */
-    private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person'];
+    private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person', 'Ungesehen', 'UngesehenErk'];
 
     /** Alle Texte der Übersichtskachel (module.html, Funktion T); übersetzt in den Kacheldaten als „texte“. */
-    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now'];
+    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate'];
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -409,6 +409,8 @@ class FrigateHubServer extends IPSModule
                 'alarm'      => (bool)$wert($id, 'Alarm'),
                 'bewegung'   => (bool)$wert($id, 'Bewegung'),
                 'personen'   => (int)$wert($id, 'Objekt_person'),
+                'ungesehen'  => (int)$wert($id, 'Ungesehen'),
+                'ungesehenErk' => (int)$wert($id, 'UngesehenErk'),
                 'verbindung' => in_array((string)($s['connection_quality'] ?? ''), ['poor', 'unusable'], true) ? FrigateHubServerWerte::qualitaet((string)$s['connection_quality']) : '',
             ];
         }
@@ -550,6 +552,23 @@ class FrigateHubServer extends IPSModule
     {
         if ($Ident === 'Profil') {
             echo $this->ProfilSetzen((string)$Value);
+            return;
+        }
+        // Übersichtskachel: „gesehen" an die Kamera-Instanz weitergeben, die es Frigate meldet
+        if ($Ident === 'Gesehen' || $Ident === 'AlleGesehen') {
+            $instanzen = $this->kameraInstanzen();
+            if ($Ident === 'Gesehen') {
+                [$kamera, $id] = array_pad(explode('|', (string)$Value, 2), 2, '');
+                if (!isset($instanzen[$kamera])) {
+                    throw new Exception(FrigateHubText::t('Unknown camera: %s', $kamera));
+                }
+                IPS_RequestAction($instanzen[$kamera], 'Kachel_Gesehen', $id);
+            } else {
+                foreach ($instanzen as $instanz) {
+                    IPS_RequestAction($instanz, 'Kachel_AlleGesehen', '1');
+                }
+            }
+            $this->kachelSenden(true);
             return;
         }
         throw new Exception(FrigateHubText::t('Unknown action: %s', $Ident));

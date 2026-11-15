@@ -21,6 +21,9 @@ trait FrigateHubKachel
     /** Höchstzahl Ereignisse in der Kachelleiste. */
     private static int $FRIGATEHUB_KACHEL_EREIGNISSE = 8;
 
+    /** Abgleich „gesehen" mit Frigate alle so viele Sekunden. */
+    private static int $FRIGATEHUB_ABGLEICH_GESEHEN = 60;
+
     /**
      * Größtes Stück eines Clips je WebHook-Antwort. Symcon lieferte live (29.10.2026) 127 KB aus,
      * einen 1,7-MB-Clip aber leer; Frigate selbst kennt keine Teilabrufe. Deshalb holt der Hook den
@@ -45,6 +48,8 @@ trait FrigateHubKachel
         $this->RegisterAttributeString('Ereignisse', '[]');
         // PTZ-Fähigkeiten aus /api/<kamera>/ptz/info (beim Abgleich), leer = keine Steuerung
         $this->RegisterAttributeString('Ptz', '');
+        // Abgleich „gesehen" mit Frigate (0.24.0): was in Frigate bestätigt wird, gilt auch in Symcon
+        $this->RegisterTimer('Ereignisse', 0, 'FRIG_EreignisseAbgleichen($_IPS[\'TARGET\']);');
         $this->SetVisualizationType(1);
     }
 
@@ -60,7 +65,59 @@ trait FrigateHubKachel
         } else {
             $this->RegisterMessage(0, IPS_KERNELMESSAGE);
         }
+        $this->SetTimerInterval('Ereignisse', $this->apiUrl() !== '' && $this->kamera() !== '' ? self::$FRIGATEHUB_ABGLEICH_GESEHEN * 1000 : 0);
         $this->kachelSenden(true);
+    }
+
+    /**
+     * FRIG_EreignisseAbgleichen($id): Ereignisliste und „gesehen" mit Frigate abgleichen (Timer, jede Minute).
+     * Frigate meldet ein in seiner Oberfläche bestätigtes Ereignis nicht per MQTT — darum fragt die Kamera nach.
+     * Variable „Ungesehene Alarme" = Alarme der letzten 24 h, die in Frigate noch nicht angesehen sind.
+     */
+    public function EreignisseAbgleichen(): string
+    {
+        if ($this->apiUrl() === '' || $this->kamera() === '') {
+            return FrigateHubText::t('ℹ️ This needs the camera ID and the Frigate address.');
+        }
+        $kamera = rawurlencode($this->kamera());
+        $reviews = $this->apiHolen('/api/review?cameras=' . $kamera . '&limit=' . self::$FRIGATEHUB_KACHEL_EREIGNISSE);
+        $summe = $this->apiHolen('/api/review/summary?cameras=' . $kamera);
+        if ($reviews === null && $summe === null) {
+            return FrigateHubText::t('⛔ Frigate not reachable') . ' (' . $this->apiFehler . ')';
+        }
+        $geaendert = false;
+        if (is_array($reviews)) {
+            $liste = [];
+            foreach (array_reverse($reviews) as $r) {
+                $eintrag = is_array($r) && (string)($r['camera'] ?? '') === $this->kamera() ? FrigateHubTopics::reviewEintrag($r) : null;
+                if ($eintrag !== null) {
+                    $liste = FrigateHubTopics::reviewsMerken($liste, $eintrag, self::$FRIGATEHUB_KACHEL_EREIGNISSE);
+                }
+            }
+            $json = (string)json_encode($liste);
+            if ($json !== $this->ReadAttributeString('Ereignisse')) {
+                $this->WriteAttributeString('Ereignisse', $json);
+                $geaendert = true;
+            }
+        }
+        $offen = null;
+        if (is_array($summe) && is_array($summe['last24Hours'] ?? null)) {
+            $z = $summe['last24Hours'];
+            $offen = max(0, (int)($z['total_alert'] ?? 0) - (int)($z['reviewed_alert'] ?? 0));
+            $this->variableAnlegen('Ungesehen', FrigateHubText::t('Unseen alerts (24 h)'), VARIABLETYPE_INTEGER, ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION], 14);
+            if ($this->GetValue('Ungesehen') !== $offen) {
+                $this->SetValue('Ungesehen', $offen);
+            }
+            $erk = max(0, (int)($z['total_detection'] ?? 0) - (int)($z['reviewed_detection'] ?? 0));
+            $this->variableAnlegen('UngesehenErk', FrigateHubText::t('Unseen detections (24 h)'), VARIABLETYPE_INTEGER, ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION], 15);
+            if ($this->GetValue('UngesehenErk') !== $erk) {
+                $this->SetValue('UngesehenErk', $erk);
+            }
+        }
+        if ($geaendert) {
+            $this->kachelSenden();
+        }
+        return $offen === null ? FrigateHubText::t('✅ Events synchronized.') : FrigateHubText::t('✅ Events synchronized, %d unseen alert(s) in the last 24 h.', $offen);
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -172,7 +229,7 @@ trait FrigateHubKachel
      * Aktionen der Kachel ohne eigene Variable (Wert = Text). In der Kachel über Symcons
      * requestAction (Anmeldung der Visualisierung), auf der eigenständigen Seite nur mit Freigabe.
      */
-    private const KACHEL_AKTIONEN = ['Kachel_Gesehen', 'Kachel_Favorit', 'Kachel_Export', 'Kachel_PTZ'];
+    private const KACHEL_AKTIONEN = ['Kachel_Gesehen', 'Kachel_AlleGesehen', 'Kachel_Favorit', 'Kachel_Export', 'Kachel_PTZ'];
 
     /** PTZ-Befehle laut Frigate-Doku (frigate/<kamera>/ptz); Voreinstellungen als preset_<name>. */
     private const PTZ_BEFEHLE = ['MOVE_UP', 'MOVE_DOWN', 'MOVE_LEFT', 'MOVE_RIGHT', 'ZOOM_IN', 'ZOOM_OUT', 'STOP'];
@@ -208,6 +265,21 @@ trait FrigateHubKachel
                 $liste = array_map(fn ($e) => is_array($e) && ($e['id'] ?? '') === $wert ? ['gesehen' => true] + $e : $e,
                     (array)json_decode($this->ReadAttributeString('Ereignisse'), true));
                 $this->WriteAttributeString('Ereignisse', (string)json_encode(array_values($liste)));
+                $this->EreignisseAbgleichen();
+                $this->kachelSenden();
+                return true;
+
+            case 'Kachel_AlleGesehen':
+                // Alle in Frigate noch offenen Alarme und Erkennungen der letzten 24 h als gesehen markieren
+                $offen = $this->apiHolen('/api/review?cameras=' . rawurlencode($this->kamera()) . '&reviewed=0&after=' . (time() - 86400) . '&limit=500');
+                $ids = array_values(array_filter(array_map(fn ($r) => is_array($r) ? (string)($r['id'] ?? '') : '', (array)$offen), [FrigateHubTopics::class, 'idGueltig']));
+                if ($ids !== []) {
+                    $a = $this->apiSchreiben('POST', '/api/reviews/viewed', ['ids' => $ids]);
+                    if ($a['code'] !== 200) {
+                        throw new Exception(FrigateHubText::t('Frigate does not accept “seen” (%s).', $a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')));
+                    }
+                }
+                $this->EreignisseAbgleichen();
                 $this->kachelSenden();
                 return true;
 
@@ -560,14 +632,13 @@ trait FrigateHubKachel
         $this->clipsAufraeumen();
         $datei = $this->clipDatei($schluessel);
         if (!is_file($datei)) {
-            $a = $this->apiDurchreichen($pfad, '', 60);
-            if ($a['code'] !== 200 || $a['body'] === '') {
-                $grund = (string)(json_decode($a['body'], true)['message'] ?? '');
+            $a = $this->apiInDatei($pfad, $datei, 90);
+            if ($a['code'] !== 200) {
+                $grund = $a['fehler'];
                 $this->hookAntwort(in_array($a['code'], [400, 404], true) ? 404 : 502, ['Content-Type' => 'text/plain; charset=utf-8'],
                     FrigateHubText::t('Frigate delivers no clip (%s).', ($a['code'] > 0 ? 'HTTP ' . $a['code'] : FrigateHubText::t('not reachable')) . ($grund !== '' ? ': ' . $grund : '')));
                 return;
             }
-            file_put_contents($datei, $a['body']);
         }
         $groesse = (int)filesize($datei);
         $bereich = FrigateHubTopics::bereich($range, $groesse, self::$FRIGATEHUB_CLIP_STUECK);

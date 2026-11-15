@@ -73,6 +73,17 @@ class TestKachel extends FrigateHubKamera
         return self::$eingang;
     }
 
+    protected function apiInDatei(string $pfad, string $datei, int $zeitlimit): array
+    {
+        self::$durchgereicht[] = [$pfad, '', $zeitlimit];
+        $a = self::$frigate[$pfad] ?? ['code' => 404, 'body' => ''];
+        if ($a['code'] !== 200 || $a['body'] === '') {
+            return ['code' => $a['code'], 'fehler' => (string)(json_decode($a['body'], true)['message'] ?? '')];
+        }
+        file_put_contents($datei, $a['body']);
+        return ['code' => 200, 'fehler' => ''];
+    }
+
     protected function apiWebrtc(string $stream, string $angebot): array
     {
         self::$webrtc[] = [$stream, $angebot];
@@ -243,7 +254,7 @@ $vorher = count(TestKachel::$durchgereicht);
 $a = $k->hook(['k' => $schluessel, 'clip' => $EV]);
 check('Clip ohne Range: erstes Stück 206', [$a['code'], $a['kopf']['Content-Range'], $a['kopf']['Accept-Ranges'], $a['kopf']['Content-Type'], $a['inhalt'] === substr($mp4, 0, 524288)],
     [206, 'bytes 0-524287/1258291', 'bytes', 'video/mp4', true]);
-check('Clip bei Frigate ohne Range, 60 s', array_slice(end(TestKachel::$durchgereicht), 0), ['/api/events/' . $EV . '/clip.mp4', '', 60]);
+check('Clip bei Frigate ohne Range, 90 s, direkt in die Datei', array_slice(end(TestKachel::$durchgereicht), 0), ['/api/events/' . $EV . '/clip.mp4', '', 90]);
 $a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=524288-']);
 check('Clip: zweites Stück', [$a['kopf']['Content-Range'], $a['inhalt'] === substr($mp4, 524288, 524288)], ['bytes 524288-1048575/1258291', true]);
 $a = $k->hook(['k' => $schluessel, 'clip' => $EV], ['HTTP_RANGE' => 'bytes=1048576-']);
@@ -439,6 +450,8 @@ check('Info: Favorit, Name, Beschreibung', json_decode($k->hook(['info' => $EV, 
 check('Info: kaputte ID 404', $k->hook(['info' => '../x', 'k' => $ks])['code'], 404);
 
 TestKachel::$geschrieben = [];
+// Frigate liefert nach dem POST den Eintrag als angesehen (der Abgleich danach liest das zurück)
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [['has_been_reviewed' => true] + $review];
 $k->RequestAction('Kachel_Gesehen', $ID);
 check('gesehen: POST /api/reviews/viewed', TestKachel::$geschrieben, [['POST', '/api/reviews/viewed', ['ids' => [$ID]]]]);
 check('gesehen: Eintrag markiert', array_values(array_filter($k->daten()['ereignisse'], fn ($e) => $e['id'] === $ID))[0]['gesehen'] ?? null, true);
@@ -648,6 +661,41 @@ check('Hook Zeitleiste: falsches Fenster 404', $k->hook(['k' => $k->ReadAttribut
 check('Hook Zeitleiste: ohne Schlüssel 403', $k->hook(['zeitleiste' => $von . '-' . $jetzt])['code'], 403);
 $zg = json_decode($k->KachelZugang(), true);
 check('KachelZugang: Hook, Schlüssel, Fähigkeiten', [$zg['hook'], $zg['k'] === $k->ReadAttributeString('HookSchluessel'), array_keys($zg)], ['/hook/frigatehub1', true, ['hook', 'k', 'api', 'video', 'ptz']]);
+
+// Abgleich „gesehen" mit Frigate (0.24.1): Frigate ist die Wahrheit, Zähler aus /api/review/summary
+$kg = new TestKachel(5);
+IPSTestState::$instances[5] = ['InstanceID' => 5, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{6BB54171-2F24-4653-9061-F2BC352A9D3B}']];
+$kg->Create();
+check('Abgleich ohne Adresse: Hinweis, keine Variable', [strpos($kg->EreignisseAbgleichen(), 'ℹ️') === 0, @IPS_GetObjectIDByIdent('Ungesehen', 5)], [true, false]);
+$kg->props(['Camera' => 'Door-Cam', 'ApiUrl' => 'http://127.0.0.1:5000']);
+$kg->ApplyChanges();
+$offen = ['has_been_reviewed' => false] + $review;
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [$offen, $fremd];
+TestKachel::$api['/api/review/summary?cameras=Door-Cam'] = ['last24Hours' => ['total_alert' => 3, 'reviewed_alert' => 1, 'total_detection' => 5, 'reviewed_detection' => 5], '2026-10-28' => ['total_alert' => 1]];
+$kg->EreignisseAbgleichen();
+check('Abgleich: ungesehene Alarme/Erkennungen, Eintrag offen', [$kg->GetValue('Ungesehen'), $kg->GetValue('UngesehenErk'), array_column($kg->daten()['ereignisse'], 'gesehen')], [2, 0, [false]]);
+// in Frigate bestätigt → Symcon folgt beim nächsten Abgleich
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [['has_been_reviewed' => true] + $review];
+TestKachel::$api['/api/review/summary?cameras=Door-Cam'] = ['last24Hours' => ['total_alert' => 3, 'reviewed_alert' => 3, 'total_detection' => 5, 'reviewed_detection' => 5]];
+$kg->EreignisseAbgleichen();
+check('In Frigate bestätigt: Symcon folgt', [$kg->GetValue('Ungesehen'), array_column($kg->daten()['ereignisse'], 'gesehen')], [0, [true]]);
+check('erneuter Abgleich: ✅, Liste bleibt', [strpos($kg->EreignisseAbgleichen(), '✅') === 0, count($kg->daten()['ereignisse'])], [true, 1]);
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = null;
+TestKachel::$api['/api/review/summary?cameras=Door-Cam'] = null;
+check('Frigate weg: Fehlermeldung, Liste unverändert', [strpos($kg->EreignisseAbgleichen(), '⛔') === 0, count($kg->daten()['ereignisse'])], [true, 1]);
+// „Alle gesehen": offene Reviews der letzten 24 h holen und als angesehen melden
+$offenPfad = '/api/review?cameras=Door-Cam&reviewed=0&after=' . (time() - 86400) . '&limit=500';
+TestKachel::$api[$offenPfad] = [['id' => '1793259300.1-aa'], ['id' => '../böse'], ['id' => '1793259400.2-bb']];
+TestKachel::$api['/api/review?cameras=Door-Cam&limit=8'] = [];
+TestKachel::$geschrieben = [];
+$kg->RequestAction('Kachel_AlleGesehen', '1');
+check('Alle gesehen: ein POST mit gültigen IDs', TestKachel::$geschrieben, [['POST', '/api/reviews/viewed', ['ids' => ['1793259300.1-aa', '1793259400.2-bb']]]]);
+TestKachel::$api[$offenPfad] = [];
+TestKachel::$geschrieben = [];
+$kg->RequestAction('Kachel_AlleGesehen', '1');
+check('Alle gesehen: nichts offen → kein POST', TestKachel::$geschrieben, []);
+$ze = FrigateHubZeitleiste::ereignisse([['has_been_reviewed' => true] + $review, $offen], 0, PHP_INT_MAX);
+check('Zeitleiste: Flag g', array_column($ze, 'g'), [true, false]);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

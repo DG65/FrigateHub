@@ -358,6 +358,45 @@ trait FrigateHubApi
     }
 
     /**
+     * Frigate-Antwort direkt in eine Datei schreiben (Clips): Symcons PHP hat nur 64 MB Speicher, eine
+     * Minute 4K-Aufnahme ist oft größer (live 15.11.2026: „Fatal error" beim Clip im Speicher). Prüfstand-Haken.
+     *
+     * @return array{code:int,fehler:string}
+     */
+    protected function apiInDatei(string $pfad, string $datei, int $zeitlimit): array
+    {
+        $zugang = $this->apiZugang() ?? $this->zugangUebernehmen();
+        $ziel = @fopen($datei . '.teil', 'wb');
+        if ($ziel === false) {
+            return ['code' => 0, 'fehler' => 'tmp'];
+        }
+        $url = $this->apiUrl() . $pfad;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FILE           => $ziel,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => $zeitlimit,
+            CURLOPT_HTTPHEADER     => $zugang !== null ? ['Cookie: ' . $zugang['cookie'] . '=' . $zugang['token']] : [],
+        ]);
+        if (strpos($url, 'https://') === 0 && !$this->ReadPropertyBoolean('ZertifikatPruefen')) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        $ok = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $fehler = curl_error($ch);
+        curl_close($ch);
+        fclose($ziel);
+        if ($ok === false || $code !== 200 || (int)@filesize($datei . '.teil') === 0) {
+            $grund = $code >= 400 ? (string)(json_decode((string)@file_get_contents($datei . '.teil', false, null, 0, 2000), true)['message'] ?? '') : $fehler;
+            @unlink($datei . '.teil');
+            return ['code' => $ok === false ? 0 : $code, 'fehler' => $grund];
+        }
+        rename($datei . '.teil', $datei);
+        return ['code' => 200, 'fehler' => ''];
+    }
+
+    /**
      * Eine HTTP-Anfrage, ohne Auswertung. curl statt Sys_GetURLContentEx (SUITE.md Stolperstein 11).
      * Prüfstand-Haken für die Anmeldung.
      *

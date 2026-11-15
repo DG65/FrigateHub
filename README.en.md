@@ -39,6 +39,7 @@ MQTT. FrigateHub sits below Symcon's own MQTT server (or an MQTT client) and cre
 | Motion threshold, motion: minimum area | Frigate's `motion.threshold`/`contour_area`, adjustable by slider |
 | Recognized person, license plate, classification | Frigate's face recognition, license plate recognition and custom classification models, with score |
 | AI description, AI assessment | Frigate's generative AI (GenAI): title and summary of an event, assessment normal/suspicious/dangerous |
+| Unseen alerts / detections (24 h) | what is not yet reviewed in Frigate; synchronized with Frigate every minute — confirmed in Frigate counts as seen in Symcon and vice versa |
 | Snapshot (media object) | image of the last detection (via MQTT) or, on demand, the live image |
 
 In addition there is a **Frigate server** instance for the server itself:

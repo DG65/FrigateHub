@@ -28,6 +28,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.24.1' => [
+            '• ✓ “Seen” now stays in sync with Frigate: whatever you confirm in Frigate is also seen in Symcon (checked every minute), and whatever you open or confirm with “✓ All seen” in the overview tile is marked as seen in Frigate. New variables “Unseen alerts (24 h)” and “Unseen detections (24 h)”.',
+        ],
         '0.24.0' => [
             '• 🎞 New overview tile (Frigate server instance): all cameras, each camera large with live video, and a timeline with zoom (24 h to 10 min) showing recordings, detections and alerts of every camera. Tap the timeline to play the recording from that moment; on a new alert the tile shows the camera large for 60 seconds.',
         ],

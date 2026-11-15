@@ -68,7 +68,7 @@ class FrigateHubZeitleiste
     /**
      * Ereignisse für die Zeitleiste: kurz und ohne Nebensächliches.
      *
-     * @return array<int, array{id: string, s: int, e: ?int, a: bool, t: string, z: array}>
+     * @return array<int, array{id: string, s: int, e: ?int, a: bool, t: string, z: array, g: bool}>
      */
     public static function ereignisse(array $reviews, int $von, int $bis): array
     {
@@ -92,6 +92,7 @@ class FrigateHubZeitleiste
                 'a'  => $e['stufe'] === 'alarm',
                 't'  => (string)$e['text'],
                 'z'  => array_values(array_map('strval', (array)$e['zonen'])),
+                'g'  => (bool)$e['gesehen'],
             ];
         }
         usort($aus, fn ($a, $b) => $a['s'] <=> $b['s']);

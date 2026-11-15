@@ -40,6 +40,7 @@ daraus je Kamera:
 | Bewegungsschwelle, Bewegung: Mindestfläche | Frigates `motion.threshold`/`contour_area`, per Schieberegler einstellbar |
 | Erkannte Person, Kennzeichen, Klassifizierung | Gesichtserkennung, Kennzeichenerkennung und eigene Klassifizierungsmodelle von Frigate, mit Trefferquote |
 | KI-Beschreibung, KI-Einschätzung | Frigates generative KI (GenAI): Titel und Zusammenfassung eines Ereignisses, Einschätzung unauffällig/verdächtig/kritisch |
+| Ungesehene Alarme / Erkennungen (24 h) | was in Frigate noch nicht angesehen ist; jede Minute mit Frigate abgeglichen – in Frigate bestätigt gilt auch in Symcon als gesehen und umgekehrt |
 | Schnappschuss (Medienobjekt) | Bild der letzten Erkennung (per MQTT) oder, auf Knopfdruck, das Livebild |
 
 Dazu kommt eine Instanz **Frigate-Server** für den Server selbst. Als Variablen (für

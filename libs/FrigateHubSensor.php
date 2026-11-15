@@ -145,7 +145,9 @@ class FrigateHubSensor
     /** Name/Kennzeichen-Paar aus events: recognized_license_plate und sub_label (bekannter Name). */
     public static function fahrzeug(array $after): ?array
     {
-        $kennzeichen = trim((string)($after['recognized_license_plate'] ?? ''));
+        // Frigate 0.18 liefert teils [Kennzeichen, Score] statt Text (live 15.11.2026: „Array to string conversion")
+        $roh = $after['recognized_license_plate'] ?? '';
+        $kennzeichen = trim(is_array($roh) ? (string)($roh[0] ?? '') : (string)$roh);
         if ($kennzeichen === '') {
             return null;
         }

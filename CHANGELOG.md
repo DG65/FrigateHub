@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.24.1 (Build 49) — 15.11.2026
+
+- **„Gesehen“ mit Frigate abgeglichen (Auftrag Dietmar 15.11.2026):** Bisher holte die Kamera-Instanz die Ereignisliste nur einmal, und eine Bestätigung in Frigates Oberfläche kam in Symcon nie an (Frigate meldet das nicht per MQTT). Jetzt fragt jede Kamera-Instanz jede Minute `/api/review?cameras=…&limit=8` und `/api/review/summary` ab (Timer `Ereignisse`, `FRIG_EreignisseAbgleichen()`); Frigate ist dabei die Wahrheit. Neue Variablen „Ungesehene Alarme (24 h)“ (`Ungesehen`) und „Ungesehene Erkennungen (24 h)“ (`UngesehenErk`) aus `last24Hours`.
+- **Symcon → Frigate:** Tipp auf ein Ereignis in der Zeitleiste der Übersichtskachel markiert es in Frigate als angesehen (Server-Aktion `Gesehen` → `Kachel_Gesehen` der Kamera). Knopf „✓ Alle gesehen“ im Kopf (nur wenn etwas offen ist): je Kamera `/api/review?reviewed=0&after=<24 h>` holen und in einem `POST /api/reviews/viewed` bestätigen (neue Aktion `Kachel_AlleGesehen`).
+- Übersichtskachel: ungesehene Ereignisse mit Rahmen, gesehene blass, Zähler „N ungesehen“ im Kopf; ändert sich ein Zähler (in Frigate bestätigt), lädt die Zeitleiste neu.
+- **Clips großer Kameras:** Zeitraum-Clips gehen per `CURLOPT_FILE` direkt in die Zwischendatei statt durch den Speicher (vorher Fatal Error „Allowed memory size of 67108864 bytes“ bei 4K-Clips, live 15.11.2026), Zeitlimit 90 s; Wiedergabestücke 30 s statt 60 s.
+- Kennzeichen: Frigate liefert `recognized_license_plate` teils als Liste – keine Warnung mehr.
+- Prüfstand: 8 neue Prüfungen in `.tools/test-kachel.php` (191).
+
 ## 0.24.0 (Build 48) — 15.11.2026
 
 - **Neue Übersichtskachel (Stufe 1 „Videorekorder“, Auftrag Dietmar 15.11.2026):** Die Kachel der Server-Instanz zeigt alle Kameras (Raster), jede Kamera groß (Livevideo per WebRTC, sonst Livebild jede Sekunde, Umschalten zwischen den Kameras) und darunter eine **Zeitleiste** mit einer Spur je Kamera: Aufnahme (grau), Erkennungen (blau), Alarme (rot). Zoom 24 h / 6 h / 1 h / 10 min, Mausrad und zwei Finger, Ziehen in die Vergangenheit, „⏭“ zurück zu jetzt. Beim Öffnen die letzten 24 h.

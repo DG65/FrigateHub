@@ -75,6 +75,8 @@
         .auf { position: absolute; top: 6px; bottom: 6px; background: var(--aufnahme); border-radius: 2px; pointer-events: none; }
         .ev { position: absolute; top: 2px; bottom: 2px; min-width: 3px; border-radius: 2px; background: var(--erkennung); }
         .ev.alarm { background: var(--alarm); }
+        .ev.gesehen { opacity: .4; }
+        .ev:not(.gesehen) { box-shadow: 0 0 0 1px var(--text) inset; }
         .kopfpunkt { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--akzent); pointer-events: none; }
         .kopfpunkt[hidden] { display: none; }
         .achse { position: relative; height: 13px; margin-left: 74px; color: var(--textmuted); }
@@ -169,7 +171,7 @@
             var kopf = el('kopf');
             // Nur bei Änderung neu bauen: sonst trifft ein Tipp womöglich einen gerade ersetzten Knopf
             var schluessel = JSON.stringify([daten.name, daten.eigen, daten.verfuegbar, daten.kameras.length,
-                daten.kameras.filter(function (k) { return k.alarm; }).length, !!wg, modus]);
+                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, modus]);
             if (kopf.dataset.schluessel === schluessel) { return; }
             kopf.dataset.schluessel = schluessel;
             kopf.textContent = '';
@@ -182,11 +184,19 @@
             var s = document.createElement('span');
             var alarme = daten.kameras.filter(function (k) { return k.alarm; }).length;
             s.textContent = daten.verfuegbar === false ? T('⛔ Frigate not reachable') : T(daten.kameras.length === 1 ? '%s camera' : '%s cameras', daten.kameras.length)
-                + (alarme ? ' · 🚨 ' + T(alarme === 1 ? '%s alarm' : '%s alarms', alarme) : '');
+                + (alarme ? ' · 🚨 ' + T(alarme === 1 ? '%s alarm' : '%s alarms', alarme) : '')
+                + (ungesehen() ? ' · ' + T('%s not seen yet', ungesehen()) : '');
             kopf.appendChild(s);
             var l = document.createElement('span');
             l.className = 'luecke';
             kopf.appendChild(l);
+            if (ungesehenAlle() && typeof requestAction === 'function') {
+                var ok = document.createElement('button');
+                ok.textContent = T('✓ All seen');
+                ok.title = T('Mark all alerts and detections of the last 24 hours as seen — also in Frigate');
+                ok.onclick = function () { benutzt(); alleGesehen(); };
+                kopf.appendChild(ok);
+            }
             if (wg) {
                 var live = document.createElement('button');
                 live.className = 'live';
@@ -201,6 +211,29 @@
                 alle.onclick = function () { benutzt(); uebersicht(); };
                 kopf.appendChild(alle);
             }
+        }
+
+        /* ================================================================ Gesehen (Abgleich mit Frigate) */
+        // Ungesehene Alarme der letzten 24 h laut Frigate (Summe der Kameras)
+        function ungesehen() {
+            return (daten && daten.kameras || []).reduce(function (n, k) { return n + (Number(k.ungesehen) || 0); }, 0);
+        }
+        // Ein geöffnetes Ereignis gilt als gesehen — in Symcon und in Frigate
+        function ungesehenAlle() {
+            return (daten && daten.kameras || []).reduce(function (n, k) { return n + (Number(k.ungesehen) || 0) + (Number(k.ungesehenErk) || 0); }, 0);
+        }
+        function ereignisGesehen(kamera, id) {
+            var d = zlDaten[kamera];
+            var ev = d ? d.ereignisse.filter(function (e) { return e.id === id; })[0] : null;
+            if (!ev || ev.g) { return; }
+            ev.g = true;
+            zlInhalt();
+            if (typeof requestAction === 'function') { requestAction('Gesehen', kamera + '|' + id); }
+        }
+        function alleGesehen() {
+            Object.keys(zlDaten).forEach(function (k) { zlDaten[k].ereignisse.forEach(function (e) { e.g = true; }); });
+            zlInhalt();
+            requestAction('AlleGesehen', '1');
         }
 
         /* ================================================================ Übersicht (Raster) */
@@ -441,7 +474,7 @@
         }
 
         /* ---------------------------------------------------------------- Wiedergabe */
-        var STUECK = 60;
+        var STUECK = 30;
 
         /** Aufnahme einer Kamera ab Zeitpunkt t (Sekunden) abspielen; mit Ereignis dessen ganzen Zeitraum. */
         function wiedergabeStarten(kamera, t, ende, ereignis) {
@@ -555,7 +588,7 @@
                     var ende = ev.e || jetzt();
                     if (ende < von || ev.s > bis) { return; }
                     var e = document.createElement('div');
-                    e.className = 'ev' + (ev.a ? ' alarm' : '');
+                    e.className = 'ev' + (ev.a ? ' alarm' : '') + (ev.g ? ' gesehen' : '');
                     e.style.left = Math.max(0, pos(ev.s)) + '%';
                     e.style.width = Math.max(0, Math.min(100, pos(ende)) - Math.max(0, pos(ev.s))) + '%';
                     e.dataset.s = ev.s;
@@ -727,6 +760,7 @@
             if (war.ziel.classList.contains('ev')) {
                 var s = Number(war.ziel.dataset.s), e = war.ziel.dataset.e ? Number(war.ziel.dataset.e) : jetzt();
                 wiedergabeStarten(spur.dataset.kamera, s - 3, e + 2, war.ziel.dataset.id);
+                ereignisGesehen(spur.dataset.kamera, war.ziel.dataset.id);
             } else {
                 var t = zeitBei(ev.clientX);
                 if (jetzt() - t < 20) { kameraOeffnen(spur.dataset.kamera); return; }
@@ -797,7 +831,13 @@
             var erst = daten === null;
             var kameraWechsel = !daten || JSON.stringify((daten.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }))
                 !== JSON.stringify((neu.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }));
+            var vorherUngesehen = erst ? null : ungesehenAlle();
             daten = neu;
+            // In Frigate bestätigt (Zähler geändert): Zeitleiste ganz neu laden, damit die Marken folgen
+            if (vorherUngesehen !== null && vorherUngesehen !== ungesehenAlle()) {
+                Object.keys(zlDaten).forEach(function (k) { if (!zlDaten[k].laedt) { zlDaten[k].von = 1e12; } });
+                zlLaden(true);
+            }
             document.body.classList.toggle('eigen', !!daten.eigen);
             if (erst) {
                 ansicht.spanne = Math.max(300, Math.min(93000, (daten.stunden || 24) * 3600));
