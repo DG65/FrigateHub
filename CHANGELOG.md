@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.0 (Build 50) — 15.11.2026
+
+- **Person folgen (Stufe 2 der Übersichtskachel, Auftrag Dietmar 15.11.2026):** Tipp auf ein Ereignis mit Person in der Zeitleiste spielt es ab und folgt der Person automatisch über die Kameras: Verlässt sie eine Kamera, springt die Wiedergabe zur nächsten (beim Überschneiden der Sichtbereiche ab dem Wechsel). Knopf „👣 Person folgen“ im Kopf für jede andere Wiedergabe (ab der aktuellen Stelle).
+- **Weg sichtbar:** Leiste über dem Video (z. B. „👣 Eingang 21:21:10 → 👁 Annke 21:21:32“, antippbar, „✕“ beendet) und Rahmen um die Abschnitte in den Spuren der Zeitleiste. Abgespielte Abschnitte gelten als gesehen (auch in Frigate).
+- **Zuordnung** (neu `libs/FrigateHubFolgen.php`, Server-Hook `folgen=kamera|von|bis`): Personen-Ereignisse aller Kameras aus `/api/events?labels=person` ±30 min; Nachfolger beginnt höchstens 45 s nach dem Verlassen, neue IDs derselben Kamera (kurz verdeckt) werden zusammengefasst, Rückkehr zur ersten Kamera zählt, höchstens 12 Schritte je Richtung. Mehrere gleichzeitige Kandidaten: gleicher erkannter Name (Gesicht) → Aussehen über Frigates Ähnlichkeitssuche (`/api/events/search?search_type=similarity`, Bezug ist immer die Startperson; live 15.11.2026: 0,05 s) → Zeit, dann als „?“ (mehrdeutig) markiert. Ohne semantische Suche antwortet Frigate 400, dann entscheiden Name und Zeit.
+- Zeitleisten-Ereignisse tragen das Flag `p` (Person dabei).
+- Prüfstand: neu `.tools/test-folgen.php` (17), 4 Hook-Prüfungen in `.tools/test-server.php`, 1 in `.tools/test-kachel.php`.
+
 ## 0.24.1 (Build 49) — 15.11.2026
 
 - **„Gesehen“ mit Frigate abgeglichen (Auftrag Dietmar 15.11.2026):** Bisher holte die Kamera-Instanz die Ereignisliste nur einmal, und eine Bestätigung in Frigates Oberfläche kam in Symcon nie an (Frigate meldet das nicht per MQTT). Jetzt fragt jede Kamera-Instanz jede Minute `/api/review?cameras=…&limit=8` und `/api/review/summary` ab (Timer `Ereignisse`, `FRIG_EreignisseAbgleichen()`); Frigate ist dabei die Wahrheit. Neue Variablen „Ungesehene Alarme (24 h)“ (`Ungesehen`) und „Ungesehene Erkennungen (24 h)“ (`UngesehenErk`) aus `last24Hours`.

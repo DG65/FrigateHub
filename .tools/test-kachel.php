@@ -696,6 +696,7 @@ $kg->RequestAction('Kachel_AlleGesehen', '1');
 check('Alle gesehen: nichts offen → kein POST', TestKachel::$geschrieben, []);
 $ze = FrigateHubZeitleiste::ereignisse([['has_been_reviewed' => true] + $review, $offen], 0, PHP_INT_MAX);
 check('Zeitleiste: Flag g', array_column($ze, 'g'), [true, false]);
+check('Zeitleiste: Flag p (Person dabei)', [FrigateHubZeitleiste::ereignisse([['data' => ['objects' => ['person', 'car']] + $review['data']] + $review], 0, PHP_INT_MAX)[0]['p'] ?? null, $ze[0]['p']], [true, false]);
 
 echo "\n" . ($geprueft - $fehler) . " von {$geprueft} Prüfungen bestanden.\n";
 exit($fehler === 0 ? 0 : 1);

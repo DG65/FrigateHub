@@ -10,6 +10,7 @@ require_once __DIR__ . '/../libs/FrigateHubServerWerte.php';
 require_once __DIR__ . '/../libs/FrigateHubWebhook.php';
 require_once __DIR__ . '/../libs/FrigateHubPush.php';
 require_once __DIR__ . '/../libs/FrigateHubWaechter.php';
+require_once __DIR__ . '/../libs/FrigateHubFolgen.php';
 
 /**
  * Der Frigate-Server selbst: erreichbar, Version (mit Hinweis auf eine neuere), Laufzeit,
@@ -39,7 +40,7 @@ class FrigateHubServer extends IPSModule
     private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person', 'Ungesehen', 'UngesehenErk'];
 
     /** Alle Texte der Übersichtskachel (module.html, Funktion T); übersetzt in den Kacheldaten als „texte“. */
-    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate'];
+    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate', 'End following', 'Follow the person you see here across all cameras', 'Looking for the person on the other cameras …', 'Most similar appearance (Frigate semantic search)', 'Next person by time', 'No person found at this moment.', 'Same recognized face', 'Several people at the same time — chosen by time, may be wrong', 'Starting point', 'The person was not seen on any other camera.', '👣 Follow person'];
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -182,6 +183,10 @@ class FrigateHubServer extends IPSModule
             $this->hookAntwort(200, 'application/json; charset=utf-8', (string)json_encode($this->kachelDaten(true)));
             return;
         }
+        if (isset($get['folgen'])) {
+            $this->hookFolgen($get['folgen']);
+            return;
+        }
         if (isset($get['seite'])) {
             $daten = (string)json_encode($this->kachelDaten(true));
             $abruf = json_encode($this->hookPfad() . '?k=' . $schluessel . '&daten=1');
@@ -208,6 +213,55 @@ class FrigateHubServer extends IPSModule
             return;
         }
         $this->hookAntwort(200, $a['kopf']['content-type'] ?? 'image/jpeg', $a['body'], 'no-store');
+    }
+
+    /**
+     * „Person folgen" (0.25.0): Weg der Person, die auf einer Kamera in einem Zeitraum zu sehen ist, über alle Kameras.
+     * Anfrage folgen=kamera|von|bis. Personen-Ereignisse aus /api/events, bei mehreren Kandidaten Frigates
+     * Ähnlichkeitssuche (nur mit semantischer Suche; sonst 400 → Entscheidung nach Name und Zeit).
+     */
+    private function hookFolgen(string $text): void
+    {
+        $json = 'application/json; charset=utf-8';
+        $a = FrigateHubFolgen::anfrage($text, $this->kameraNamen(), time());
+        if ($a === null || $this->apiUrl() === '') {
+            $this->hookAntwort(404, $json, (string)json_encode(['segmente' => [], 'start' => 0, 'aussehen' => false]));
+            return;
+        }
+        [$kamera, $s, $e] = $a;
+        [$nach, $vor] = [$s - FrigateHubFolgen::SPANNE, $e + FrigateHubFolgen::SPANNE];
+        $vorher = $this->apiZeitlimit;
+        $this->apiZeitlimit = 15;
+        $events = $this->apiHolen('/api/events?labels=person&include_thumbnails=0&limit=500&after=' . $nach . '&before=' . $vor);
+        if ($events === null) {
+            $this->apiZeitlimit = $vorher;
+            $this->hookAntwort(502, $json, (string)json_encode(['fehler' => $this->apiFehlerText()], JSON_UNESCAPED_UNICODE));
+            return;
+        }
+        $aus = false;
+        $aehnlich = function (string $ref, array $ids) use (&$aus, $nach, $vor): array {
+            if ($aus) {
+                return [];
+            }
+            // live 15.11.2026: 0,05 s; Treffer tragen search_distance (kleiner = ähnlicher, nicht normiert)
+            $r = $this->apiHolen('/api/events/search?search_type=similarity&include_thumbnails=0&limit=200&event_id=' . rawurlencode($ref)
+                . '&after=' . $nach . '&before=' . $vor);
+            if (!is_array($r)) {
+                $aus = true;
+                return [];
+            }
+            $abstand = [];
+            foreach ($r as $treffer) {
+                $id = is_array($treffer) ? (string)($treffer['id'] ?? '') : '';
+                if (in_array($id, $ids, true) && is_numeric($treffer['search_distance'] ?? null)) {
+                    $abstand[$id] = (float)$treffer['search_distance'];
+                }
+            }
+            return $abstand;
+        };
+        $kette = FrigateHubFolgen::kette(FrigateHubFolgen::abschnitte($events, time()), $kamera, $s, $e, $aehnlich);
+        $this->apiZeitlimit = $vorher;
+        $this->hookAntwort(200, $json, (string)json_encode($kette, JSON_UNESCAPED_UNICODE));
     }
 
     /** Vertragsversion von FRIGS_GetCameras() (Major nur bei Bruch erhöhen, SUITE.md-Regel). */

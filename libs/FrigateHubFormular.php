@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.25.0' => '💬 Have you tried “Follow person”? Please tell me in the forum whether it switched to the right camera — and how your cameras are arranged.',
         '0.24.0' => '💬 How do you like the new overview tile with timeline? Please tell me in the forum what works and what you are missing — layouts to choose from and “follow a person” are next.',
         '0.23.0' => '💬 Does your camera have a white light, or did you connect a yard light? Please tell me in the forum whether “Light on detection” switches reliably — and which camera you use.',
         '0.22.0' => '💬 Have you tried the film by e-mail? Please tell me in the forum whether GIF or clip arrives and plays in your mail program — and how long it took.',
@@ -28,6 +29,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.25.0' => [
+            '• 👣 New: follow a person (overview tile) — tap an event with a person in the timeline and playback follows the person from camera to camera automatically; the path is shown above the video and in the timeline. With several people at the same time FrigateHub picks by recognized face, then by appearance (Frigate\'s semantic search, if enabled), then by time.',
+        ],
         '0.24.1' => [
             '• ✓ “Seen” now stays in sync with Frigate: whatever you confirm in Frigate is also seen in Symcon (checked every minute), and whatever you open or confirm with “✓ All seen” in the overview tile is marked as seen in Frigate. New variables “Unseen alerts (24 h)” and “Unseen detections (24 h)”.',
         ],

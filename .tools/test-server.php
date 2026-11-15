@@ -254,6 +254,26 @@ check('Birdseye ohne Freigabe durch Abgleich: 404', $s->hook(['bild' => 'birdsey
 TestServer::$bilder['/api/birdseye/latest.jpg?height=120&h=120'] = ['code' => 200, 'body' => 'B', 'kopf' => []];
 $s->ZustandAnfordern();
 check('Birdseye nach Abgleich angeboten', json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true)['birdseye'], true);
+
+// Person folgen (0.25.0): folgen=kamera|von|bis → Weg über alle Kameras
+$fs = 1794769000;
+$evPfad = '/api/events?labels=person&include_thumbnails=0&limit=500&after=' . ($fs - 1800) . '&before=' . ($fs + 10 + 1800);
+$suchPfad = '/api/events/search?search_type=similarity&include_thumbnails=0&limit=200&event_id=' . $fs . '.1-a&after=' . ($fs - 1800) . '&before=' . ($fs + 10 + 1800);
+TestServer::$api[$evPfad] = (string)json_encode([
+    ['id' => $fs . '.1-a', 'camera' => 'Door-Cam', 'label' => 'person', 'start_time' => $fs, 'end_time' => $fs + 20],
+    ['id' => ($fs + 30) . '.1-b', 'camera' => 'Annke', 'label' => 'person', 'start_time' => $fs + 30, 'end_time' => $fs + 50],
+    ['id' => ($fs + 25) . '.1-c', 'camera' => 'Garten', 'label' => 'person', 'start_time' => $fs + 25, 'end_time' => $fs + 50],
+]);
+TestServer::$api[$suchPfad] = (string)json_encode([['id' => $fs . '.1-a', 'search_distance' => 0], ['id' => ($fs + 30) . '.1-b', 'search_distance' => 0.03], ['id' => ($fs + 25) . '.1-c', 'search_distance' => 0.2]]);
+$a = $s->hook(['folgen' => 'Door-Cam|' . $fs . '|' . ($fs + 10), 'k' => $sk]);
+$k = json_decode($a['inhalt'], true);
+check('Folgen: Weg mit Aussehen', [$a['code'], array_map(fn ($g) => $g['kamera'] . ':' . $g['art'], $k['segmente'] ?? []), $k['aussehen'] ?? null], [200, ['Door-Cam:start', 'Annke:aussehen'], true]);
+unset(TestServer::$api[$suchPfad]);
+$k = json_decode($s->hook(['folgen' => 'Door-Cam|' . $fs . '|' . ($fs + 10), 'k' => $sk])['inhalt'], true);
+check('Folgen ohne semantische Suche: nach Zeit, mehrdeutig', array_map(fn ($g) => $g['kamera'] . ':' . $g['art'] . ($g['mehrdeutig'] ? '?' : ''), $k['segmente']), ['Door-Cam:start', 'Garten:zeit?']);
+check('Folgen: ohne Schlüssel 403, fremde Kamera 404', [$s->hook(['folgen' => 'Door-Cam|1|2'])['code'], $s->hook(['folgen' => 'Garten|1|2', 'k' => $sk])['code']], [403, 404]);
+unset(TestServer::$api[$evPfad]);
+check('Folgen: Frigate weg → 502', $s->hook(['folgen' => 'Door-Cam|' . $fs . '|' . ($fs + 10), 'k' => $sk])['code'], 502);
 $seite = $s->hook(['seite' => '1', 'k' => $sk]);
 check('IPSView-Seite mit Startdaten und Abfrage', [$seite['code'], strpos($seite['inhalt'], 'handleMessage(seiteStand)') !== false, strpos($seite['inhalt'], '&daten=1') !== false], [200, true, true]);
 check('Kachel-HTML mit Startdaten', strpos((string)$s->GetVisualizationTile(), 'handleMessage({') !== false, true);

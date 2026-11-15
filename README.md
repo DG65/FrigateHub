@@ -126,6 +126,12 @@ Kachel für alle Kameras dieser Frigate-Instanz:
 - **Wiedergabe:** Ein Tipp auf eine Spur spielt die Aufnahme dieser Kamera ab dieser Stelle, ein Tipp auf ein
   Ereignis dessen ganzen Zeitraum. „● Live“ führt zurück zum Livebild.
 - **Alarm:** Bei einem neuen Alarm zeigt die Kachel die Kamera 60 Sekunden groß und kehrt dann zurück.
+- **Person folgen (ab 0.25):** Ein Tipp auf ein Ereignis mit Person folgt der Person automatisch von Kamera zu
+  Kamera; der Weg steht über dem Video und ist in der Zeitleiste umrahmt. Bei jeder anderen Wiedergabe startet
+  „👣 Person folgen“ ab der aktuellen Stelle. Sind mehrere Personen gleichzeitig unterwegs, entscheidet zuerst ein
+  erkanntes Gesicht, dann das Aussehen (nur mit eingeschalteter **semantischer Suche** in Frigate), sonst die
+  Zeit – dann steht ein „?“ am Abschnitt. Frigate erkennt nicht von selbst, dass es dieselbe Person ist; ohne
+  Gesicht ist die Zuordnung eine gute Vermutung, keine Gewissheit.
 
 Livevideo, Aufnahmen und Ereignisse holt die Kachel über die Kamera-Instanzen; dafür braucht jede Kamera die
 Frigate-Adresse. Auch diese Kachel gibt es als eigenständige Seite für IPSView.

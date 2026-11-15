@@ -101,6 +101,12 @@ timeline with one lane per camera — grey = recording, blue = detection, red = 
 that moment, tap an event to play it; “● Live” returns to live. On a new alert the tile shows the camera large
 for 60 seconds. Also available as a standalone page for IPSView.
 
+**Follow a person (from 0.25):** Tapping an event with a person follows that person from camera to camera
+automatically; the path is shown above the video and outlined in the timeline. During any other playback,
+“👣 Follow person” starts from the current moment. With several people at the same time, a recognized face
+decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
+is then marked “?”. Without a face the assignment is a good guess, not a certainty.
+
 **IPSView and browser:** The same interface is available as a standalone page
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<key>` – embed it in IPSView as a web page
 element. The button “Show address for IPSView” in the “🖥️ Tile and IPSView” panel shows the full

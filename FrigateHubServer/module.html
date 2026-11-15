@@ -76,6 +76,12 @@
         .ev { position: absolute; top: 2px; bottom: 2px; min-width: 3px; border-radius: 2px; background: var(--erkennung); }
         .ev.alarm { background: var(--alarm); }
         .ev.gesehen { opacity: .4; }
+        .wegspur { position: absolute; top: 0; bottom: 0; min-width: 4px; box-sizing: border-box; border: 2px solid var(--akzent); border-radius: 3px; pointer-events: none; }
+        .wegspur.an { background: rgba(43, 179, 192, .35); }
+        .weg { position: absolute; left: 8px; right: 8px; top: 34px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; pointer-events: none; z-index: 2; }
+        .weg button { pointer-events: auto; font-size: 11px; padding: 2px 8px; background: rgba(0, 0, 0, .6); color: #fff; }
+        .weg button.an { background: var(--akzent); }
+        .weg .pfeil { color: #fff; font-size: 11px; text-shadow: 0 0 3px #000; }
         .ev:not(.gesehen) { box-shadow: 0 0 0 1px var(--text) inset; }
         .kopfpunkt { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--akzent); pointer-events: none; }
         .kopfpunkt[hidden] { display: none; }
@@ -171,7 +177,7 @@
             var kopf = el('kopf');
             // Nur bei Änderung neu bauen: sonst trifft ein Tipp womöglich einen gerade ersetzten Knopf
             var schluessel = JSON.stringify([daten.name, daten.eigen, daten.verfuegbar, daten.kameras.length,
-                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, modus]);
+                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, !!folge, modus]);
             if (kopf.dataset.schluessel === schluessel) { return; }
             kopf.dataset.schluessel = schluessel;
             kopf.textContent = '';
@@ -196,6 +202,13 @@
                 ok.title = T('Mark all alerts and detections of the last 24 hours as seen — also in Frigate');
                 ok.onclick = function () { benutzt(); alleGesehen(); };
                 kopf.appendChild(ok);
+            }
+            if (wg && !folge) {
+                var f = document.createElement('button');
+                f.textContent = T('👣 Follow person');
+                f.title = T('Follow the person you see here across all cameras');
+                f.onclick = function () { benutzt(); folgeStarten(); };
+                kopf.appendChild(f);
             }
             if (wg) {
                 var live = document.createElement('button');
@@ -236,8 +249,82 @@
             requestAction('AlleGesehen', '1');
         }
 
+        /* ================================================================ Person folgen (0.25.0) */
+        // Der Server bildet aus Frigates Personen-Ereignissen aller Kameras den Weg (Name → Aussehen → Zeit);
+        // die Wiedergabe springt beim Verlassen einer Kamera zur nächsten.
+        var folge = null;              // {segmente: [{kamera, id, s, e, art, name, mehrdeutig}], i, aussehen}
+        function ereignisFinden(kamera, id) {
+            var d = zlDaten[kamera];
+            return d ? d.ereignisse.filter(function (e) { return e.id === id; })[0] || null : null;
+        }
+        function folgeStarten() {
+            if (!wg || !daten.hook) { return; }
+            var ev = wg.ereignis ? ereignisFinden(wg.kamera, wg.ereignis) : null;
+            var s = Math.floor(ev ? ev.s : wgPosition()), e = Math.ceil(ev ? (ev.e || jetzt()) : wgPosition());
+            var kamera = wg.kamera, anfrage = wg;
+            hinweis(T('Looking for the person on the other cameras …'));
+            fetch(daten.hook + '?k=' + encodeURIComponent(daten.k || '') + '&folgen=' + encodeURIComponent(kamera + '|' + s + '|' + e), { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+                    if (wg !== anfrage) { return; }
+                    if (!j || !j.segmente || !j.segmente.length) { hinweis(T('No person found at this moment.')); return; }
+                    folge = { segmente: j.segmente, i: j.start || 0, aussehen: !!j.aussehen };
+                    wg.folge = true;
+                    hinweis(j.segmente.length === 1 ? T('The person was not seen on any other camera.') : '');
+                    kopfZeichnen();
+                    wegLeiste();
+                    zlInhalt();
+                }).catch(function () { if (wg === anfrage) { hinweis(T('⛔ Frigate not reachable')); } });
+        }
+        function folgeAbspielen(i) {
+            var vor = folge.i, seg = folge.segmente[i], davor = folge.segmente[i - 1];
+            folge.i = i;
+            var t = seg.s - 2;
+            // Weiter in Laufrichtung: war die Person kurz auf beiden Kameras, ab dem Wechsel weiterspielen
+            if (i === vor + 1 && davor && seg.s < davor.e) { t = Math.max(seg.s, davor.e - 1); }
+            wiedergabeStarten(seg.kamera, t, seg.e + 2, seg.id, true);
+            ereignisGesehenNachZeit(seg.kamera, seg.s, seg.e);
+        }
+        function folgeWeiter() {
+            if (folge && folge.i < folge.segmente.length - 1) { folgeAbspielen(folge.i + 1); }
+        }
+        // Reviews dieser Kamera, die der Abschnitt berührt, gelten beim Abspielen als gesehen
+        function ereignisGesehenNachZeit(kamera, s, e) {
+            var d = zlDaten[kamera];
+            (d ? d.ereignisse : []).forEach(function (ev) { if (ev.s <= e && (ev.e || jetzt()) >= s) { ereignisGesehen(kamera, ev.id); } });
+        }
+        function wegLeiste() {
+            var b = el('buehne');
+            if (!b) { return; }
+            var alt = b.querySelector('.weg');
+            if (alt) { alt.remove(); }
+            if (!folge) { return; }
+            var leiste = document.createElement('div');
+            leiste.className = 'weg';
+            var zeichen = { start: '👣', gesicht: '🙂', aussehen: '👁', zeit: '⏱' };
+            folge.segmente.forEach(function (seg, i) {
+                if (i > 0) { var p = document.createElement('span'); p.className = 'pfeil'; p.textContent = '→'; leiste.appendChild(p); }
+                var k = kameraDaten(seg.kamera);
+                var knopf = document.createElement('button');
+                knopf.textContent = zeichen[seg.art] + ' ' + (k ? k.name : seg.kamera) + ' ' + uhrzeitSek(seg.s) + (seg.mehrdeutig ? ' ?' : '');
+                knopf.title = (seg.name ? seg.name + ' · ' : '') + ({
+                    start: T('Starting point'), gesicht: T('Same recognized face'), aussehen: T('Most similar appearance (Frigate semantic search)'),
+                    zeit: seg.mehrdeutig ? T('Several people at the same time — chosen by time, may be wrong') : T('Next person by time')
+                })[seg.art];
+                if (i === folge.i) { knopf.className = 'an'; }
+                knopf.onclick = function () { benutzt(); folge.i = i; folgeAbspielen(i); };
+                leiste.appendChild(knopf);
+            });
+            var ende = document.createElement('button');
+            ende.textContent = '✕';
+            ende.title = T('End following');
+            ende.onclick = function () { benutzt(); folge = null; if (wg) { wg.folge = false; } kopfZeichnen(); wegLeiste(); zlInhalt(); };
+            leiste.appendChild(ende);
+            b.appendChild(leiste);
+        }
+
         /* ================================================================ Übersicht (Raster) */
         function uebersicht() {
+            folge = null;
             wiedergabeStoppen();
             liveStoppen();
             modus = 'uebersicht';
@@ -366,6 +453,7 @@
                 buehne.appendChild(hinweis);
                 zeit.className = 'zeit wg';
                 wiedergabeLaden();
+                wegLeiste();
             } else {
                 var img = document.createElement('img');
                 img.id = 'liveBild';
@@ -477,13 +565,14 @@
         var STUECK = 30;
 
         /** Aufnahme einer Kamera ab Zeitpunkt t (Sekunden) abspielen; mit Ereignis dessen ganzen Zeitraum. */
-        function wiedergabeStarten(kamera, t, ende, ereignis) {
+        function wiedergabeStarten(kamera, t, ende, ereignis, ausFolge) {
+            if (!ausFolge) { folge = null; }
             liveStoppen();
             var bis = ende ? Math.min(ende, t + 3600) : t + STUECK;
             t = Math.floor(Math.min(t, jetzt() - 15));
             bis = Math.ceil(Math.min(bis, jetzt()));
             if (bis <= t) { bis = t + 10; }
-            wg = { kamera: kamera, von: t, bis: bis, ereignis: ereignis || null, weiter: !ende };
+            wg = { kamera: kamera, von: t, bis: bis, ereignis: ereignis || null, weiter: !ende, folge: !!ausFolge };
             modus = 'kamera';
             aktiv = kamera;
             ansicht.folgen = false;
@@ -499,6 +588,13 @@
             v.onloadeddata = function () { hinweis(''); };
             v.onerror = function () { hinweis(T('Frigate has no recording for this period.')); };
             v.onended = function () {
+                if (folge && wg && wg.folge) {
+                    // Abschnitt reicht über den gespielten Clip hinaus (mehrere Ereignisse derselben Person): Rest spielen
+                    var seg = folge.segmente[folge.i];
+                    if (seg && seg.kamera === wg.kamera && wg.bis < seg.e - 1) { wiedergabeStarten(seg.kamera, wg.bis, seg.e + 2, seg.id, true); return; }
+                    folgeWeiter();
+                    return;
+                }
                 if (wg && wg.weiter && wg.bis < jetzt() - 20) {
                     wg.von = wg.bis;
                     wg.bis = Math.ceil(Math.min(wg.von + STUECK, jetzt()));
@@ -513,6 +609,9 @@
                 var t = wgPosition();
                 if (zeit) { zeit.textContent = '⏪ ' + uhrzeit(t, Math.abs(jetzt() - t) > 86400) + ':' + ('0' + new Date(t * 1000).getSeconds()).slice(-2); }
                 kopfpunktSetzen(t);
+                // Person folgen: hat die Person diese Kamera verlassen, zur nächsten wechseln
+                var seg = folge && wg.folge ? folge.segmente[folge.i] : null;
+                if (seg && t > seg.e + 1 && folge.i < folge.segmente.length - 1) { folgeWeiter(); }
             }, 250);
         }
 
@@ -529,6 +628,7 @@
         }
 
         function wiedergabeEnde() {
+            folge = null;
             var k = wg ? wg.kamera : aktiv;
             wiedergabeStoppen();
             ansicht.bis = jetzt();
@@ -596,6 +696,14 @@
                     e.dataset.text = uhrzeit(ev.s, spanne > 86400) + ' · ' + ev.t + (ev.z && ev.z.length ? ' · ' + ev.z.join(', ') : '');
                     e.dataset.id = ev.id;
                     spur.appendChild(e);
+                });
+                (folge ? folge.segmente : []).forEach(function (seg, i) {
+                    if (seg.kamera !== spur.dataset.kamera || seg.e < von || seg.s > bis) { return; }
+                    var w = document.createElement('div');
+                    w.className = 'wegspur' + (i === folge.i ? ' an' : '');
+                    w.style.left = Math.max(0, pos(seg.s)) + '%';
+                    w.style.width = Math.max(0, Math.min(100, pos(seg.e)) - Math.max(0, pos(seg.s))) + '%';
+                    spur.appendChild(w);
                 });
             });
             // Achse: runde Schritte je nach Spanne
@@ -761,6 +869,8 @@
                 var s = Number(war.ziel.dataset.s), e = war.ziel.dataset.e ? Number(war.ziel.dataset.e) : jetzt();
                 wiedergabeStarten(spur.dataset.kamera, s - 3, e + 2, war.ziel.dataset.id);
                 ereignisGesehen(spur.dataset.kamera, war.ziel.dataset.id);
+                var evd = ereignisFinden(spur.dataset.kamera, war.ziel.dataset.id);
+                if (evd && evd.p) { folgeStarten(); }
             } else {
                 var t = zeitBei(ev.clientX);
                 if (jetzt() - t < 20) { kameraOeffnen(spur.dataset.kamera); return; }
