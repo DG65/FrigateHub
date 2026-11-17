@@ -132,9 +132,13 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   erkanntes Gesicht, dann das Aussehen (nur mit eingeschalteter **semantischer Suche** in Frigate), sonst die
   Zeit – dann steht ein „?“ am Abschnitt. Frigate erkennt nicht von selbst, dass es dieselbe Person ist; ohne
   Gesicht ist die Zuordnung eine gute Vermutung, keine Gewissheit.
-- **PTZ (ab 0.25.1):** Bei Kameras, für die Frigate PTZ meldet, liegt in der großen Liveansicht ein Steuerkreuz
-  (gedrückt halten bewegt, loslassen hält an), dazu Zoom und die in der Kamera gespeicherten Positionen. Voraussetzung
-  ist eine funktionierende ONVIF-Verbindung in Frigate (`onvif:` der Kamera, ONVIF in der Kamera eingeschaltet).
+- **PTZ (ab 0.26):** Bei Kameras, für die Frigate PTZ meldet, steuerst du in der großen Liveansicht (Kamera- und
+  Übersichtskachel) direkt im Bild: „🎮 Steuern“ einschalten, dann **ins Bild klicken** – die Kamera schwenkt auf den
+  Punkt –, einen **Rahmen aufziehen** von links oben nach rechts unten zoomt auf den Ausschnitt (umgekehrt hinaus),
+  **Mausrad** oder **zwei Finger** zoomen. Daneben Zoom −/+ und die in der Kamera gespeicherten Positionen. Kameras
+  ohne Bewegung im Bildfeld (ONVIF „pt-r-fov“) bekommen Pfeiltasten zum Gedrückthalten. Voraussetzung ist eine
+  funktionierende ONVIF-Verbindung in Frigate (`onvif:` der Kamera, ONVIF samt ONVIF-Benutzer in der Kamera
+  eingeschaltet; bei Hikvision Authentifizierung „Digest&ws-username token“).
 
 Livevideo, Aufnahmen und Ereignisse holt die Kachel über die Kamera-Instanzen; dafür braucht jede Kamera die
 Frigate-Adresse. Auch diese Kachel gibt es als eigenständige Seite für IPSView.

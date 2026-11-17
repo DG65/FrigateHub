@@ -706,6 +706,24 @@ class FrigateHubTopics
         return array_slice($out, 0, 64);
     }
 
+    /**
+     * Relative PTZ-Bewegung im Bildfeld: move_relative_<x>_<y>[_<zoom>], Werte -1…1 (Frigate 0.18.2,
+     * frigate/<kamera>/ptz → OnvifController::_move_relative, braucht „pt-r-fov", Zoom „zoom-r").
+     */
+    public static function ptzRelativ(string $befehl): bool
+    {
+        $zahl = '(-?[01](?:\.\d{1,4})?)';
+        if (!preg_match('/^move_relative_' . $zahl . '_' . $zahl . '(?:_' . $zahl . ')?\z/', $befehl, $m)) {
+            return false;
+        }
+        foreach (array_slice($m, 1) as $w) {
+            if (abs((float)$w) > 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** „start-ende" (Unix-Sekunden) → [start, ende], nur wenn 0 < Dauer ≤ $max und nicht in der Zukunft. */
     public static function zeitraum(string $text, int $max): ?array
     {

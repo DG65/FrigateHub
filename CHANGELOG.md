@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0 (Build 53) — 17.11.2026
+
+- **PTZ im Bild steuern (Auftrag Dietmar 17.11.2026), Kamera- und Übersichtskachel:** Knopf „🎮 Steuern“ macht das Livebild zur Steuerfläche wie in Frigates Oberfläche (v0.18.2, `LiveCameraView`): Klick schwenkt auf den Punkt (`move_relative_<x>_<y>`), ein aufgezogener Rahmen schwenkt auf seine Mitte und zoomt (`move_relative_<x>_<y>_<zoom>`, Zoom aus der Rahmengröße wie bei Frigate, links oben → rechts unten hinein, umgekehrt hinaus), Mausrad bzw. zwei Finger zoomen. Gerechnet wird im tatsächlich sichtbaren Bild (object-fit: contain), Klicks daneben bewirken nichts. Ohne Schalter bleibt ein Klick ins Bild wirkungslos – die Kamera dreht sich nicht versehentlich weg.
+- Das Steuerkreuz entfällt; Kameras ohne „pt-r-fov“ bekommen Pfeiltasten (gedrückt halten). Zoom −/+ und Positionen liegen in der Kamera-Kachel in der Werkzeugleiste über dem Bild, in der Übersichtskachel oben rechts – nicht mehr auf der Laufleiste des Videos (Rückmeldung Dietmar).
+- Gemeinsame JS-Funktion `ptzBedienung()` in beiden Kacheln; `FrigateHubTopics::ptzRelativ()` prüft `move_relative_…` (Werte −1…1), `Kachel_PTZ` nimmt es an. Grundlage nachgelesen im Frigate-Quellcode v0.18.2 (`comms/dispatcher.py` `_on_ptz_command`, `ptz/onvif.py` `_move_relative`).
+- Eigenständige Seite: `requestAction` reicht Text-Werte jetzt unverändert weiter (vorher wurde jeder Wert zu 0/1, PTZ und andere Aktionen kamen dort falsch an).
+- Prüfstand: 3 neue Prüfungen in `.tools/test-kachel.php` (199), 2 angepasste in `.tools/test-frigatehub.php`; Bedienung im Browser mit Testdaten geprüft (Klick, Rahmen hinein/hinaus, Mausrad, Pfeiltasten ohne pt-r-fov).
+
 ## 0.25.2 (Build 52) — 17.11.2026
 
 - **PTZ-Positionen bereinigt (live 17.11.2026, Garten_Kamera Hikvision):** Frigate meldet bei Hikvision/Annke alle 300 Positionsplätze – unbelegte als „preset N“ und Sonderfunktionen wie „remote reboot“, „alarm light on“, „call patrol 1“, „set manual limits“ oder „call osd menu“. Die Auswahl zeigte damit 300 Einträge, und ein Fehlgriff hätte die Kamera neu starten können. Neu `FrigateHubTopics::ptzPositionen()`: nur belegte Positionen (z. B. „Vorbelegung 1“), höchstens 64.

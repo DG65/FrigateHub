@@ -107,9 +107,13 @@ automatically; the path is shown above the video and outlined in the timeline. D
 decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
 is then marked “?”. Without a face the assignment is a good guess, not a certainty.
 
-**PTZ (from 0.25.1):** For cameras that Frigate reports as PTZ, the large live view shows a control pad (hold to
-move, release to stop), zoom and the positions saved in the camera. This needs a working ONVIF connection in
-Frigate (`onvif:` of the camera, ONVIF enabled in the camera).
+**PTZ (from 0.26):** For cameras that Frigate reports as PTZ, you aim directly in the picture of the large live
+view (camera tile and overview tile): switch on “🎮 Aim”, then **click into the picture** – the camera turns to that
+point –, **draw a frame** from top left to bottom right to zoom into it (the other way round zooms out), zoom with the
+**mouse wheel** or **two fingers**. Next to it zoom −/+ and the positions saved in the camera. Cameras without
+movement in the field of view (ONVIF “pt-r-fov”) get arrow buttons to hold. This needs a working ONVIF connection in
+Frigate (`onvif:` of the camera, ONVIF with an ONVIF user enabled in the camera; for Hikvision authentication
+“Digest&ws-username token”).
 
 **IPSView and browser:** The same interface is available as a standalone page
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<key>` – embed it in IPSView as a web page

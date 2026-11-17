@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.26.0' => '💬 Have you tried aiming your PTZ camera in the picture? Please tell me in the forum whether click and frame land where you expected — and which camera you use.',
         '0.25.0' => '💬 Have you tried “Follow person”? Please tell me in the forum whether it switched to the right camera — and how your cameras are arranged.',
         '0.24.0' => '💬 How do you like the new overview tile with timeline? Please tell me in the forum what works and what you are missing — layouts to choose from and “follow a person” are next.',
         '0.23.0' => '💬 Does your camera have a white light, or did you connect a yard light? Please tell me in the forum whether “Light on detection” switches reliably — and which camera you use.',
@@ -29,6 +30,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.26.0' => [
+            '• 🎮 New: aim PTZ cameras directly in the picture (camera tile and overview tile) — switch on “🎮 Aim”, then click where the camera should look, draw a frame to zoom into it, zoom with the mouse wheel or two fingers. Zoom −/+ and the saved positions sit above the picture instead of on the video\'s progress bar. Cameras without this ONVIF ability get arrow buttons.',
+        ],
         '0.25.1' => [
             '• 🎮 New in the overview tile: PTZ cameras can be panned, tilted and zoomed in the large live view, saved positions can be selected — as soon as Frigate reports PTZ for the camera (ONVIF).',
         ],
