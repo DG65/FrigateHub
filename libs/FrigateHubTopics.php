@@ -688,6 +688,24 @@ class FrigateHubTopics
         return (int)mktime(0, 0, 0, (int)$m[2], (int)$m[3], (int)$m[1]);
     }
 
+    /**
+     * Wählbare PTZ-Positionen aus Frigates /api/<kamera>/ptz/info. Hikvision/Annke melden alle 300 Plätze,
+     * unbelegte als „preset N", dazu Sonderfunktionen als Positionen (u. a. „remote reboot", „alarm light on",
+     * „call patrol 1", live 17.11.2026). Die gehören nicht in eine Positionsauswahl — ein Fehlgriff startet
+     * sonst die Kamera neu. Übrig bleiben die belegten Positionen (etwa „Vorbelegung 1"), höchstens 64.
+     */
+    public static function ptzPositionen(array $presets): array
+    {
+        $sonder = '/^(preset \d+|back to origin|(call|one-touch) .*|.*\b(patrol|scan|park|wiper|tracking|limits?|reboot|menu|light (on|off)|mode)\b.*)$/i';
+        $out = [];
+        foreach ($presets as $p) {
+            if (is_string($p) && preg_match('/^[A-Za-z0-9 _.-]{1,64}\z/', $p) && !preg_match($sonder, trim($p)) && !in_array($p, $out, true)) {
+                $out[] = $p;
+            }
+        }
+        return array_slice($out, 0, 64);
+    }
+
     /** „start-ende" (Unix-Sekunden) → [start, ende], nur wenn 0 < Dauer ≤ $max und nicht in der Zukunft. */
     public static function zeitraum(string $text, int $max): ?array
     {

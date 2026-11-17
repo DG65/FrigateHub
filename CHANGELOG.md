@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.25.2 (Build 52) — 17.11.2026
+
+- **PTZ-Positionen bereinigt (live 17.11.2026, Garten_Kamera Hikvision):** Frigate meldet bei Hikvision/Annke alle 300 Positionsplätze – unbelegte als „preset N“ und Sonderfunktionen wie „remote reboot“, „alarm light on“, „call patrol 1“, „set manual limits“ oder „call osd menu“. Die Auswahl zeigte damit 300 Einträge, und ein Fehlgriff hätte die Kamera neu starten können. Neu `FrigateHubTopics::ptzPositionen()`: nur belegte Positionen (z. B. „Vorbelegung 1“), höchstens 64.
+- `Kachel_PTZ` nimmt Positionen nur noch aus der gemerkten Auswahl an, nicht mehr jeden Namen.
+- Prüfstand: 3 neue Prüfungen in `.tools/test-kachel.php` (197).
+
 ## 0.25.1 (Build 51) — 17.11.2026
 
 - **PTZ in der Übersichtskachel (Auftrag Dietmar 17.11.2026):** In der großen Liveansicht liegt bei Kameras, für die Frigate PTZ-Fähigkeiten meldet, das Steuerkreuz (▲◀■▶▼, gedrückt halten bewegt, Loslassen hält an), Zoom −/+ und die Auswahl der gespeicherten Positionen. Nur in der Visualisierung, nicht auf der eigenständigen Seite. Neue Server-Aktion `PTZ` („kamera|befehl“) → `Kachel_PTZ` der Kamera-Instanz, die den Befehl prüft und per MQTT an `frigate/<kamera>/ptz` sendet.

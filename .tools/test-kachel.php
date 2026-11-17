@@ -415,6 +415,10 @@ check('Formular: IPSView-Knopf statt Schlüssel', [strpos((string)$k->GetConfigu
 check('Tag gültig', FrigateHubTopics::tagBeginn('2026-10-29'), mktime(0, 0, 0, 10, 29, 2026));
 check('Tag ungültig', [FrigateHubTopics::tagBeginn('2026-02-30'), FrigateHubTopics::tagBeginn('29.10.2026'), FrigateHubTopics::tagBeginn("2026-10-29\n")], [null, null, null]);
 $t = time() - 3600;
+$hik = array_merge(['vorbelegung 1', 'Vorbelegung 2', 'back to origin', 'call patrol 1', 'day mode', 'night mode', 'one-touch patrol', 'day/night auto mode',
+    'alarm light on', 'alarm light off', 'set manual limits', 'save manual limits', 'remote reboot', 'call osd menu', 'Einfahrt', 'Tor_links'], array_map(fn ($i) => 'preset ' . $i, range(3, 300)));
+check('PTZ-Positionen: Hikvision-Platzhalter und Sonderfunktionen weg', FrigateHubTopics::ptzPositionen($hik), ['vorbelegung 1', 'Vorbelegung 2', 'Einfahrt', 'Tor_links']);
+check('PTZ-Positionen: höchstens 64, keine Doppelten', [count(FrigateHubTopics::ptzPositionen(array_map(fn ($i) => 'Platz ' . $i, range(1, 100)))), FrigateHubTopics::ptzPositionen(['A', 'A', 7])], [64, ['A']]);
 check('Zeitraum gültig', FrigateHubTopics::zeitraum($t . '-' . ($t + 60), 3600), [$t, $t + 60]);
 check('Zeitraum zu lang / verkehrt / Zukunft / Müll', [FrigateHubTopics::zeitraum($t . '-' . ($t + 3601), 3600), FrigateHubTopics::zeitraum(($t + 5) . '-' . $t, 3600),
     FrigateHubTopics::zeitraum((time() + 100) . '-' . (time() + 160), 3600), FrigateHubTopics::zeitraum('1-2;rm', 3600)], [null, null, null, null]);
@@ -476,6 +480,10 @@ foreach (['Kachel_Gesehen' => '../x', 'Kachel_Favorit' => $EV . ':2', 'Kachel_Ex
 IPSTestState::$sentPackets = [];
 IPSTestState::$instances[96] = ['InstanceID' => 96, 'ConnectionID' => 0, 'InstanceStatus' => IS_ACTIVE, 'ModuleInfo' => ['ModuleID' => '{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}']];
 IPSTestState::$instances[1]['ConnectionID'] = 96;
+$k->WriteAttributeString('Ptz', '{"features":["pt"],"presets":["Einfahrt"]}');
+$geworfen = false;
+try { $k->RequestAction('Kachel_PTZ', 'preset_remote reboot'); } catch (Throwable $ex) { $geworfen = true; }
+check('PTZ: nur gemerkte Positionen, keine Sonderfunktion', [$geworfen, count(IPSTestState::$sentPackets)], [true, 0]);
 $k->RequestAction('Kachel_PTZ', 'MOVE_LEFT');
 $k->RequestAction('Kachel_PTZ', 'preset_Einfahrt');
 $k->RequestAction('Zahl_motion_threshold', 999);

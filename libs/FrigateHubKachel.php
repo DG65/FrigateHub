@@ -311,7 +311,9 @@ trait FrigateHubKachel
                 return true;
 
             case 'Kachel_PTZ':
-                if (!in_array($wert, self::PTZ_BEFEHLE, true) && !preg_match('/^preset_[A-Za-z0-9 _.-]{1,64}\z/', $wert)) {
+                // Positionen nur aus der gemerkten Auswahl (keine Hikvision-Sonderfunktionen wie „remote reboot")
+                $gemerkt = (array)(json_decode($this->ReadAttributeString('Ptz'), true)['presets'] ?? []);
+                if (!in_array($wert, self::PTZ_BEFEHLE, true) && !(strncmp($wert, 'preset_', 7) === 0 && in_array(substr($wert, 7), $gemerkt, true))) {
                     throw new Exception(FrigateHubText::t('Unknown PTZ command.'));
                 }
                 $this->ptzSenden($wert);
@@ -803,7 +805,7 @@ trait FrigateHubKachel
     private function ptzMerken(?array $info): void
     {
         $features = array_values(array_filter((array)($info['features'] ?? []), 'is_string'));
-        $presets = array_values(array_filter((array)($info['presets'] ?? []), fn ($p) => is_string($p) && preg_match('/^[A-Za-z0-9 _.-]{1,64}\z/', $p)));
+        $presets = FrigateHubTopics::ptzPositionen((array)($info['presets'] ?? []));
         $this->WriteAttributeString('Ptz', $features === [] && $presets === [] ? '' : (string)json_encode(['features' => $features, 'presets' => $presets]));
     }
 
