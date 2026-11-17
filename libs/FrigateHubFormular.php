@@ -29,6 +29,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.25.1' => [
+            '• 🎮 New in the overview tile: PTZ cameras can be panned, tilted and zoomed in the large live view, saved positions can be selected — as soon as Frigate reports PTZ for the camera (ONVIF).',
+        ],
         '0.25.0' => [
             '• 👣 New: follow a person (overview tile) — tap an event with a person in the timeline and playback follows the person from camera to camera automatically; the path is shown above the video and in the timeline. With several people at the same time FrigateHub picks by recognized face, then by appearance (Frigate\'s semantic search, if enabled), then by time.',
         ],

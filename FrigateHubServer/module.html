@@ -89,6 +89,10 @@
         .achse span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
         .tipp { position: absolute; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, .8); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 11px; white-space: nowrap; transform: translate(-50%, -100%); }
         .tipp[hidden] { display: none; }
+        /* PTZ-Steuerkreuz über dem Livebild (nur Kameras, für die Frigate PTZ meldet) */
+        .buehne .ptz { position: absolute; right: 10px; bottom: 10px; display: grid; grid-template-columns: repeat(3, 38px); gap: 4px; z-index: 3; }
+        .buehne .ptz button { padding: 4px 0; background: rgba(0, 0, 0, .55); color: #fff; touch-action: none; }
+        .buehne .ptz select { grid-column: 1 / 4; font: inherit; font-size: 12px; }
     </style>
 </head>
 
@@ -462,8 +466,54 @@
                 buehne.appendChild(img);
                 buehne.appendChild(zeit);
                 buehne.appendChild(hinweis);
+                ptzZeichnen(buehne);
                 liveStarten();
             }
+        }
+
+        /* ---------------------------------------------------------------- PTZ */
+        /**
+         * Steuerkreuz, Zoom und Positionen der aktiven Kamera, nur im Livebild, nur in der Visualisierung
+         * (requestAction) und nur, wenn Frigate für die Kamera PTZ-Fähigkeiten meldet (/api/<kamera>/ptz/info).
+         */
+        function ptzZeichnen(buehne) {
+            var k = kameraDaten(aktiv);
+            var ptz = k && k.zugang && k.zugang.ptz;
+            if (!ptz || typeof ptz !== 'object' || typeof requestAction !== 'function') { return; }
+            var kamera = k.kamera;
+            function senden(befehl) { requestAction('PTZ', kamera + '|' + befehl); }
+            var f = ptz.features || [];
+            var knoepfe = [];
+            if (f.indexOf('pt') >= 0) { knoepfe = knoepfe.concat([['', ''], ['▲', 'MOVE_UP'], ['', ''], ['◀', 'MOVE_LEFT'], ['■', 'STOP'], ['▶', 'MOVE_RIGHT'], ['', ''], ['▼', 'MOVE_DOWN'], ['', '']]); }
+            if (f.indexOf('zoom') >= 0) { knoepfe = knoepfe.concat([['−', 'ZOOM_OUT'], ['', ''], ['+', 'ZOOM_IN']]); }
+            var presets = ptz.presets || [];
+            if (!knoepfe.length && !presets.length) { return; }
+            var pad = document.createElement('div');
+            pad.className = 'ptz';
+            knoepfe.forEach(function (kn) {
+                if (!kn[1]) { pad.appendChild(document.createElement('span')); return; }
+                var b = document.createElement('button');
+                b.textContent = kn[0];
+                if (kn[1] === 'STOP') { b.onclick = function () { benutzt(); senden('STOP'); }; }
+                else {
+                    // Bewegen, solange gedrückt; Loslassen oder Verlassen hält an (nur nach einem Druck)
+                    var gedrueckt = false;
+                    b.onpointerdown = function (ev) { ev.preventDefault(); benutzt(); gedrueckt = true; senden(kn[1]); };
+                    b.onpointerup = b.onpointerleave = b.onpointercancel = function () { if (gedrueckt) { gedrueckt = false; senden('STOP'); } };
+                }
+                pad.appendChild(b);
+            });
+            if (presets.length) {
+                var sel = document.createElement('select');
+                var o0 = document.createElement('option');
+                o0.textContent = T('Position …');
+                o0.value = '';
+                sel.appendChild(o0);
+                presets.forEach(function (p) { var o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
+                sel.onchange = function () { if (sel.value) { benutzt(); senden('preset_' + sel.value); sel.value = ''; } };
+                pad.appendChild(sel);
+            }
+            buehne.appendChild(pad);
         }
 
         function hinweis(text) {
@@ -939,8 +989,8 @@
             var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;
             if (!neu || !neu.hook) { return; }
             var erst = daten === null;
-            var kameraWechsel = !daten || JSON.stringify((daten.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }))
-                !== JSON.stringify((neu.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook : ''); }));
+            var kameraWechsel = !daten || JSON.stringify((daten.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook + JSON.stringify(k.zugang.ptz || null) : ''); }))
+                !== JSON.stringify((neu.kameras || []).map(function (k) { return k.kamera + (k.zugang ? k.zugang.hook + JSON.stringify(k.zugang.ptz || null) : ''); }));
             var vorherUngesehen = erst ? null : ungesehenAlle();
             daten = neu;
             // In Frigate bestätigt (Zähler geändert): Zeitleiste ganz neu laden, damit die Marken folgen

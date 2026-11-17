@@ -455,7 +455,8 @@ trait FrigateHubKachel
             'k'     => $this->ReadAttributeString('HookSchluessel'),
             'api'   => $api,
             'video' => $api && $this->ReadPropertyBoolean('KachelVideo') && $this->ReadAttributeString('Livestream') !== '',
-            'ptz'   => is_array($ptz) && $ptz !== [],
+            // PTZ-Fähigkeiten (features/presets) für das Steuerkreuz der Übersichtskachel, null = keine
+            'ptz'   => is_array($ptz) && $ptz !== [] ? $ptz : null,
         ]);
     }
 

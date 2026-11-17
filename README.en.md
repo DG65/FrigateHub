@@ -107,6 +107,10 @@ automatically; the path is shown above the video and outlined in the timeline. D
 decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
 is then marked “?”. Without a face the assignment is a good guess, not a certainty.
 
+**PTZ (from 0.25.1):** For cameras that Frigate reports as PTZ, the large live view shows a control pad (hold to
+move, release to stop), zoom and the positions saved in the camera. This needs a working ONVIF connection in
+Frigate (`onvif:` of the camera, ONVIF enabled in the camera).
+
 **IPSView and browser:** The same interface is available as a standalone page
 `http://<Symcon-IP>:3777/hook/frigatehub<ID>?seite=1&k=<key>` – embed it in IPSView as a web page
 element. The button “Show address for IPSView” in the “🖥️ Tile and IPSView” panel shows the full

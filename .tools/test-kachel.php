@@ -661,6 +661,10 @@ check('Hook Zeitleiste: falsches Fenster 404', $k->hook(['k' => $k->ReadAttribut
 check('Hook Zeitleiste: ohne Schlüssel 403', $k->hook(['zeitleiste' => $von . '-' . $jetzt])['code'], 403);
 $zg = json_decode($k->KachelZugang(), true);
 check('KachelZugang: Hook, Schlüssel, Fähigkeiten', [$zg['hook'], $zg['k'] === $k->ReadAttributeString('HookSchluessel'), array_keys($zg)], ['/hook/frigatehub1', true, ['hook', 'k', 'api', 'video', 'ptz']]);
+$k->WriteAttributeString('Ptz', '{"features":["pt","zoom"],"presets":["Einfahrt"]}');
+check('KachelZugang: PTZ-Fähigkeiten für die Übersichtskachel', json_decode($k->KachelZugang(), true)['ptz'], ['features' => ['pt', 'zoom'], 'presets' => ['Einfahrt']]);
+$k->WriteAttributeString('Ptz', '');
+check('KachelZugang: ohne PTZ null', json_decode($k->KachelZugang(), true)['ptz'], null);
 
 // Abgleich „gesehen" mit Frigate (0.24.1): Frigate ist die Wahrheit, Zähler aus /api/review/summary
 $kg = new TestKachel(5);

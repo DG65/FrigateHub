@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.1 (Build 51) — 17.11.2026
+
+- **PTZ in der Übersichtskachel (Auftrag Dietmar 17.11.2026):** In der großen Liveansicht liegt bei Kameras, für die Frigate PTZ-Fähigkeiten meldet, das Steuerkreuz (▲◀■▶▼, gedrückt halten bewegt, Loslassen hält an), Zoom −/+ und die Auswahl der gespeicherten Positionen. Nur in der Visualisierung, nicht auf der eigenständigen Seite. Neue Server-Aktion `PTZ` („kamera|befehl“) → `Kachel_PTZ` der Kamera-Instanz, die den Befehl prüft und per MQTT an `frigate/<kamera>/ptz` sendet.
+- `FRIG_KachelZugang()` liefert unter `ptz` jetzt die Fähigkeiten (`features`, `presets`) statt nur ja/nein; ändern sie sich, zeichnet die Kachel neu.
+- Kamera-Kachel und Übersichtskachel senden STOP nur noch nach einem Druck (vorher bei jedem Überfahren mit der Maus).
+- Befund live 17.11.2026: Die Garten_Kamera (192.168.2.43) antwortet „ONVIF integrate function is disabled“ – ONVIF ist in der Kamera abgeschaltet, Frigates `onvif:`-Eintrag stimmt bereits.
+- Prüfstand: 2 neue Prüfungen in `.tools/test-kachel.php` (194).
+
 ## 0.25.0 (Build 50) — 15.11.2026
 
 - **Person folgen (Stufe 2 der Übersichtskachel, Auftrag Dietmar 15.11.2026):** Tipp auf ein Ereignis mit Person in der Zeitleiste spielt es ab und folgt der Person automatisch über die Kameras: Verlässt sie eine Kamera, springt die Wiedergabe zur nächsten (beim Überschneiden der Sichtbereiche ab dem Wechsel). Knopf „👣 Person folgen“ im Kopf für jede andere Wiedergabe (ab der aktuellen Stelle).

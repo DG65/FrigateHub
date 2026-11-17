@@ -863,8 +863,9 @@
                 if (k[1] === 'STOP') { b.onclick = function () { requestAction('Kachel_PTZ', 'STOP'); }; }
                 else {
                     // Bewegen, solange gedrückt; Loslassen hält an
-                    b.onpointerdown = function (ev) { ev.preventDefault(); requestAction('Kachel_PTZ', k[1]); };
-                    b.onpointerup = b.onpointerleave = function () { requestAction('Kachel_PTZ', 'STOP'); };
+                    var gedrueckt = false;
+                    b.onpointerdown = function (ev) { ev.preventDefault(); gedrueckt = true; requestAction('Kachel_PTZ', k[1]); };
+                    b.onpointerup = b.onpointerleave = b.onpointercancel = function () { if (gedrueckt) { gedrueckt = false; requestAction('Kachel_PTZ', 'STOP'); } };
                 }
                 pad.appendChild(b);
             });

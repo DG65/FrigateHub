@@ -40,7 +40,7 @@ class FrigateHubServer extends IPSModule
     private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person', 'Ungesehen', 'UngesehenErk'];
 
     /** Alle Texte der Übersichtskachel (module.html, Funktion T); übersetzt in den Kacheldaten als „texte“. */
-    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate', 'End following', 'Follow the person you see here across all cameras', 'Looking for the person on the other cameras …', 'Most similar appearance (Frigate semantic search)', 'Next person by time', 'No person found at this moment.', 'Same recognized face', 'Several people at the same time — chosen by time, may be wrong', 'Starting point', 'The person was not seen on any other camera.', '👣 Follow person'];
+    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate', 'End following', 'Follow the person you see here across all cameras', 'Looking for the person on the other cameras …', 'Most similar appearance (Frigate semantic search)', 'Next person by time', 'No person found at this moment.', 'Same recognized face', 'Several people at the same time — chosen by time, may be wrong', 'Starting point', 'The person was not seen on any other camera.', '👣 Follow person', 'Position …'];
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -623,6 +623,16 @@ class FrigateHubServer extends IPSModule
                 }
             }
             $this->kachelSenden(true);
+            return;
+        }
+        // Übersichtskachel: PTZ-Befehl „kamera|befehl" an die Kamera-Instanz, die ihn prüft und an Frigate sendet
+        if ($Ident === 'PTZ') {
+            [$kamera, $befehl] = array_pad(explode('|', (string)$Value, 2), 2, '');
+            $instanzen = $this->kameraInstanzen();
+            if (!isset($instanzen[$kamera])) {
+                throw new Exception(FrigateHubText::t('Unknown camera: %s', $kamera));
+            }
+            IPS_RequestAction($instanzen[$kamera], 'Kachel_PTZ', $befehl);
             return;
         }
         throw new Exception(FrigateHubText::t('Unknown action: %s', $Ident));
