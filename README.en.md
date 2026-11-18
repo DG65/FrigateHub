@@ -111,6 +111,9 @@ is then marked “?”. Without a face the assignment is a good guess, not a cer
 camera 1×, 2× or 3× – the others fill up next to it, the number of columns adapts. “✓ Done” saves the arrangement in the
 server instance for everyone who sees the tile (timeline and camera selection follow the order). “↺ Default” sorts by
 name again.
+**Grid (from 0.28):** In the same bar you can choose a fixed grid such as 2 × 2, 3 × 2 or 3 × 3 (columns × rows, up to
+6 × 6). The cameras then share the full height of the tile; more cameras than fields can be scrolled. “Grid: automatic”
+adapts the columns to the width as before.
 
 **PTZ (from 0.26):** For cameras that Frigate reports as PTZ, you aim directly in the picture of the large live
 view (camera tile and overview tile): **drag** with the mouse button held (or one finger) to turn the camera in that

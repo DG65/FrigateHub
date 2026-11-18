@@ -31,6 +31,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.28.0' => [
+            '• ▦ New: fixed grid for the overview tile — under “⚙ Arrange” choose 2 × 2, 3 × 2, 3 × 3 and more (up to 6 × 6); the cameras then share the full height of the tile. “Automatic” keeps the previous behaviour.',
+        ],
         '0.27.0' => [
             '• ⚙ New in the overview tile: arrange the cameras yourself — “⚙ Arrange” lets you change the order (drag, or ◀ ▶) and make a camera 2× or 3× as large; the others fill up next to it. The arrangement is saved for everyone who sees the tile.',
             '• 🎮 PTZ cameras now also move without switching anything on: drag in the live picture with the mouse button held (or one finger) to turn the camera in that direction, mouse wheel or two fingers zoom. “🎮 Aim” with click and frame stays as before.',

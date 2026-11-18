@@ -136,6 +136,9 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   Kamera 1×, 2× oder 3× – die übrigen füllen daneben auf, die Spaltenzahl passt sich an. „✓ Fertig“ speichert die
   Anordnung in der Server-Instanz, sie gilt für alle, die die Kachel sehen (Zeitleiste und Kamerawahl folgen der
   Reihenfolge). „↺ Standard“ sortiert wieder nach Name.
+  **Raster (ab 0.28):** In derselben Leiste wählst du ein festes Raster wie 2 × 2, 3 × 2 oder 3 × 3 (Spalten × Zeilen,
+  bis 6 × 6). Die Kameras teilen sich dann die ganze Höhe der Kachel; mehr Kameras als Felder lassen sich blättern.
+  „Raster: automatisch“ passt die Spalten wie bisher an die Breite an.
 - **PTZ (ab 0.26):** Bei Kameras, für die Frigate PTZ meldet, steuerst du in der großen Liveansicht (Kamera- und
   Übersichtskachel) direkt im Bild: **Ziehen** mit gedrückter Maustaste (oder einem Finger) dreht die Kamera in diese
   Richtung – je weiter, desto schneller –, **Mausrad** oder **zwei Finger** zoomen, ohne etwas umzuschalten (ab 0.27).

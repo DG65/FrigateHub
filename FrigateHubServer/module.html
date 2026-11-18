@@ -40,6 +40,8 @@
         .kopf b { color: var(--text); font-size: 14px; }
         .kopf .luecke { flex: 1 1 auto; }
         .kopf .live { background: var(--alarm); color: #fff; }
+        .kopf select { font: inherit; font-size: 12px; color: var(--text); background: var(--box); border: 0; border-radius: 999px; padding: 3px 8px; }
+        .kopf select option { color: #000; }
 
         .haupt { flex: 0 1 auto; min-height: 80px; position: relative; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
         .haupt.voll { flex: 1 1 auto; }
@@ -218,7 +220,18 @@
             l.className = 'luecke';
             kopf.appendChild(l);
             if (ordnen) {
-                [[T('↺ Default'), T('Sort by name, all cameras small'), function () { ordnen = { reihenfolge: [], groesse: {} }; hauptZeichnen(); }],
+                var wahl = document.createElement('select');
+                wahl.title = T('Grid: columns × rows');
+                [''].concat(RASTER).forEach(function (r) {
+                    var op = document.createElement('option');
+                    op.value = r;
+                    op.textContent = r ? T('Grid %s', r.replace('x', ' × ')) : T('Grid: automatic');
+                    wahl.appendChild(op);
+                });
+                wahl.value = ordnen.raster || '';
+                wahl.onchange = function () { ordnen.raster = wahl.value; hauptZeichnen(); };
+                kopf.appendChild(wahl);
+                [[T('↺ Default'), T('Sort by name, all cameras small'), function () { ordnen = { reihenfolge: [], groesse: {}, raster: '' }; hauptZeichnen(); }],
                     [T('✕ Cancel'), '', function () { ordnen = null; hauptZeichnen(); }],
                     [T('✓ Done'), T('Save this arrangement for everyone who sees this tile'), ordnenSpeichern]].forEach(function (k, i) {
                     var b = document.createElement('button');
@@ -377,7 +390,7 @@
             kopfZeichnen();
             var haupt = el('haupt');
             haupt.textContent = '';
-            haupt.className = 'haupt' + (modus === 'kamera' ? ' voll' : '');
+            haupt.className = 'haupt' + (modus === 'kamera' || festesRaster() ? ' voll' : '');
             if (!daten.api) {
                 var d = document.createElement('div');
                 d.className = 'leer';
@@ -408,7 +421,13 @@
         }
 
         /* ---------------------------------------------------------------- Anordnung (0.27.0) */
+        var RASTER = ['1x1', '2x1', '2x2', '3x2', '3x3', '4x2', '4x3', '4x4', '5x4', '5x5', '6x5', '6x6'];
         function schluessel(k) { return k.kamera === '' ? '_birdseye' : k.kamera; }
+        /** Festes Raster aus der Anordnung: {spalten, zeilen} oder null (automatisch). */
+        function festesRaster() {
+            var m = /^([1-6])x([1-6])$/.exec(anordnung().raster || '');
+            return m ? { spalten: Number(m[1]), zeilen: Number(m[2]) } : null;
+        }
         function anordnung() { return ordnen || daten.layout || { reihenfolge: [], groesse: {} }; }
         function groesse(k) { var g = (anordnung().groesse || {})[schluessel(k)]; return g >= 2 && g <= 3 ? g : 1; }
 
@@ -435,9 +454,17 @@
             zellen.forEach(function (z) { var g = Number(z.dataset.groesse) || 1; groesste = Math.max(groesste, g); flaeche += g * g; });
             var platz = Math.max(1, Math.floor((breite + abstand) / (150 + abstand)));
             var spalten = Math.max(1, Math.min(platz, Math.max(groesste, Math.ceil(flaeche / groesste))));
-            var feld = (breite - abstand * (spalten - 1)) / spalten;
+            var fest = festesRaster(), zeile;
+            if (fest) {
+                // Festes Raster (z. B. 3 × 2): Spalten wie gewählt, Zeilen teilen sich die Höhe; mehr Kameras → blättern (scrollen)
+                spalten = fest.spalten;
+                var hoehe = raster.clientHeight || 300;
+                zeile = Math.max(60, Math.floor((hoehe - abstand * (fest.zeilen - 1)) / fest.zeilen));
+            } else {
+                zeile = Math.round((breite - abstand * (spalten - 1)) / spalten * 9 / 16);
+            }
             raster.style.gridTemplateColumns = 'repeat(' + spalten + ', 1fr)';
-            raster.style.gridAutoRows = Math.round(feld * 9 / 16) + 'px';
+            raster.style.gridAutoRows = zeile + 'px';
             zellen.forEach(function (z) {
                 var g = Math.min(spalten, Number(z.dataset.groesse) || 1);
                 z.style.gridColumn = 'span ' + g;
@@ -447,7 +474,7 @@
 
         function ordnenStarten() {
             var a = daten.layout || { reihenfolge: [], groesse: {} };
-            ordnen = { reihenfolge: [], groesse: JSON.parse(JSON.stringify(a.groesse || {})) };
+            ordnen = { reihenfolge: [], groesse: JSON.parse(JSON.stringify(a.groesse || {})), raster: a.raster || '' };
             ordnen.reihenfolge = zellenListe().map(schluessel);
             hauptZeichnen();
         }
@@ -464,7 +491,7 @@
         }
 
         function ordnenSpeichern() {
-            var neu = { reihenfolge: ordnen.reihenfolge.slice(), groesse: ordnen.groesse };
+            var neu = { reihenfolge: ordnen.reihenfolge.slice(), groesse: ordnen.groesse, raster: ordnen.raster || '' };
             daten.layout = neu;
             ordnen = null;
             requestAction('Layout', JSON.stringify(neu));

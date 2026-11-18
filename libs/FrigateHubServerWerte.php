@@ -207,13 +207,14 @@ class FrigateHubServerWerte
     }
 
     /**
-     * Anordnung der Übersichtskachel aus JSON: {reihenfolge: [Kamera-ID|_birdseye], groesse: {Kamera-ID: 1–3}}.
+     * Anordnung der Übersichtskachel aus JSON: {reihenfolge: [Kamera-ID|_birdseye], groesse: {Kamera-ID: 1–3},
+     * raster: "<Spalten>x<Zeilen>" (1–6, leer = automatisch)}.
      * Mit $erlaubt bleiben nur diese Schlüssel (beim Speichern aus der Kachel); doppelte und fremde fallen weg.
      */
     public static function layout(string $json, ?array $erlaubt = null): array
     {
         $d = json_decode($json, true);
-        $out = ['reihenfolge' => [], 'groesse' => []];
+        $out = ['reihenfolge' => [], 'groesse' => [], 'raster' => ''];
         if (!is_array($d)) {
             return $out;
         }
@@ -229,6 +230,9 @@ class FrigateHubServerWerte
             if ($ok((string)$k) && is_numeric($g) && (int)$g >= 2 && (int)$g <= 3) {
                 $out['groesse'][(string)$k] = (int)$g;
             }
+        }
+        if (is_string($d['raster'] ?? null) && preg_match('/^[1-6]x[1-6]\z/', $d['raster'])) {
+            $out['raster'] = $d['raster'];
         }
         return $out;
     }

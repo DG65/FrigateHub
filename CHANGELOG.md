@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.0 (Build 55) — 18.11.2026
+
+- **Festes Raster (Auftrag Dietmar 18.11.2026):** Unter „⚙ Anordnen“ Auswahl „Raster“: automatisch oder 1 × 1 … 6 × 6 (Spalten × Zeilen; angeboten 1×1, 2×1, 2×2, 3×2, 3×3, 4×2, 4×3, 4×4, 5×4, 5×5, 6×5, 6×6). Mit festem Raster füllt das Raster die Kachelhöhe über der Zeitleiste, die Zeilen teilen sich die Höhe (mind. 60 px); mehr Kameras als Felder werden gescrollt; Größe 2×/3× je Kamera bleibt (höchstens so breit wie die Spalten). Gespeichert als `raster` in `KachelLayout` (`FrigateHubServerWerte::layout()` nimmt nur `[1-6]x[1-6]`).
+- Prüfstand: 2 neue, 3 angepasste Prüfungen in `.tools/test-server.php` (91); im Browser mit Testdaten geprüft (2 × 2 füllt die Höhe, Speichern sendet `raster`).
+
 ## 0.27.0 (Build 54) — 18.11.2026
 
 - **Übersichtskachel anordnen (Auftrag Dietmar 18.11.2026):** Knopf „⚙ Anordnen“ im Kopf (nur Visualisierung): Reihenfolge per Ziehen (HTML5 Drag & Drop) oder ◀ ▶, Größe je Kamera 1×/2×/3× (belegt 2×2 bzw. 3×3 Felder), „✓ Fertig“ speichert, „✕ Abbrechen“, „↺ Standard“ (nach Name). Gespeichert in der Server-Instanz (Attribut `KachelLayout`, Aktion `Layout`, geprüft über `FrigateHubServerWerte::layout()` – nur bekannte Kameras und `_birdseye`, Größe 2–3), in den Kacheldaten als `layout`; die Kameraliste kommt schon sortiert, Kamerawahl und Zeitleiste folgen der Reihenfolge. Spalten: so viele, dass die Kameras die Breite füllen (größte Kamera bestimmt die Zeilen, übrige füllen daneben auf, höchstens 150 px je Spalte), Zeilenhöhe 16:9; Rasterbilder je Zelle in passender Höhe. Während des Anordnens springt die Kachel bei Alarm nicht in die Großansicht.
