@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.30.0 (Build 57) — 19.11.2026
+
+- **Zeitleiste rechts (Rückmeldung Dietmar 19.11.2026):** Die Zeitleiste der Übersichtskachel steht wahlweise senkrecht rechts neben Raster bzw. Großansicht – neueste Zeit oben, je Kamera eine Spalte, Achse links daneben, Breite 42 + 64 px je Kamera (170–420 px). Je Ansicht unter „⚙ Anordnen“: automatisch (rechts, wenn die Kachel ≥ 900 px breit und Breite/Höhe ≥ 1,45), unten oder rechts (`zeitleiste` in der Ansicht, `FrigateHubServerWerte::layout()` nimmt nur `unten`/`rechts`). Bedienung senkrecht: Ziehen nach unten = Richtung jetzt, Mausrad/zwei Finger zoomen um die Zeigerstelle, Tipp spielt ab, Hinweis seitlich. Gemeinsame Helfer `balken()`, `anteilBei()`.
+- Prüfstand: `.tools/test-server.php` (95); im Browser geprüft (rechts bei 1400 × 760, unten bei 800 × 800, Zoom, Ziehen, Tipp auf Ereignis).
+
 ## 0.29.0 (Build 56) — 18.11.2026
 
 - **Ansichten, Hotspot-Feld, breite/hohe Felder (Auftrag Dietmar 18.11.2026, Empfehlung nach Vergleich mit Blue Iris, UniFi Protect, Synology, Hikvision, Milestone, Frigate):**

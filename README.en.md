@@ -113,6 +113,8 @@ is then marked “?”. Without a face the assignment is a good guess, not a cer
 - the **grid:** automatic (columns adapt to the width) or fixed 1 × 1 to 6 × 6 (columns × rows, the fields share the
   tile height; more cameras can be scrolled),
 - **hidden cameras** (👁), e.g. for an “Outdoor” view,
+- the **timeline** at the bottom or vertically on the right of the picture (newest time at the top, one column per
+  camera; from 0.30). “Automatic” puts it on the right on wide tiles (from 900 px, clearly wider than high),
 - the **★ hotspot field:** a large field that shows the camera you tap and switches by itself to the camera with the
   latest alert while the others stay visible (double-tap a small camera or tap the hotspot to open the large view).
   Without a hotspot the tile jumps into the large view for 60 seconds on an alert, as before.

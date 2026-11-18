@@ -32,6 +32,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.30.0' => [
+            '• ⏱ New: the timeline of the overview tile can stand vertically on the right of the picture (newest time at the top) — automatically on wide tiles, or fixed per view under “⚙ Arrange”.',
+        ],
         '0.29.0' => [
             '• ★ New in the overview tile: hotspot field — a large field that shows the camera you tap and switches by itself to the camera with the latest alert, while all others stay visible. Add it under “⚙ Arrange” with “★ Hotspot”.',
             '• 🗂 New: several views (e.g. “Outdoor”, “Driveway”), each with its own cameras, order, grid and field sizes; switch them in the tile header. Fields can now also be wide (2 × 1, 3 × 2) or tall (1 × 2, 2 × 3).',

@@ -58,5 +58,10 @@
   "★ Hotspot – shows the tapped camera and the latest alert": "★ Hotspot – zeigt die angetippte Kamera und den letzten Alarm",
   "• ★ New in the overview tile: hotspot field — a large field that shows the camera you tap and switches by itself to the camera with the latest alert, while all others stay visible. Add it under “⚙ Arrange” with “★ Hotspot”.": "• ★ Neu in der Übersichtskachel: Hotspot-Feld – ein großes Feld zeigt die angetippte Kamera und wechselt von selbst zur Kamera mit dem letzten Alarm, die übrigen bleiben sichtbar. Unter „⚙ Anordnen“ mit „★ Hotspot“ hinzufügen.",
   "• 🗂 New: several views (e.g. “Outdoor”, “Driveway”), each with its own cameras, order, grid and field sizes; switch them in the tile header. Fields can now also be wide (2 × 1, 3 × 2) or tall (1 × 2, 2 × 3).": "• 🗂 Neu: mehrere Ansichten (z. B. „Außen“, „Einfahrt“), jede mit eigenen Kameras, Reihenfolge, Raster und Feldgrößen; Umschalten im Kopf der Kachel. Felder gibt es jetzt auch breit (2 × 1, 3 × 2) und hoch (1 × 2, 2 × 3).",
-  "💬 Do you use the hotspot field or several views? Please tell me in the forum which arrangement works best for you — and what you are still missing.": "💬 Nutzt du das Hotspot-Feld oder mehrere Ansichten? Schreib mir bitte im Forum, welche Anordnung für dich am besten passt – und was dir noch fehlt."
+  "💬 Do you use the hotspot field or several views? Please tell me in the forum which arrangement works best for you — and what you are still missing.": "💬 Nutzt du das Hotspot-Feld oder mehrere Ansichten? Schreib mir bitte im Forum, welche Anordnung für dich am besten passt – und was dir noch fehlt.",
+  "Position of the timeline": "Lage der Zeitleiste",
+  "Timeline: automatic": "Zeitleiste: automatisch",
+  "Timeline: bottom": "Zeitleiste: unten",
+  "Timeline: right": "Zeitleiste: rechts",
+  "• ⏱ New: the timeline of the overview tile can stand vertically on the right of the picture (newest time at the top) — automatically on wide tiles, or fixed per view under “⚙ Arrange”.": "• ⏱ Neu: Die Zeitleiste der Übersichtskachel kann senkrecht rechts neben dem Bild stehen (neueste Zeit oben) – automatisch bei breiten Kacheln oder je Ansicht fest unter „⚙ Anordnen“."
 }

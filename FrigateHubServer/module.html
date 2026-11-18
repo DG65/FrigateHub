@@ -108,6 +108,25 @@
         .achse span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
         .tipp { position: absolute; z-index: 5; pointer-events: none; background: rgba(0, 0, 0, .8); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 11px; white-space: nowrap; transform: translate(-50%, -100%); }
         .tipp[hidden] { display: none; }
+        /* Zeitleiste rechts, senkrecht (0.30.0): neueste Zeit oben, je Kamera eine Spalte */
+        .wrap.zlrechts { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); column-gap: 8px; }
+        .wrap.zlrechts .kopf { grid-column: 1 / 3; }
+        .wrap.zlrechts .haupt { grid-column: 1; grid-row: 2; min-height: 0; }
+        .wrap.zlrechts .zl { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 4px; min-height: 0; }
+        .wrap.zlrechts .zl[hidden] { display: none; }
+        .wrap.zlrechts .zlkopf { grid-column: 1 / 3; flex-wrap: wrap; justify-content: flex-end; }
+        .wrap.zlrechts .zlkopf .luecke { flex-basis: 100%; height: 0; }
+        .wrap.zlrechts .achse { grid-column: 1; grid-row: 2; height: auto; margin: 22px 0 0; }
+        .wrap.zlrechts .achse span { left: auto; right: 2px; transform: translateY(-50%); }
+        .wrap.zlrechts .spuren { grid-column: 2; grid-row: 2; display: flex; gap: 4px; min-height: 0; }
+        .wrap.zlrechts .spurzeile { flex: 1 1 0; flex-direction: column; height: auto; margin: 0; min-width: 0; }
+        .wrap.zlrechts .spurname { flex: 0 0 18px; padding: 0 0 4px; text-align: center; width: 100%; }
+        .wrap.zlrechts .spur { width: 100%; height: auto; flex: 1 1 auto; }
+        .wrap.zlrechts .auf { top: auto; bottom: auto; left: 6px; right: 6px; }
+        .wrap.zlrechts .ev { top: auto; bottom: auto; left: 2px; right: 2px; min-width: 0; min-height: 3px; }
+        .wrap.zlrechts .wegspur { top: auto; bottom: auto; left: 0; right: 0; min-width: 0; min-height: 4px; }
+        .wrap.zlrechts .kopfpunkt { left: 0; right: 0; width: auto; height: 2px; top: 0; bottom: auto; }
+        .tipp.seitlich { transform: translate(-100%, -50%); }
         /* PTZ (0.26.0): Knöpfe oben rechts über dem Livebild, Steuerfläche über dem Bild */
         .buehne .ptzleiste { position: absolute; right: 8px; top: 8px; z-index: 3; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; }
         .buehne .ptzleiste button { background: rgba(0, 0, 0, .6); color: #fff; touch-action: none; }
@@ -382,6 +401,7 @@
 
         function hauptZeichnen() {
             kopfZeichnen();
+            zlLageSetzen();
             var haupt = el('haupt');
             haupt.textContent = '';
             haupt.className = 'haupt' + (modus === 'kamera' || festesRaster() ? ' voll' : '');
@@ -425,7 +445,7 @@
         var hotspotTimer = null;
 
         function schluessel(k) { return k.kamera === '' ? '_birdseye' : k.kamera; }
-        function leereAnsicht(id, name) { return { id: id, name: name || '', reihenfolge: [], groesse: {}, raster: '', aus: [] }; }
+        function leereAnsicht(id, name) { return { id: id, name: name || '', reihenfolge: [], groesse: {}, raster: '', aus: [], zeitleiste: '' }; }
         function ansichtName(a, i) { return a.name || T('View %s', i + 1); }
         function ansichtAktuell() {
             if (ordnen) { return ordnen.ansichten.filter(function (a) { return a.id === ordnen.sicht; })[0] || ordnen.ansichten[0]; }
@@ -577,13 +597,21 @@
             wahl.value = a.raster || '';
             wahl.onchange = function () { a.raster = wahl.value; hauptZeichnen(); };
             kopf.appendChild(wahl);
+            var lage = document.createElement('select');
+            lage.title = T('Position of the timeline');
+            [['', T('Timeline: automatic')], ['unten', T('Timeline: bottom')], ['rechts', T('Timeline: right')]].forEach(function (x) {
+                var op = document.createElement('option'); op.value = x[0]; op.textContent = x[1]; lage.appendChild(op);
+            });
+            lage.value = a.zeitleiste || '';
+            lage.onchange = function () { a.zeitleiste = lage.value; hauptZeichnen(); };
+            kopf.appendChild(lage);
             knopf(T('★ Hotspot'), T('Large field that shows the camera you tap – and automatically the camera with the latest alert'), function () {
                 var i = a.reihenfolge.indexOf('_hotspot');
                 if (i >= 0) { a.reihenfolge.splice(i, 1); delete a.groesse._hotspot; } else { a.reihenfolge.unshift('_hotspot'); a.groesse._hotspot = '2x2'; }
                 hauptZeichnen();
             }, hatHotspot());
             knopf(T('↺ Default'), T('This view: all cameras small, sorted by name'), function () {
-                a.reihenfolge = []; a.groesse = {}; a.raster = ''; a.aus = [];
+                a.reihenfolge = []; a.groesse = {}; a.raster = ''; a.aus = []; a.zeitleiste = '';
                 hauptZeichnen();
             });
             knopf(T('✕ Cancel'), '', function () { ordnen = null; hauptZeichnen(); });
@@ -1190,6 +1218,38 @@
 
         /* ================================================================ Zeitleiste */
         function zlVon() { return ansicht.bis - ansicht.spanne; }
+        /** Zeitleiste rechts (senkrecht)? Je Ansicht wählbar; automatisch bei breiter Kachel (≥ 900 px, Seitenverhältnis ≥ 1,45). */
+        var senk = false;
+        function zlRechtsBerechnen() {
+            var z = daten ? ansichtAktuell().zeitleiste || '' : '';
+            if (z === 'rechts' || z === 'unten') { return z === 'rechts'; }
+            var w = document.documentElement.clientWidth || window.innerWidth, h = document.documentElement.clientHeight || window.innerHeight;
+            return w >= 900 && w / Math.max(1, h) >= 1.45;
+        }
+        function zlLageSetzen() {
+            var neu = zlRechtsBerechnen();
+            var wrap = document.querySelector('.wrap');
+            wrap.classList.toggle('zlrechts', neu);
+            if (neu) {
+                var n = Math.max(1, sichtKameras().filter(function (k) { return k.zugang && k.zugang.api; }).length);
+                el('zl').style.width = Math.max(170, Math.min(420, 42 + n * 64)) + 'px';
+            } else {
+                el('zl').style.width = '';
+            }
+            var geaendert = neu !== senk;
+            senk = neu;
+            return geaendert;
+        }
+        /** Balken in der Spur setzen: a, b = Anteil 0–100 von alt nach neu. */
+        function balken(e, a, b) {
+            if (senk) { e.style.top = (100 - b) + '%'; e.style.height = Math.max(0, b - a) + '%'; }
+            else { e.style.left = a + '%'; e.style.width = Math.max(0, b - a) + '%'; }
+        }
+        /** Zeit an einer Bildschirmstelle der Spur (waagerecht: von links, senkrecht: von unten). */
+        function anteilBei(ev, spur) {
+            var r = spur.getBoundingClientRect();
+            return senk ? (r.bottom - ev.clientY) / r.height : (ev.clientX - r.left) / r.width;
+        }
 
         function zlZeichnen() {
             var spuren = el('spuren');
@@ -1216,6 +1276,7 @@
             kp.id = 'kopfpunkt';
             kp.hidden = true;
             spuren.appendChild(kp);
+            zlLageSetzen();
             zlInhalt();
             zlLaden();
         }
@@ -1232,8 +1293,7 @@
                     if (a[1] < von || a[0] > bis) { return; }
                     var e = document.createElement('div');
                     e.className = 'auf';
-                    e.style.left = Math.max(0, pos(a[0])) + '%';
-                    e.style.width = Math.max(0.2, Math.min(100, pos(a[1])) - Math.max(0, pos(a[0]))) + '%';
+                    balken(e, Math.max(0, pos(a[0])), Math.max(Math.max(0, pos(a[0])) + 0.2, Math.min(100, pos(a[1]))));
                     spur.appendChild(e);
                 });
                 d.ereignisse.forEach(function (ev) {
@@ -1241,8 +1301,7 @@
                     if (ende < von || ev.s > bis) { return; }
                     var e = document.createElement('div');
                     e.className = 'ev' + (ev.a ? ' alarm' : '') + (ev.g ? ' gesehen' : '');
-                    e.style.left = Math.max(0, pos(ev.s)) + '%';
-                    e.style.width = Math.max(0, Math.min(100, pos(ende)) - Math.max(0, pos(ev.s))) + '%';
+                    balken(e, Math.max(0, pos(ev.s)), Math.min(100, pos(ende)));
                     e.dataset.s = ev.s;
                     e.dataset.e = ev.e || '';
                     e.dataset.text = uhrzeit(ev.s, spanne > 86400) + ' · ' + ev.t + (ev.z && ev.z.length ? ' · ' + ev.z.join(', ') : '');
@@ -1253,21 +1312,20 @@
                     if (seg.kamera !== spur.dataset.kamera || seg.e < von || seg.s > bis) { return; }
                     var w = document.createElement('div');
                     w.className = 'wegspur' + (i === folge.i ? ' an' : '');
-                    w.style.left = Math.max(0, pos(seg.s)) + '%';
-                    w.style.width = Math.max(0, Math.min(100, pos(seg.e)) - Math.max(0, pos(seg.s))) + '%';
+                    balken(w, Math.max(0, pos(seg.s)), Math.min(100, pos(seg.e)));
                     spur.appendChild(w);
                 });
             });
             // Achse: runde Schritte je nach Spanne
             var schritte = [60, 300, 600, 1800, 3600, 7200, 10800, 21600, 43200, 86400];
-            var breite = el('achse').clientWidth || 300;
-            var schritt = schritte.filter(function (s) { return spanne / s <= Math.max(2, breite / 60); })[0] || 86400;
+            var breite = senk ? (el('spuren').clientHeight || 300) : (el('achse').clientWidth || 300);
+            var schritt = schritte.filter(function (s) { return spanne / s <= Math.max(2, breite / (senk ? 36 : 60)); })[0] || 86400;
             var achse = el('achse');
             achse.textContent = '';
             var versatz = new Date().getTimezoneOffset() * 60;
             for (var t = Math.ceil((von - versatz) / schritt) * schritt + versatz; t <= bis; t += schritt) {
                 var s = document.createElement('span');
-                s.style.left = pos(t) + '%';
+                if (senk) { s.style.top = (100 - pos(t)) + '%'; } else { s.style.left = pos(t) + '%'; }
                 s.textContent = uhrzeit(t, schritt >= 21600 && new Date(t * 1000).getHours() === 0);
                 achse.appendChild(s);
             }
@@ -1283,7 +1341,9 @@
             if (!kp || !spur) { return; }
             if (t === null || t < zlVon() || t > ansicht.bis) { kp.hidden = true; return; }
             kp.hidden = false;
-            kp.style.left = (spur.offsetLeft + (t - zlVon()) / ansicht.spanne * spur.clientWidth) + 'px';
+            var p = (t - zlVon()) / ansicht.spanne;
+            if (senk) { kp.style.top = (spur.offsetTop + (1 - p) * spur.clientHeight) + 'px'; kp.style.left = ''; }
+            else { kp.style.left = (spur.offsetLeft + p * spur.clientWidth) + 'px'; kp.style.top = ''; }
         }
 
         /** Daten je Kamera holen, wenn das Fenster nicht abgedeckt ist; beim Folgen nur das neue Ende nachladen. */
@@ -1372,11 +1432,11 @@
 
         var zeiger = {};
         var zug = null;
-        function zeitBei(x) {
+        function zeitBei(ev) {
             var spur = document.querySelector('.spur');
-            var r = spur.getBoundingClientRect();
-            return zlVon() + Math.max(0, Math.min(1, (x - r.left) / r.width)) * ansicht.spanne;
+            return zlVon() + Math.max(0, Math.min(1, anteilBei(ev, spur))) * ansicht.spanne;
         }
+        function achsWert(p) { return senk ? p.y : p.x; }
         var sp = el('spuren');
         sp.addEventListener('pointerdown', function (ev) {
             if (ev.target.classList.contains('spurname')) { return; }
@@ -1384,10 +1444,10 @@
             try { sp.setPointerCapture(ev.pointerId); } catch (e) { }
             var ids = Object.keys(zeiger);
             if (ids.length === 1) {
-                zug = { x0: ev.clientX, bis0: ansicht.bis, bewegt: false, ziel: ev.target };
+                zug = { x0: senk ? ev.clientY : ev.clientX, bis0: ansicht.bis, bewegt: false, ziel: ev.target };
             } else if (ids.length === 2) {
                 var a = zeiger[ids[0]], b = zeiger[ids[1]];
-                zug = { pinch: Math.abs(a.x - b.x) || 1, spanne0: ansicht.spanne, mitteT: zeitBei((a.x + b.x) / 2), bewegt: true };
+                zug = { pinch: Math.abs(achsWert(a) - achsWert(b)) || 1, spanne0: ansicht.spanne, mitteT: zeitBei({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }), bewegt: true };
             }
         });
         sp.addEventListener('pointermove', function (ev) {
@@ -1398,14 +1458,15 @@
             var ids = Object.keys(zeiger);
             if (zug.pinch && ids.length === 2) {
                 var a = zeiger[ids[0]], b = zeiger[ids[1]];
-                var spanne = zug.spanne0 * zug.pinch / (Math.abs(a.x - b.x) || 1);
-                var anteil = ((a.x + b.x) / 2 - spur.getBoundingClientRect().left) / spur.clientWidth;
+                var spanne = zug.spanne0 * zug.pinch / (Math.abs(achsWert(a) - achsWert(b)) || 1);
+                var anteil = anteilBei({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }, spur);
                 setzeFenster(zug.mitteT + (1 - anteil) * Math.max(300, Math.min(93000, spanne)), spanne);
                 return;
             }
-            var dx = ev.clientX - zug.x0;
+            // Waagerecht: nach rechts ziehen = zurück in der Zeit; senkrecht (neu oben): nach unten ziehen = Richtung jetzt
+            var dx = (senk ? ev.clientY : ev.clientX) - zug.x0;
             if (Math.abs(dx) > 5) { zug.bewegt = true; sp.classList.add('zieht'); el('tipp').hidden = true; }
-            if (zug.bewegt) { setzeFenster(zug.bis0 - dx / spur.clientWidth * ansicht.spanne, ansicht.spanne); }
+            if (zug.bewegt) { setzeFenster(senk ? zug.bis0 + dx / spur.clientHeight * ansicht.spanne : zug.bis0 - dx / spur.clientWidth * ansicht.spanne, ansicht.spanne); }
         });
         function zeigerEnde(ev) {
             var war = zug;
@@ -1424,7 +1485,7 @@
                 var evd = ereignisFinden(spur.dataset.kamera, war.ziel.dataset.id);
                 if (evd && evd.p) { folgeStarten(); }
             } else {
-                var t = zeitBei(ev.clientX);
+                var t = zeitBei(ev);
                 if (jetzt() - t < 20) { kameraOeffnen(spur.dataset.kamera); return; }
                 wiedergabeStarten(spur.dataset.kamera, t, null, null);
             }
@@ -1436,8 +1497,8 @@
             ev.preventDefault();
             var spur = document.querySelector('.spur');
             if (!spur) { return; }
-            var t = zeitBei(ev.clientX);
-            var anteil = (ev.clientX - spur.getBoundingClientRect().left) / spur.clientWidth;
+            var t = zeitBei(ev);
+            var anteil = anteilBei(ev, spur);
             var spanne = Math.max(300, Math.min(93000, ansicht.spanne * (ev.deltaY > 0 ? 1.25 : 0.8)));
             setzeFenster(t + (1 - anteil) * spanne, spanne);
         }, { passive: false });
@@ -1446,9 +1507,10 @@
             var tipp = el('tipp');
             var spur = ev.target.closest ? ev.target.closest('.spur') : null;
             if (!spur) { tipp.hidden = true; return; }
-            tipp.textContent = ev.target.classList.contains('ev') ? ev.target.dataset.text : uhrzeitSek(zeitBei(ev.clientX));
-            tipp.style.left = ev.clientX + 'px';
-            tipp.style.top = (spur.getBoundingClientRect().top - 4) + 'px';
+            tipp.textContent = ev.target.classList.contains('ev') ? ev.target.dataset.text : uhrzeitSek(zeitBei(ev));
+            tipp.classList.toggle('seitlich', senk);
+            if (senk) { tipp.style.left = (spur.getBoundingClientRect().left - 6) + 'px'; tipp.style.top = ev.clientY + 'px'; }
+            else { tipp.style.left = ev.clientX + 'px'; tipp.style.top = (spur.getBoundingClientRect().top - 4) + 'px'; }
             tipp.hidden = false;
         }
         sp.addEventListener('mousemove', function (ev) { if (!zug) { tippZeigen(ev); } });
@@ -1487,7 +1549,7 @@
             if (ansicht.folgen) { ansicht.bis = jetzt(); }
             zlLaden(true);
         });
-        window.addEventListener('resize', function () { if (daten) { zlInhalt(); rasterAnordnen(); } });
+        window.addEventListener('resize', function () { if (daten) { zlLageSetzen(); zlInhalt(); rasterAnordnen(); } });
 
         function handleMessage(nachricht) {
             var neu = typeof nachricht === 'string' ? JSON.parse(nachricht) : nachricht;

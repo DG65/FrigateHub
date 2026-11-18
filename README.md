@@ -138,6 +138,8 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   - **Raster:** automatisch (Spalten passen sich der Breite an) oder fest 1 × 1 bis 6 × 6 (Spalten × Zeilen, die
     Felder teilen sich die Kachelhöhe; mehr Kameras lassen sich scrollen),
   - **Kameras ausblenden** (👁), z. B. für eine Ansicht „Außen“,
+  - **Zeitleiste** unten oder senkrecht rechts neben dem Bild (neueste Zeit oben, je Kamera eine Spalte; ab 0.30).
+    „Automatisch“ stellt sie bei breiten Kacheln (ab 900 px, deutlich breiter als hoch) rechts auf,
   - **★ Hotspot-Feld:** ein großes Feld, das die angetippte Kamera zeigt und von selbst zur Kamera mit dem letzten
     Alarm wechselt, während die übrigen sichtbar bleiben (Doppeltipp auf eine kleine Kamera oder Tipp auf den Hotspot
     öffnet die Großansicht). Ohne Hotspot springt die Kachel bei Alarm wie bisher 60 Sekunden in die Großansicht.
