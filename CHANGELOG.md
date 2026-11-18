@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.0 (Build 56) — 18.11.2026
+
+- **Ansichten, Hotspot-Feld, breite/hohe Felder (Auftrag Dietmar 18.11.2026, Empfehlung nach Vergleich mit Blue Iris, UniFi Protect, Synology, Hikvision, Milestone, Frigate):**
+  - **Ansichten:** bis 12 gespeicherte Ansichten mit Name, Reihenfolge, Feldformat, Raster und ausgeblendeten Kameras (👁). Umschalten im Kopf (je Gerät in `localStorage` gemerkt, sonst die erste). Kamerawahl der Großansicht und Zeitleiste folgen der Ansicht.
+  - **Hotspot-Feld** (`_hotspot`, Vorbild Milestone): großes Feld mit der angetippten Kamera, Bild jede Sekunde; ein neuer Alarm einer Kamera der Ansicht setzt den Hotspot, statt in die Großansicht zu springen. Tipp auf den Hotspot bzw. Doppeltipp auf eine kleine Kamera öffnet die Großansicht.
+  - **Feldformate** 1×1, 2×1, 1×2, 2×2, 3×2, 2×3, 3×3 (vorher nur quadratisch).
+  - Datenmodell `KachelLayout` = `{ansichten: [{id, name, reihenfolge, groesse: {Schlüssel: "BxH"}, raster, aus}], aktiv}`; `FrigateHubServerWerte::layout()` übernimmt die Form aus 0.27/0.28 als eine Ansicht (Größe 2/3 → 2x2/3x3), `layoutLeer()` erkennt „nichts festgelegt“.
+- Prüfstand: `.tools/test-server.php` Layout-Prüfungen neu (94), 2 angepasste in `.tools/test-frigatehub.php`; im Browser mit Testdaten geprüft (Hotspot hinzufügen, Kamera ausblenden, Format 2×1, zweite Ansicht, Speichern, Umschalten, Antippen → Hotspot, Alarm → Hotspot ohne Sprung, Zeitleiste je Ansicht).
+
 ## 0.28.0 (Build 55) — 18.11.2026
 
 - **Festes Raster (Auftrag Dietmar 18.11.2026):** Unter „⚙ Anordnen“ Auswahl „Raster“: automatisch oder 1 × 1 … 6 × 6 (Spalten × Zeilen; angeboten 1×1, 2×1, 2×2, 3×2, 3×3, 4×2, 4×3, 4×4, 5×4, 5×5, 6×5, 6×6). Mit festem Raster füllt das Raster die Kachelhöhe über der Zeitleiste, die Zeilen teilen sich die Höhe (mind. 60 px); mehr Kameras als Felder werden gescrollt; Größe 2×/3× je Kamera bleibt (höchstens so breit wie die Spalten). Gespeichert als `raster` in `KachelLayout` (`FrigateHubServerWerte::layout()` nimmt nur `[1-6]x[1-6]`).

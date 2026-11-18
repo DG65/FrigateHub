@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.29.0' => '💬 Do you use the hotspot field or several views? Please tell me in the forum which arrangement works best for you — and what you are still missing.',
         '0.27.0' => '💬 How have you arranged your cameras in the overview tile? Please tell me in the forum which layout you are missing — and how dragging the PTZ camera feels.',
         '0.26.0' => '💬 Have you tried aiming your PTZ camera in the picture? Please tell me in the forum whether click and frame land where you expected — and which camera you use.',
         '0.25.0' => '💬 Have you tried “Follow person”? Please tell me in the forum whether it switched to the right camera — and how your cameras are arranged.',
@@ -31,6 +32,10 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.29.0' => [
+            '• ★ New in the overview tile: hotspot field — a large field that shows the camera you tap and switches by itself to the camera with the latest alert, while all others stay visible. Add it under “⚙ Arrange” with “★ Hotspot”.',
+            '• 🗂 New: several views (e.g. “Outdoor”, “Driveway”), each with its own cameras, order, grid and field sizes; switch them in the tile header. Fields can now also be wide (2 × 1, 3 × 2) or tall (1 × 2, 2 × 3).',
+        ],
         '0.28.0' => [
             '• ▦ New: fixed grid for the overview tile — under “⚙ Arrange” choose 2 × 2, 3 × 2, 3 × 3 and more (up to 6 × 6); the cameras then share the full height of the tile. “Automatic” keeps the previous behaviour.',
         ],

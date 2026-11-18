@@ -206,35 +206,74 @@ class FrigateHubServerWerte
         return $out;
     }
 
+    /** Feldformate der Übersichtskachel (Breite x Höhe in Feldern). */
+    public const FORMATE = ['1x1', '2x1', '1x2', '2x2', '3x2', '2x3', '3x3'];
+
     /**
-     * Anordnung der Übersichtskachel aus JSON: {reihenfolge: [Kamera-ID|_birdseye], groesse: {Kamera-ID: 1–3},
-     * raster: "<Spalten>x<Zeilen>" (1–6, leer = automatisch)}.
-     * Mit $erlaubt bleiben nur diese Schlüssel (beim Speichern aus der Kachel); doppelte und fremde fallen weg.
+     * Anordnung der Übersichtskachel (0.29.0) aus JSON:
+     * {ansichten: [{id, name, reihenfolge: [Schlüssel], groesse: {Schlüssel: "BxH"}, raster: "SxZ"|"", aus: [Schlüssel]}], aktiv: id}.
+     * Schlüssel = Kamera-ID, `_birdseye` oder `_hotspot` (Hotspot-Feld). Ältere Form (0.27/0.28: reihenfolge,
+     * groesse 2–3, raster auf oberster Ebene) wird zu einer Ansicht. Mit $erlaubt bleiben nur diese Kameras.
      */
     public static function layout(string $json, ?array $erlaubt = null): array
     {
         $d = json_decode($json, true);
-        $out = ['reihenfolge' => [], 'groesse' => [], 'raster' => ''];
+        $out = ['ansichten' => [], 'aktiv' => ''];
         if (!is_array($d)) {
             return $out;
         }
+        if (!isset($d['ansichten']) && (isset($d['reihenfolge']) || isset($d['groesse']) || isset($d['raster']))) {
+            $d = ['ansichten' => [['id' => 'v1', 'name' => '', 'reihenfolge' => $d['reihenfolge'] ?? [], 'groesse' => $d['groesse'] ?? [],
+                'raster' => $d['raster'] ?? '', 'aus' => []]], 'aktiv' => 'v1'];
+        }
         $ok = function ($k) use ($erlaubt): bool {
-            return is_string($k) && $k !== '' && strlen($k) <= 64 && ($erlaubt === null || in_array($k, $erlaubt, true));
+            return is_string($k) && $k !== '' && strlen($k) <= 64
+                && ($k === '_hotspot' || $erlaubt === null || in_array($k, $erlaubt, true));
         };
-        foreach ((array)($d['reihenfolge'] ?? []) as $k) {
-            if ($ok($k) && !in_array($k, $out['reihenfolge'], true) && count($out['reihenfolge']) < 64) {
-                $out['reihenfolge'][] = $k;
+        $ids = [];
+        foreach (array_slice((array)($d['ansichten'] ?? []), 0, 12) as $i => $v) {
+            if (!is_array($v)) {
+                continue;
             }
-        }
-        foreach ((array)($d['groesse'] ?? []) as $k => $g) {
-            if ($ok((string)$k) && is_numeric($g) && (int)$g >= 2 && (int)$g <= 3) {
-                $out['groesse'][(string)$k] = (int)$g;
+            $id = is_string($v['id'] ?? null) && preg_match('/^[a-z0-9]{1,12}\z/', $v['id']) && !in_array($v['id'], $ids, true) ? $v['id'] : 'v' . ($i + 1);
+            while (in_array($id, $ids, true)) {
+                $id .= 'x';
             }
+            $ids[] = $id;
+            $a = ['id' => $id, 'name' => mb_substr(trim((string)(is_scalar($v['name'] ?? null) ? $v['name'] : '')), 0, 40), 'reihenfolge' => [], 'groesse' => [],
+                'raster' => '', 'aus' => []];
+            foreach ((array)($v['reihenfolge'] ?? []) as $k) {
+                if ($ok($k) && !in_array($k, $a['reihenfolge'], true) && count($a['reihenfolge']) < 64) {
+                    $a['reihenfolge'][] = $k;
+                }
+            }
+            foreach ((array)($v['groesse'] ?? []) as $k => $g) {
+                $g = is_int($g) || (is_string($g) && ctype_digit($g)) ? $g . 'x' . $g : $g; // 0.27: 2/3 = quadratisch
+                if ($ok((string)$k) && is_string($g) && $g !== '1x1' && in_array($g, self::FORMATE, true)) {
+                    $a['groesse'][(string)$k] = $g;
+                }
+            }
+            if (is_string($v['raster'] ?? null) && preg_match('/^[1-6]x[1-6]\z/', $v['raster'])) {
+                $a['raster'] = $v['raster'];
+            }
+            foreach ((array)($v['aus'] ?? []) as $k) {
+                if ($ok($k) && $k !== '_hotspot' && !in_array($k, $a['aus'], true)) {
+                    $a['aus'][] = $k;
+                }
+            }
+            $out['ansichten'][] = $a;
         }
-        if (is_string($d['raster'] ?? null) && preg_match('/^[1-6]x[1-6]\z/', $d['raster'])) {
-            $out['raster'] = $d['raster'];
-        }
+        $aktiv = (string)(is_scalar($d['aktiv'] ?? null) ? $d['aktiv'] : '');
+        $out['aktiv'] = in_array($aktiv, $ids, true) ? $aktiv : ($ids[0] ?? '');
         return $out;
+    }
+
+    /** true, wenn die Anordnung nichts festlegt (eine leere, unbenannte Ansicht) — dann wird nichts gespeichert. */
+    public static function layoutLeer(array $l): bool
+    {
+        $v = $l['ansichten'];
+        return $v === [] || (count($v) === 1 && $v[0]['name'] === '' && $v[0]['reihenfolge'] === [] && $v[0]['groesse'] === []
+            && $v[0]['raster'] === '' && $v[0]['aus'] === []);
     }
 
     public static function qualitaet(string $stufe): string

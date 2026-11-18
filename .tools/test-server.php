@@ -246,19 +246,22 @@ check('Kachel-Schlüssel erzeugt', strlen($sk), 32);
 check('ohne Schlüssel: 403', $s->hook(['daten' => '1'])['code'], 403);
 $d = json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true);
 check('Kameras aus Statistik, Name aus Instanz, fremder Broker nicht', array_map(fn ($k) => $k['kamera'] . '=' . $k['name'], $d['kameras']), ['Door-Cam=Haustür']);
-// Anordnung der Übersichtskachel (0.27.0)
-check('Layout: fremde, doppelte, ungültige Größen fallen weg', FrigateHubServerWerte::layout('{"reihenfolge":["b","a","b","x",7],"groesse":{"a":2,"b":9,"x":3,"c":1},"raster":"3x2"}', ['a', 'b', '_birdseye']),
-    ['reihenfolge' => ['b', 'a'], 'groesse' => ['a' => 2], 'raster' => '3x2']);
-check('Layout: Müll → leer', FrigateHubServerWerte::layout('kaputt'), ['reihenfolge' => [], 'groesse' => [], 'raster' => '']);
-check('Layout: Raster nur 1–6 × 1–6', array_map(fn ($r) => FrigateHubServerWerte::layout(json_encode(['raster' => $r]))['raster'], ['2x2', '6x6', '7x1', '0x2', '3x2;', 'auto', 3]), ['2x2', '6x6', '', '', '', '', '']);
-$s->RequestAction('Layout', '{}');
-$s->RequestAction('Layout', '{"raster":"2x2"}');
-check('Layout: nur Raster wird gespeichert', json_decode($s->ReadAttributeString('KachelLayout'), true)['raster'] ?? null, '2x2');
-$s->RequestAction('Layout', '{"reihenfolge":["_birdseye","Door-Cam","Fremd"],"groesse":{"Door-Cam":3}}');
+// Anordnung der Übersichtskachel (0.27.0–0.29.0)
+$L = fn (string $j, ?array $e = null) => FrigateHubServerWerte::layout($j, $e);
+check('Layout alt (0.27/0.28) → eine Ansicht, Größe 2 → 2x2', $L('{"reihenfolge":["b","a","b","x",7],"groesse":{"a":2,"b":9,"x":3,"c":1},"raster":"3x2"}', ['a', 'b', '_birdseye']),
+    ['ansichten' => [['id' => 'v1', 'name' => '', 'reihenfolge' => ['b', 'a'], 'groesse' => ['a' => '2x2'], 'raster' => '3x2', 'aus' => []]], 'aktiv' => 'v1']);
+check('Layout: Müll → leer', $L('kaputt'), ['ansichten' => [], 'aktiv' => '']);
+check('Layout: Raster nur 1–6 × 1–6', array_map(fn ($r) => $L(json_encode(['raster' => $r]))['ansichten'][0]['raster'], ['2x2', '6x6', '7x1', '0x2', '3x2;', 'auto']), ['2x2', '6x6', '', '', '', '']);
+$neu = $L('{"aktiv":"aussen","ansichten":[{"id":"alle","name":"Alle"},{"id":"aussen","name":"  Außen  ","reihenfolge":["_hotspot","a","x"],"groesse":{"_hotspot":"2x2","a":"2x1","b":"4x4"},"aus":["b","_hotspot","x"]},{"id":"alle","name":"Doppelt"},{"id":"../x"}]}', ['a', 'b']);
+check('Ansichten: Name gekürzt, Hotspot erlaubt, fremde Kamera und ungültiges Format weg', $neu['ansichten'][1], ['id' => 'aussen', 'name' => 'Außen', 'reihenfolge' => ['_hotspot', 'a'], 'groesse' => ['_hotspot' => '2x2', 'a' => '2x1'], 'raster' => '', 'aus' => ['b']]);
+check('Ansichten: doppelte/ungültige IDs ersetzt, aktiv bleibt', [array_column($neu['ansichten'], 'id'), $neu['aktiv']], [['alle', 'aussen', 'v3', 'v4'], 'aussen']);
+check('Ansichten: höchstens 12, unbekannte aktive → erste', [count($L(json_encode(['ansichten' => array_fill(0, 20, []), 'aktiv' => 'zz']))['ansichten']), $L('{"ansichten":[{"id":"q"}],"aktiv":"zz"}')['aktiv']], [12, 'q']);
+check('Layout leer erkannt', [FrigateHubServerWerte::layoutLeer($L('{"ansichten":[{"id":"v1"}]}')), FrigateHubServerWerte::layoutLeer($neu)], [true, false]);
+$s->RequestAction('Layout', '{"ansichten":[{"id":"v1","reihenfolge":["_birdseye","Door-Cam","Fremd"],"groesse":{"Door-Cam":"3x3"}}]}');
 $d = json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true);
-check('Layout gespeichert und in den Kacheldaten', $d['layout'], ['reihenfolge' => ['_birdseye', 'Door-Cam'], 'groesse' => ['Door-Cam' => 3], 'raster' => '']);
-$s->RequestAction('Layout', '{}');
-check('Layout zurückgesetzt', [$s->ReadAttributeString('KachelLayout'), json_encode(json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true)['layout'] ?? null)], ['', '{"reihenfolge":[],"groesse":[],"raster":""}']);
+check('Layout gespeichert und in den Kacheldaten', $d['layout'], ['aktiv' => 'v1', 'ansichten' => [['groesse' => ['Door-Cam' => '3x3'], 'id' => 'v1', 'name' => '', 'reihenfolge' => ['_birdseye', 'Door-Cam'], 'raster' => '', 'aus' => []]]]);
+$s->RequestAction('Layout', '{"ansichten":[{"id":"v1"}]}');
+check('Layout zurückgesetzt', [$s->ReadAttributeString('KachelLayout'), json_encode(json_decode($s->hook(['daten' => '1', 'k' => $sk])['inhalt'], true)['layout'] ?? null)], ['', '{"aktiv":"","ansichten":[]}']);
 TestServer::$bilder['/api/Door-Cam/latest.jpg?height=360&h=360'] = ['code' => 200, 'body' => 'JPEG', 'kopf' => ['content-type' => 'image/jpeg']];
 check('Livebild bekannter Kamera', [$s->hook(['bild' => 'live', 'kamera' => 'Door-Cam', 'k' => $sk])['inhalt']], ['JPEG']);
 TestServer::$durchgereicht = [];

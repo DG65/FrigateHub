@@ -63,6 +63,14 @@
         .ordnen button { background: rgba(0, 0, 0, .65); color: #fff; font-size: 12px; padding: 2px 9px; }
         .ordnen .mitte { display: flex; gap: 4px; }
         .ordnen button.an { background: var(--akzent); }
+        .ordnen select { font: inherit; font-size: 12px; background: rgba(0, 0, 0, .65); color: #fff; border: 0; border-radius: 999px; padding: 2px 6px; }
+        .ordnen select option { color: #000; }
+        .zelle.aus { opacity: .4; }
+        .zelle.hotspot { cursor: zoom-in; }
+        .zelle.imhotspot { border-color: var(--akzent); }
+        .hotspotleer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: #fff; font-size: 13px; }
+        .marken .stern { background: var(--akzent); }
+        .kopf input { font: inherit; font-size: 12px; color: var(--text); background: var(--box); border: 0; border-radius: 999px; padding: 3px 10px; width: 9em; }
         .ordnen button:disabled { opacity: .35; cursor: default; }
 
         .wahl { display: flex; gap: 5px; flex-wrap: wrap; font-size: 12px; }
@@ -200,7 +208,7 @@
             var kopf = el('kopf');
             // Nur bei Änderung neu bauen: sonst trifft ein Tipp womöglich einen gerade ersetzten Knopf
             var schluessel = JSON.stringify([daten.name, daten.eigen, daten.verfuegbar, daten.kameras.length,
-                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, !!folge, modus, !!ordnen]);
+                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, !!folge, modus, ordnen, sichtId, daten.layout]);
             if (kopf.dataset.schluessel === schluessel) { return; }
             kopf.dataset.schluessel = schluessel;
             kopf.textContent = '';
@@ -219,34 +227,20 @@
             var l = document.createElement('span');
             l.className = 'luecke';
             kopf.appendChild(l);
-            if (ordnen) {
-                var wahl = document.createElement('select');
-                wahl.title = T('Grid: columns × rows');
-                [''].concat(RASTER).forEach(function (r) {
-                    var op = document.createElement('option');
-                    op.value = r;
-                    op.textContent = r ? T('Grid %s', r.replace('x', ' × ')) : T('Grid: automatic');
-                    wahl.appendChild(op);
-                });
-                wahl.value = ordnen.raster || '';
-                wahl.onchange = function () { ordnen.raster = wahl.value; hauptZeichnen(); };
-                kopf.appendChild(wahl);
-                [[T('↺ Default'), T('Sort by name, all cameras small'), function () { ordnen = { reihenfolge: [], groesse: {}, raster: '' }; hauptZeichnen(); }],
-                    [T('✕ Cancel'), '', function () { ordnen = null; hauptZeichnen(); }],
-                    [T('✓ Done'), T('Save this arrangement for everyone who sees this tile'), ordnenSpeichern]].forEach(function (k, i) {
-                    var b = document.createElement('button');
-                    b.textContent = k[0];
-                    if (k[1]) { b.title = k[1]; }
-                    if (i === 2) { b.className = 'an'; }
-                    b.onclick = k[2];
-                    kopf.appendChild(b);
-                });
-                return;
+            if (ordnen) { ordnenKopf(kopf); return; }
+            if (modus === 'uebersicht' && !wg && (daten.layout && daten.layout.ansichten || []).length > 1) {
+                // Ansicht wählen (je Gerät gemerkt)
+                var sw = document.createElement('select');
+                sw.title = T('View');
+                daten.layout.ansichten.forEach(function (a, i) { var op = document.createElement('option'); op.value = a.id; op.textContent = ansichtName(a, i); sw.appendChild(op); });
+                sw.value = ansichtAktuell().id;
+                sw.onchange = function () { benutzt(); sichtWaehlen(sw.value); };
+                kopf.appendChild(sw);
             }
             if (modus === 'uebersicht' && !wg && daten.api && typeof requestAction === 'function') {
                 var o = document.createElement('button');
                 o.textContent = T('⚙ Arrange');
-                o.title = T('Change order and size of the cameras');
+                o.title = T('Change views, order and size of the cameras');
                 o.onclick = function () { benutzt(); ordnenStarten(); };
                 kopf.appendChild(o);
             }
@@ -406,9 +400,10 @@
             zlZeichnen();
         }
 
-        function marken(k) {
+        function marken(k, stern) {
             var n = document.createElement('div');
             n.className = 'marken';
+            if (stern) { var st = document.createElement('span'); st.textContent = '★'; st.className = 'stern'; n.appendChild(st); }
             [[k.name, ''], [k.alarm ? T('🚨 Alarm') : '', 'rot'], [k.personen ? T(k.personen === 1 ? '%s person' : '%s people', k.personen) : '', ''],
                 [k.online === false ? T('offline') : '', 'rot'], [k.verbindung ? T('Connection %s', k.verbindung) : '', 'gelb']].forEach(function (t) {
                 if (!t[0]) { return; }
@@ -420,143 +415,300 @@
             return n;
         }
 
-        /* ---------------------------------------------------------------- Anordnung (0.27.0) */
+        /* ---------------------------------------------------------------- Anordnung (0.27.0–0.29.0) */
+        // Ansichten (je mit Reihenfolge, Feldformat, Raster, ausgeblendeten Kameras, Hotspot-Feld) liegen in der
+        // Server-Instanz; welche Ansicht ein Gerät zeigt, merkt sich das Gerät selbst.
         var RASTER = ['1x1', '2x1', '2x2', '3x2', '3x3', '4x2', '4x3', '4x4', '5x4', '5x5', '6x5', '6x6'];
+        var FORMATE = ['1x1', '2x1', '1x2', '2x2', '3x2', '2x3', '3x3'];
+        var sichtId = (function () { try { return localStorage.getItem('frigatehub-ansicht') || ''; } catch (e) { return ''; } })();
+        var hotspotKamera = null;      // Kamera im Hotspot-Feld (Antippen oder letzter Alarm)
+        var hotspotTimer = null;
+
         function schluessel(k) { return k.kamera === '' ? '_birdseye' : k.kamera; }
-        /** Festes Raster aus der Anordnung: {spalten, zeilen} oder null (automatisch). */
+        function leereAnsicht(id, name) { return { id: id, name: name || '', reihenfolge: [], groesse: {}, raster: '', aus: [] }; }
+        function ansichtName(a, i) { return a.name || T('View %s', i + 1); }
+        function ansichtAktuell() {
+            if (ordnen) { return ordnen.ansichten.filter(function (a) { return a.id === ordnen.sicht; })[0] || ordnen.ansichten[0]; }
+            var liste = (daten.layout && daten.layout.ansichten) || [];
+            return liste.filter(function (a) { return a.id === sichtId; })[0] || liste.filter(function (a) { return a.id === daten.layout.aktiv; })[0]
+                || liste[0] || leereAnsicht('', '');
+        }
+        function sichtWaehlen(id) {
+            sichtId = id;
+            try { localStorage.setItem('frigatehub-ansicht', id); } catch (e) { /* ohne Speicher */ }
+            hotspotKamera = null;
+            hauptZeichnen();
+        }
+        function format(key) {
+            var g = (ansichtAktuell().groesse || {})[key];
+            var m = /^([1-3])x([1-3])$/.exec(typeof g === 'number' ? g + 'x' + g : g || '');
+            return m ? { b: Number(m[1]), h: Number(m[2]), text: m[0] } : { b: 1, h: 1, text: '1x1' };
+        }
+        /** Festes Raster der Ansicht: {spalten, zeilen} oder null (automatisch). */
         function festesRaster() {
-            var m = /^([1-6])x([1-6])$/.exec(anordnung().raster || '');
+            var m = /^([1-6])x([1-6])$/.exec(ansichtAktuell().raster || '');
             return m ? { spalten: Number(m[1]), zeilen: Number(m[2]) } : null;
         }
-        function anordnung() { return ordnen || daten.layout || { reihenfolge: [], groesse: {} }; }
-        function groesse(k) { var g = (anordnung().groesse || {})[schluessel(k)]; return g >= 2 && g <= 3 ? g : 1; }
+        function hatHotspot() { return (ansichtAktuell().reihenfolge || []).indexOf('_hotspot') >= 0; }
 
-        /** Zellen in der gespeicherten (bzw. im Anordnen-Modus der bearbeiteten) Reihenfolge; Unbekannte danach nach Name. */
+        /** Felder der Ansicht in Reihenfolge (Unbekannte danach nach Name); ausgeblendete nur beim Anordnen. */
         function zellenListe() {
+            var a = ansichtAktuell(), r = a.reihenfolge || [], aus = a.aus || [];
             var zellen = daten.kameras.slice();
             if (daten.birdseye) { zellen.push({ kamera: '', name: 'Birdseye', online: true }); }
-            var r = anordnung().reihenfolge || [];
-            var pos = function (k) { var i = r.indexOf(schluessel(k)); return i < 0 ? (k.kamera === '' ? -1 : 1e6) : i; };
-            return zellen.map(function (k, i) { return { k: k, i: i }; }).sort(function (a, b) {
-                return (pos(a.k) - pos(b.k)) || (a.k.kamera === '' ? -1 : b.k.kamera === '' ? 1 : a.k.name.localeCompare(b.k.name)) || (a.i - b.i);
-            }).map(function (x) { return x.k; });
+            if (r.indexOf('_hotspot') >= 0) { zellen.push({ kamera: '_hotspot', name: '★', hotspot: true }); }
+            var pos = function (k) { var i = r.indexOf(k.hotspot ? '_hotspot' : schluessel(k)); return i < 0 ? (k.kamera === '' ? -1 : 1e6) : i; };
+            return zellen.filter(function (k) { return ordnen || k.hotspot || aus.indexOf(schluessel(k)) < 0; })
+                .map(function (k, i) { return { k: k, i: i }; }).sort(function (x, y) {
+                    return (pos(x.k) - pos(y.k)) || (x.k.kamera === '' ? -1 : y.k.kamera === '' ? 1 : x.k.name.localeCompare(y.k.name)) || (x.i - y.i);
+                }).map(function (x) { return x.k; });
+        }
+        /** Kameras der aktuellen Ansicht in ihrer Reihenfolge (für Kamerawahl, Zeitleiste, Hotspot). */
+        function sichtKameras() {
+            var aus = ansichtAktuell().aus || [];
+            return zellenListe().filter(function (k) { return !k.hotspot && k.kamera !== '' && aus.indexOf(k.kamera) < 0; });
         }
 
-        /** Spalten aus der Breite, Zeilenhöhe 16:9; große Kameras belegen 2×2 bzw. 3×3 Felder (höchstens so viele Spalten wie da sind). */
+        /** Spalten aus der Breite (oder dem festen Raster), Zeilenhöhe 16:9 bzw. Kachelhöhe; Felder b × h. */
         function rasterAnordnen() {
             var raster = document.querySelector('.raster');
             if (!raster) { return; }
             var breite = raster.clientWidth || 600, abstand = 6;
-            // So viele Spalten, dass die Kameras die Breite füllen: die größte Kamera bestimmt die Zeilenzahl,
-            // die übrigen füllen daneben auf (z. B. 2× + zwei kleine = 3 Spalten); höchstens so viele, wie 150 px breit passen
             var zellen = Array.prototype.slice.call(raster.querySelectorAll('.zelle'));
-            var groesste = 1, flaeche = 0;
-            zellen.forEach(function (z) { var g = Number(z.dataset.groesse) || 1; groesste = Math.max(groesste, g); flaeche += g * g; });
+            // Automatisch: so viele Spalten, dass die Kameras die Breite füllen (höchstes Feld bestimmt die Zeilen)
+            var maxB = 1, maxH = 1, flaeche = 0;
+            zellen.forEach(function (z) { var b = Number(z.dataset.b) || 1, h = Number(z.dataset.h) || 1; maxB = Math.max(maxB, b); maxH = Math.max(maxH, h); flaeche += b * h; });
             var platz = Math.max(1, Math.floor((breite + abstand) / (150 + abstand)));
-            var spalten = Math.max(1, Math.min(platz, Math.max(groesste, Math.ceil(flaeche / groesste))));
+            var spalten = Math.max(1, Math.min(platz, Math.max(maxB, Math.ceil(flaeche / maxH))));
             var fest = festesRaster(), zeile;
             if (fest) {
-                // Festes Raster (z. B. 3 × 2): Spalten wie gewählt, Zeilen teilen sich die Höhe; mehr Kameras → blättern (scrollen)
+                // Festes Raster (z. B. 3 × 2): Spalten wie gewählt, Zeilen teilen sich die Höhe; mehr Felder → scrollen
                 spalten = fest.spalten;
-                var hoehe = raster.clientHeight || 300;
-                zeile = Math.max(60, Math.floor((hoehe - abstand * (fest.zeilen - 1)) / fest.zeilen));
+                zeile = Math.max(60, Math.floor(((raster.clientHeight || 300) - abstand * (fest.zeilen - 1)) / fest.zeilen));
             } else {
                 zeile = Math.round((breite - abstand * (spalten - 1)) / spalten * 9 / 16);
             }
             raster.style.gridTemplateColumns = 'repeat(' + spalten + ', 1fr)';
             raster.style.gridAutoRows = zeile + 'px';
             zellen.forEach(function (z) {
-                var g = Math.min(spalten, Number(z.dataset.groesse) || 1);
-                z.style.gridColumn = 'span ' + g;
-                z.style.gridRow = 'span ' + g;
+                z.style.gridColumn = 'span ' + Math.min(spalten, Number(z.dataset.b) || 1);
+                z.style.gridRow = 'span ' + (Number(z.dataset.h) || 1);
             });
         }
 
+        /* --- Anordnen-Modus: bearbeitet eine Kopie aller Ansichten, „Fertig“ speichert */
         function ordnenStarten() {
-            var a = daten.layout || { reihenfolge: [], groesse: {} };
-            ordnen = { reihenfolge: [], groesse: JSON.parse(JSON.stringify(a.groesse || {})), raster: a.raster || '' };
-            ordnen.reihenfolge = zellenListe().map(schluessel);
+            var l = daten.layout && daten.layout.ansichten && daten.layout.ansichten.length ? daten.layout : { ansichten: [leereAnsicht('v1', '')] };
+            var aktuell = ansichtAktuell();
+            ordnen = { ansichten: JSON.parse(JSON.stringify(l.ansichten)), sicht: aktuell.id || l.ansichten[0].id };
+            ordnen.ansichten.forEach(function (a) { if (Array.isArray(a.groesse)) { a.groesse = {}; } a.aus = a.aus || []; a.reihenfolge = a.reihenfolge || []; });
+            var a = ansichtAktuell();
+            a.reihenfolge = zellenListe().map(function (k) { return k.hotspot ? '_hotspot' : schluessel(k); });
             hauptZeichnen();
         }
-
         function ordnenVerschieben(von, nach) {
-            var r = zellenListe().map(schluessel);
+            var a = ansichtAktuell();
+            var r = zellenListe().map(function (k) { return k.hotspot ? '_hotspot' : schluessel(k); });
             var i = r.indexOf(von);
             if (i < 0 || von === nach) { return; }
             r.splice(i, 1);
             var j = nach === null ? r.length : r.indexOf(nach);
             r.splice(j < 0 ? r.length : j, 0, von);
-            ordnen.reihenfolge = r;
+            a.reihenfolge = r;
             hauptZeichnen();
         }
-
         function ordnenSpeichern() {
-            var neu = { reihenfolge: ordnen.reihenfolge.slice(), groesse: ordnen.groesse, raster: ordnen.raster || '' };
-            daten.layout = neu;
+            var neu = { ansichten: ordnen.ansichten, aktiv: ordnen.ansichten[0].id };
+            var sicht = ordnen.sicht;
+            daten.layout = JSON.parse(JSON.stringify(neu));
             ordnen = null;
             requestAction('Layout', JSON.stringify(neu));
-            hauptZeichnen();
+            sichtWaehlen(sicht);
+        }
+        function ordnenKopf(kopf) {
+            function knopf(text, titel, aktion, an) {
+                var b = document.createElement('button');
+                b.textContent = text;
+                if (titel) { b.title = titel; }
+                if (an) { b.className = 'an'; }
+                b.onclick = aktion;
+                kopf.appendChild(b);
+                return b;
+            }
+            var a = ansichtAktuell();
+            // Ansicht wählen, benennen, neu, löschen
+            var sw = document.createElement('select');
+            sw.title = T('View');
+            ordnen.ansichten.forEach(function (x, i) { var op = document.createElement('option'); op.value = x.id; op.textContent = ansichtName(x, i); sw.appendChild(op); });
+            sw.value = a.id;
+            sw.onchange = function () { ordnen.sicht = sw.value; var b = ansichtAktuell(); b.reihenfolge = zellenListe().map(function (k) { return k.hotspot ? '_hotspot' : schluessel(k); }); hauptZeichnen(); };
+            kopf.appendChild(sw);
+            var name = document.createElement('input');
+            name.type = 'text';
+            name.maxLength = 40;
+            name.value = a.name || '';
+            name.placeholder = ansichtName({ name: '' }, ordnen.ansichten.indexOf(a));
+            name.title = T('Name of this view');
+            name.oninput = function () { a.name = name.value; };
+            kopf.appendChild(name);
+            if (ordnen.ansichten.length < 12) {
+                knopf(T('+ View'), T('New view, e.g. only the outdoor cameras'), function () {
+                    var id = 'v' + Date.now().toString(36).slice(-7);
+                    ordnen.ansichten.push(leereAnsicht(id, ''));
+                    ordnen.sicht = id;
+                    hauptZeichnen();
+                });
+            }
+            if (ordnen.ansichten.length > 1) {
+                knopf('🗑', T('Delete this view'), function () {
+                    ordnen.ansichten = ordnen.ansichten.filter(function (x) { return x !== a; });
+                    ordnen.sicht = ordnen.ansichten[0].id;
+                    hauptZeichnen();
+                });
+            }
+            var wahl = document.createElement('select');
+            wahl.title = T('Grid: columns × rows');
+            [''].concat(RASTER).forEach(function (r) {
+                var op = document.createElement('option');
+                op.value = r;
+                op.textContent = r ? T('Grid %s', r.replace('x', ' × ')) : T('Grid: automatic');
+                wahl.appendChild(op);
+            });
+            wahl.value = a.raster || '';
+            wahl.onchange = function () { a.raster = wahl.value; hauptZeichnen(); };
+            kopf.appendChild(wahl);
+            knopf(T('★ Hotspot'), T('Large field that shows the camera you tap – and automatically the camera with the latest alert'), function () {
+                var i = a.reihenfolge.indexOf('_hotspot');
+                if (i >= 0) { a.reihenfolge.splice(i, 1); delete a.groesse._hotspot; } else { a.reihenfolge.unshift('_hotspot'); a.groesse._hotspot = '2x2'; }
+                hauptZeichnen();
+            }, hatHotspot());
+            knopf(T('↺ Default'), T('This view: all cameras small, sorted by name'), function () {
+                a.reihenfolge = []; a.groesse = {}; a.raster = ''; a.aus = [];
+                hauptZeichnen();
+            });
+            knopf(T('✕ Cancel'), '', function () { ordnen = null; hauptZeichnen(); });
+            knopf(T('✓ Done'), T('Save the views for everyone who sees this tile'), ordnenSpeichern, true);
+        }
+
+        /** Bearbeiten-Leiste einer Zelle: ◀ Format 👁 ▶ */
+        function ordnenLeiste(z, k, nr, liste) {
+            var a = ansichtAktuell(), key = k.hotspot ? '_hotspot' : schluessel(k);
+            var aus = a.aus.indexOf(key) >= 0;
+            z.classList.add('bearbeiten');
+            if (aus) { z.classList.add('aus'); }
+            z.draggable = true;
+            z.ondragstart = function (ev) { ev.dataTransfer.setData('text/plain', key); ev.dataTransfer.effectAllowed = 'move'; z.classList.add('zieht'); };
+            z.ondragend = function () { z.classList.remove('zieht'); };
+            z.ondragover = function (ev) { ev.preventDefault(); z.classList.add('ziel'); };
+            z.ondragleave = function () { z.classList.remove('ziel'); };
+            z.ondrop = function (ev) { ev.preventDefault(); ordnenVerschieben(ev.dataTransfer.getData('text/plain'), key); };
+            var leiste = document.createElement('div');
+            leiste.className = 'ordnen';
+            var vor = document.createElement('button');
+            vor.textContent = '◀';
+            vor.title = T('Move forward');
+            vor.disabled = nr === 0;
+            vor.onclick = function () { var x = liste[nr - 1]; ordnenVerschieben(key, x.hotspot ? '_hotspot' : schluessel(x)); };
+            var mitte = document.createElement('span');
+            mitte.className = 'mitte';
+            var fw = document.createElement('select');
+            fw.title = T('Size of the field (width × height)');
+            FORMATE.forEach(function (f) { var op = document.createElement('option'); op.value = f; op.textContent = f.replace('x', ' × '); fw.appendChild(op); });
+            fw.value = format(key).text;
+            fw.onchange = function () { if (fw.value === '1x1') { delete a.groesse[key]; } else { a.groesse[key] = fw.value; } hauptZeichnen(); };
+            mitte.appendChild(fw);
+            if (!k.hotspot) {
+                var auge = document.createElement('button');
+                auge.textContent = aus ? '🚫' : '👁';
+                auge.title = aus ? T('Hidden in this view – tap to show') : T('Hide in this view');
+                auge.onclick = function () { if (aus) { a.aus = a.aus.filter(function (x) { return x !== key; }); } else { a.aus.push(key); } hauptZeichnen(); };
+                mitte.appendChild(auge);
+            }
+            var nach = document.createElement('button');
+            nach.textContent = '▶';
+            nach.title = T('Move back');
+            nach.disabled = nr === liste.length - 1;
+            nach.onclick = function () { var x = liste[nr + 2]; ordnenVerschieben(key, x ? (x.hotspot ? '_hotspot' : schluessel(x)) : null); };
+            leiste.appendChild(vor);
+            leiste.appendChild(mitte);
+            leiste.appendChild(nach);
+            z.appendChild(leiste);
+        }
+
+        /* --- Hotspot-Feld: zeigt die angetippte Kamera bzw. die mit dem letzten Alarm, Bild jede Sekunde */
+        function hotspotWahl() {
+            var liste = sichtKameras();
+            if (!hotspotKamera || !liste.some(function (k) { return k.kamera === hotspotKamera; })) { hotspotKamera = liste.length ? liste[0].kamera : null; }
+            return hotspotKamera;
+        }
+        function hotspotSetzen(kamera) {
+            hotspotKamera = kamera;
+            var z = document.querySelector('.zelle.hotspot');
+            if (!z) { return; }
+            var k = kameraDaten(kamera);
+            z.dataset.kamera = kamera;
+            z.classList.toggle('alarm', !!(k && k.alarm));
+            var img = z.querySelector('img');
+            if (img && letzte[kamera]) { img.src = letzte[kamera]; }
+            var m = z.querySelector('.marken');
+            if (m && k) { z.replaceChild(marken(k, true), m); }
+            document.querySelectorAll('.zelle').forEach(function (x) { x.classList.toggle('imhotspot', !x.classList.contains('hotspot') && x.dataset.kamera === kamera); });
+            hotspotLaden();
+        }
+        function hotspotLaden() {
+            clearTimeout(hotspotTimer);
+            var z = document.querySelector('.zelle.hotspot');
+            if (!z || ordnen || document.hidden || modus !== 'uebersicht' || !z.dataset.kamera) { return; }
+            var kamera = z.dataset.kamera;
+            var h = Math.max(360, Math.min(1080, Math.ceil((z.clientHeight || 360) * (window.devicePixelRatio || 1) / 120) * 120));
+            var vor = new Image();
+            vor.onload = function () { var img = z.querySelector('img'); if (img && z.dataset.kamera === kamera) { img.src = vor.src; } letzte[kamera] = vor.src; hotspotTimer = setTimeout(hotspotLaden, 1000); };
+            vor.onerror = function () { hotspotTimer = setTimeout(hotspotLaden, 3000); };
+            vor.src = serverBild(kamera, h);
         }
 
         function rasterZeichnen(haupt) {
             var raster = document.createElement('div');
             raster.className = 'raster';
-            var liste = zellenListe();
+            var liste = zellenListe(), mitHotspot = !ordnen && hatHotspot();
+            var hs = mitHotspot ? hotspotWahl() : null;
             liste.forEach(function (k, nr) {
                 var z = document.createElement('div');
-                z.className = 'zelle' + (k.alarm ? ' alarm' : '') + (k.online === false ? ' offline' : '');
-                z.dataset.kamera = k.kamera;
-                z.dataset.groesse = groesse(k);
+                var key = k.hotspot ? '_hotspot' : schluessel(k);
+                var f = format(key);
+                var zeigt = k.hotspot ? kameraDaten(hs) : k;
+                z.className = 'zelle' + (k.hotspot ? ' hotspot' : '') + (zeigt && zeigt.alarm ? ' alarm' : '') + (zeigt && zeigt.online === false ? ' offline' : '')
+                    + (!k.hotspot && mitHotspot && k.kamera === hs ? ' imhotspot' : '');
+                z.dataset.kamera = k.hotspot ? (hs || '') : k.kamera;
+                z.dataset.b = f.b;
+                z.dataset.h = f.h;
                 var img = document.createElement('img');
                 img.alt = '';
                 img.draggable = false;
-                if (letzte[k.kamera]) { img.src = letzte[k.kamera]; }
+                if (letzte[z.dataset.kamera]) { img.src = letzte[z.dataset.kamera]; }
                 z.appendChild(img);
-                z.appendChild(marken(k));
+                if (k.hotspot && (ordnen || !zeigt)) {
+                    var leer = document.createElement('div');
+                    leer.className = 'hotspotleer';
+                    leer.textContent = T('★ Hotspot – shows the tapped camera and the latest alert');
+                    z.appendChild(leer);
+                } else {
+                    z.appendChild(marken(zeigt || k, k.hotspot));
+                }
                 if (ordnen) {
-                    // Anordnen: ziehen (Maus) oder ◀ ▶ (Touch), Größe 1×/2×/3×
-                    var key = schluessel(k);
-                    z.classList.add('bearbeiten');
-                    z.draggable = true;
-                    z.ondragstart = function (ev) { ev.dataTransfer.setData('text/plain', key); ev.dataTransfer.effectAllowed = 'move'; z.classList.add('zieht'); };
-                    z.ondragend = function () { z.classList.remove('zieht'); };
-                    z.ondragover = function (ev) { ev.preventDefault(); z.classList.add('ziel'); };
-                    z.ondragleave = function () { z.classList.remove('ziel'); };
-                    z.ondrop = function (ev) { ev.preventDefault(); ordnenVerschieben(ev.dataTransfer.getData('text/plain'), key); };
-                    var leiste = document.createElement('div');
-                    leiste.className = 'ordnen';
-                    var vor = document.createElement('button');
-                    vor.textContent = '◀';
-                    vor.title = T('Move forward');
-                    vor.disabled = nr === 0;
-                    vor.onclick = function () { ordnenVerschieben(key, schluessel(liste[nr - 1])); };
-                    var mitte = document.createElement('span');
-                    mitte.className = 'mitte';
-                    [1, 2, 3].forEach(function (g) {
-                        var b = document.createElement('button');
-                        b.textContent = g + '×';
-                        b.title = T('Size: %s fields wide', g);
-                        if (groesse(k) === g) { b.className = 'an'; }
-                        b.onclick = function () { if (g === 1) { delete ordnen.groesse[key]; } else { ordnen.groesse[key] = g; } hauptZeichnen(); };
-                        mitte.appendChild(b);
-                    });
-                    var nach = document.createElement('button');
-                    nach.textContent = '▶';
-                    nach.title = T('Move back');
-                    nach.disabled = nr === liste.length - 1;
-                    nach.onclick = function () { ordnenVerschieben(key, nr + 2 < liste.length ? schluessel(liste[nr + 2]) : null); };
-                    leiste.appendChild(vor);
-                    leiste.appendChild(mitte);
-                    leiste.appendChild(nach);
-                    z.appendChild(leiste);
+                    ordnenLeiste(z, k, nr, liste);
+                } else if (k.hotspot) {
+                    z.onclick = function () { benutzt(); if (hotspotKamera) { kameraOeffnen(hotspotKamera); } };
                 } else if (k.kamera !== '') {
-                    z.onclick = function () { benutzt(); kameraOeffnen(k.kamera); };
+                    z.onclick = function () { benutzt(); if (mitHotspot) { hotspotSetzen(k.kamera); } else { kameraOeffnen(k.kamera); } };
+                    if (mitHotspot) { z.ondblclick = function () { benutzt(); kameraOeffnen(k.kamera); }; }
                 }
                 raster.appendChild(z);
             });
             haupt.appendChild(raster);
             rasterAnordnen();
             rasterLaden();
+            hotspotLaden();
         }
 
         function serverBild(kamera, h) {
@@ -568,7 +720,7 @@
         function rasterLaden() {
             clearTimeout(rasterTimer);
             if (!daten || !daten.api || document.hidden || modus !== 'uebersicht') { return; }
-            var liste = Array.prototype.slice.call(document.querySelectorAll('.zelle'));
+            var liste = Array.prototype.slice.call(document.querySelectorAll('.zelle:not(.hotspot)'));
             function hoehe(z) { return Math.max(240, Math.min(1080, Math.ceil((z.clientHeight || 180) * (window.devicePixelRatio || 1) / 120) * 120)); }
             (function naechste(i) {
                 if (i >= liste.length) {
@@ -596,9 +748,12 @@
         function grossZeichnen(haupt) {
             var wahl = document.createElement('div');
             wahl.className = 'wahl';
-            daten.kameras.forEach(function (k) {
+            var inSicht = sichtKameras();
+            if (aktiv && !inSicht.some(function (k) { return k.kamera === aktiv; }) && kameraDaten(aktiv)) { inSicht.push(kameraDaten(aktiv)); }
+            inSicht.forEach(function (k) {
                 var b = document.createElement('button');
                 b.textContent = (k.alarm ? '🚨 ' : '') + k.name;
+                b.dataset.kamera = k.kamera;
                 if (k.kamera === aktiv) { b.className = 'an'; }
                 b.onclick = function () { benutzt(); if (wg) { wiedergabeStarten(k.kamera, wgPosition(), null, null); } else { kameraOeffnen(k.kamera); } };
                 wahl.appendChild(b);
@@ -1039,7 +1194,7 @@
         function zlZeichnen() {
             var spuren = el('spuren');
             spuren.textContent = '';
-            var kameras = (daten.kameras || []).filter(function (k) { return k.zugang && k.zugang.api; });
+            var kameras = sichtKameras().filter(function (k) { return k.zugang && k.zugang.api; });
             el('zl').hidden = kameras.length === 0;
             kameras.forEach(function (k) {
                 var zeile = document.createElement('div');
@@ -1311,6 +1466,8 @@
                 alarmVorher[k.kamera] = !!k.alarm;
             });
             if (!neu || wg || ordnen) { return false; }
+            // Ansicht mit Hotspot-Feld: der Alarm erscheint dort, die Übersicht bleibt stehen
+            if (modus === 'uebersicht' && hatHotspot() && sichtKameras().some(function (k) { return k.kamera === neu; })) { hotspotSetzen(neu); return false; }
             if (auto) { clearTimeout(auto.timer); }
             var vorher = auto ? auto.vorher : { modus: modus, aktiv: aktiv };
             auto = { kamera: neu, vorher: vorher, timer: setTimeout(function () {
@@ -1326,7 +1483,7 @@
         /* ================================================================ Daten von Symcon */
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) { return; }
-            if (modus === 'uebersicht') { rasterLaden(); } else if (!wg) { liveBildLaden(); }
+            if (modus === 'uebersicht') { rasterLaden(); hotspotLaden(); } else if (!wg) { liveBildLaden(); }
             if (ansicht.folgen) { ansicht.bis = jetzt(); }
             zlLaden(true);
         });
@@ -1364,11 +1521,11 @@
                     z.classList.toggle('alarm', !!k.alarm);
                     z.classList.toggle('offline', k.online === false);
                     var m = z.querySelector('.marken');
-                    if (m) { z.replaceChild(marken(k), m); }
+                    if (m) { z.replaceChild(marken(k, z.classList.contains('hotspot')), m); }
                 });
             } else {
-                document.querySelectorAll('.wahl button').forEach(function (b, i) {
-                    var k = daten.kameras[i];
+                document.querySelectorAll('.wahl button').forEach(function (b) {
+                    var k = kameraDaten(b.dataset.kamera);
                     if (k) { b.textContent = (k.alarm ? '🚨 ' : '') + k.name; }
                 });
             }

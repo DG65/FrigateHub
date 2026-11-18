@@ -132,13 +132,18 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   erkanntes Gesicht, dann das Aussehen (nur mit eingeschalteter **semantischer Suche** in Frigate), sonst die
   Zeit – dann steht ein „?“ am Abschnitt. Frigate erkennt nicht von selbst, dass es dieselbe Person ist; ohne
   Gesicht ist die Zuordnung eine gute Vermutung, keine Gewissheit.
-- **Anordnen (ab 0.27):** „⚙ Anordnen“ im Kopf der Kachel: Reihenfolge per Ziehen (Maus) oder ◀ ▶ (Touch), Größe je
-  Kamera 1×, 2× oder 3× – die übrigen füllen daneben auf, die Spaltenzahl passt sich an. „✓ Fertig“ speichert die
-  Anordnung in der Server-Instanz, sie gilt für alle, die die Kachel sehen (Zeitleiste und Kamerawahl folgen der
-  Reihenfolge). „↺ Standard“ sortiert wieder nach Name.
-  **Raster (ab 0.28):** In derselben Leiste wählst du ein festes Raster wie 2 × 2, 3 × 2 oder 3 × 3 (Spalten × Zeilen,
-  bis 6 × 6). Die Kameras teilen sich dann die ganze Höhe der Kachel; mehr Kameras als Felder lassen sich blättern.
-  „Raster: automatisch“ passt die Spalten wie bisher an die Breite an.
+- **Anordnen (ab 0.27, Ansichten ab 0.29):** „⚙ Anordnen“ im Kopf der Kachel. Je **Ansicht** legst du fest:
+  - **Reihenfolge** per Ziehen (Maus) oder ◀ ▶ (Touch),
+  - **Feldgröße** je Kamera: 1 × 1, breit 2 × 1 und 3 × 2, hoch 1 × 2 und 2 × 3, groß 2 × 2 und 3 × 3,
+  - **Raster:** automatisch (Spalten passen sich der Breite an) oder fest 1 × 1 bis 6 × 6 (Spalten × Zeilen, die
+    Felder teilen sich die Kachelhöhe; mehr Kameras lassen sich scrollen),
+  - **Kameras ausblenden** (👁), z. B. für eine Ansicht „Außen“,
+  - **★ Hotspot-Feld:** ein großes Feld, das die angetippte Kamera zeigt und von selbst zur Kamera mit dem letzten
+    Alarm wechselt, während die übrigen sichtbar bleiben (Doppeltipp auf eine kleine Kamera oder Tipp auf den Hotspot
+    öffnet die Großansicht). Ohne Hotspot springt die Kachel bei Alarm wie bisher 60 Sekunden in die Großansicht.
+  Mit „+ Ansicht“ legst du weitere Ansichten an (bis 12), benennst sie im Namensfeld und schaltest im Kopf der Kachel
+  zwischen ihnen um; jedes Gerät merkt sich seine Ansicht. „✓ Fertig“ speichert alle Ansichten in der Server-Instanz,
+  sie gelten für alle, die die Kachel sehen. Kamerawahl und Zeitleiste folgen der gewählten Ansicht.
 - **PTZ (ab 0.26):** Bei Kameras, für die Frigate PTZ meldet, steuerst du in der großen Liveansicht (Kamera- und
   Übersichtskachel) direkt im Bild: **Ziehen** mit gedrückter Maustaste (oder einem Finger) dreht die Kamera in diese
   Richtung – je weiter, desto schneller –, **Mausrad** oder **zwei Finger** zoomen, ohne etwas umzuschalten (ab 0.27).

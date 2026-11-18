@@ -107,13 +107,19 @@ automatically; the path is shown above the video and outlined in the timeline. D
 decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
 is then marked “?”. Without a face the assignment is a good guess, not a certainty.
 
-**Arrange (from 0.27):** “⚙ Arrange” in the tile header: change the order by dragging (mouse) or ◀ ▶ (touch), size per
-camera 1×, 2× or 3× – the others fill up next to it, the number of columns adapts. “✓ Done” saves the arrangement in the
-server instance for everyone who sees the tile (timeline and camera selection follow the order). “↺ Default” sorts by
-name again.
-**Grid (from 0.28):** In the same bar you can choose a fixed grid such as 2 × 2, 3 × 2 or 3 × 3 (columns × rows, up to
-6 × 6). The cameras then share the full height of the tile; more cameras than fields can be scrolled. “Grid: automatic”
-adapts the columns to the width as before.
+**Arrange (from 0.27, views from 0.29):** “⚙ Arrange” in the tile header. Per **view** you set:
+- the **order** by dragging (mouse) or ◀ ▶ (touch),
+- the **field size** per camera: 1 × 1, wide 2 × 1 and 3 × 2, tall 1 × 2 and 2 × 3, large 2 × 2 and 3 × 3,
+- the **grid:** automatic (columns adapt to the width) or fixed 1 × 1 to 6 × 6 (columns × rows, the fields share the
+  tile height; more cameras can be scrolled),
+- **hidden cameras** (👁), e.g. for an “Outdoor” view,
+- the **★ hotspot field:** a large field that shows the camera you tap and switches by itself to the camera with the
+  latest alert while the others stay visible (double-tap a small camera or tap the hotspot to open the large view).
+  Without a hotspot the tile jumps into the large view for 60 seconds on an alert, as before.
+
+“+ View” adds further views (up to 12); name them in the name field and switch between them in the tile header; each
+device remembers its view. “✓ Done” saves all views in the server instance for everyone who sees the tile. Camera
+selection and timeline follow the chosen view.
 
 **PTZ (from 0.26):** For cameras that Frigate reports as PTZ, you aim directly in the picture of the large live
 view (camera tile and overview tile): **drag** with the mouse button held (or one finger) to turn the camera in that

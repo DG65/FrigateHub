@@ -40,7 +40,7 @@ class FrigateHubServer extends IPSModule
     private const KACHEL_IDENTS = ['Online', 'Alarm', 'Bewegung', 'Objekt_person', 'Ungesehen', 'UngesehenErk'];
 
     /** Alle Texte der Übersichtskachel (module.html, Funktion T); übersetzt in den Kacheldaten als „texte“. */
-    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate', 'End following', 'Follow the person you see here across all cameras', 'Looking for the person on the other cameras …', 'Most similar appearance (Frigate semantic search)', 'Next person by time', 'No person found at this moment.', 'Same recognized face', 'Several people at the same time — chosen by time, may be wrong', 'Starting point', 'The person was not seen on any other camera.', '👣 Follow person', 'Position …', '🎮 Aim', 'Click into the picture to turn the camera there. Draw a frame from top left to bottom right to zoom into it (the other way round zooms out). Without this switch: drag in the picture to move the camera, mouse wheel or two fingers zoom.', '⚙ Arrange', 'Change order and size of the cameras', '↺ Default', 'Sort by name, all cameras small', '✕ Cancel', '✓ Done', 'Save this arrangement for everyone who sees this tile', 'Move forward', 'Move back', 'Size: %s fields wide', 'Grid: columns × rows', 'Grid %s', 'Grid: automatic'];
+    private const KACHEL_TEXTE = ['⛔ Frigate not reachable', '%s camera', '%s cameras', '%s alarm', '%s alarms', 'Enter the Frigate address in the instance to see the live images.', '🚨 Alarm', '%s person', '%s people', 'offline', 'Connection %s', 'language code: en', '● Live', 'Back to live', '▦ All cameras', 'Live', 'Frigate has no recording for this period.', 'Loading …', 'now', '%s not seen yet', '✓ All seen', 'Mark all alerts and detections of the last 24 hours as seen — also in Frigate', 'End following', 'Follow the person you see here across all cameras', 'Looking for the person on the other cameras …', 'Most similar appearance (Frigate semantic search)', 'Next person by time', 'No person found at this moment.', 'Same recognized face', 'Several people at the same time — chosen by time, may be wrong', 'Starting point', 'The person was not seen on any other camera.', '👣 Follow person', 'Position …', '🎮 Aim', 'Click into the picture to turn the camera there. Draw a frame from top left to bottom right to zoom into it (the other way round zooms out). Without this switch: drag in the picture to move the camera, mouse wheel or two fingers zoom.', '⚙ Arrange', '↺ Default', '✕ Cancel', '✓ Done', 'Move forward', 'Move back', 'Grid: columns × rows', 'Grid %s', 'Grid: automatic', 'View', 'View %s', 'Change views, order and size of the cameras', 'Name of this view', '+ View', 'New view, e.g. only the outdoor cameras', 'Delete this view', '★ Hotspot', 'Large field that shows the camera you tap – and automatically the camera with the latest alert', 'This view: all cameras small, sorted by name', 'Save the views for everyone who sees this tile', 'Size of the field (width × height)', 'Hidden in this view – tap to show', 'Hide in this view', '★ Hotspot – shows the tapped camera and the latest alert'];
 
     /** Datenschnittstelle „senden" (Publish an den Broker), auf MQTT Client und Server gleich. */
     private const MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}';
@@ -97,7 +97,7 @@ class FrigateHubServer extends IPSModule
         $this->RegisterAttributeString('Pushstatus', '');
         // Frigate-Profile (0.18+): verfügbare Namen → Anzeigename, aus /api/profiles
         $this->RegisterAttributeString('Profile', '{}');
-        // Anordnung der Übersichtskachel (0.27.0): {reihenfolge: [kamera|_birdseye], groesse: {kamera: 1–3}, raster: "3x2" (0.28.0)}
+        // Anordnung der Übersichtskachel: Ansichten mit Reihenfolge, Feldformat, Raster, Hotspot (0.29.0, siehe FrigateHubServerWerte::layout)
         $this->RegisterAttributeString('KachelLayout', '');
 
         $this->RegisterTimer('Abgleich', 0, 'FRIGS_ZustandAnfordern($_IPS[\'TARGET\']);');
@@ -472,7 +472,7 @@ class FrigateHubServer extends IPSModule
         }
         // Reihenfolge aus der Anordnung der Kachel, unbekannte Kameras danach nach Name
         $layout = FrigateHubServerWerte::layout($this->ReadAttributeString('KachelLayout'));
-        $pos = array_flip($layout['reihenfolge']);
+        $pos = array_flip($layout['ansichten'][0]['reihenfolge'] ?? []);
         usort($kameras, fn ($a, $b) => [$pos[$a['kamera']] ?? PHP_INT_MAX, $a['name']] <=> [$pos[$b['kamera']] ?? PHP_INT_MAX, $b['name']]);
         return [
             'hook'       => $this->hookPfad(),
@@ -484,7 +484,7 @@ class FrigateHubServer extends IPSModule
             'birdseye'   => $this->ReadAttributeBoolean('Birdseye'),
             'verfuegbar' => @$this->GetIDForIdent('Verfuegbar') !== false ? $this->GetValue('Verfuegbar') : null,
             'kameras'    => $kameras,
-            'layout'     => ['reihenfolge' => $layout['reihenfolge'], 'groesse' => (object)$layout['groesse'], 'raster' => $layout['raster']],
+            'layout'     => ['aktiv' => $layout['aktiv'], 'ansichten' => array_map(fn ($a) => ['groesse' => (object)$a['groesse']] + $a, $layout['ansichten'])],
             'eigen'      => $eigen,
             'name'       => $eigen ? IPS_GetName($this->InstanceID) : '',
             'texte'      => array_combine(self::KACHEL_TEXTE, array_map([FrigateHubText::class, 't'], self::KACHEL_TEXTE)),
@@ -634,7 +634,7 @@ class FrigateHubServer extends IPSModule
         // Übersichtskachel: Anordnung (Reihenfolge, Größe) speichern; nur bekannte Kameras
         if ($Ident === 'Layout') {
             $neu = FrigateHubServerWerte::layout((string)$Value, array_merge($this->kameraNamen(), ['_birdseye']));
-            $this->WriteAttributeString('KachelLayout', $neu['reihenfolge'] === [] && $neu['groesse'] === [] && $neu['raster'] === '' ? '' : (string)json_encode($neu));
+            $this->WriteAttributeString('KachelLayout', FrigateHubServerWerte::layoutLeer($neu) ? '' : (string)json_encode($neu));
             $this->kachelSenden(true);
             return;
         }
