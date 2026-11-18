@@ -107,8 +107,15 @@ automatically; the path is shown above the video and outlined in the timeline. D
 decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
 is then marked “?”. Without a face the assignment is a good guess, not a certainty.
 
+**Arrange (from 0.27):** “⚙ Arrange” in the tile header: change the order by dragging (mouse) or ◀ ▶ (touch), size per
+camera 1×, 2× or 3× – the others fill up next to it, the number of columns adapts. “✓ Done” saves the arrangement in the
+server instance for everyone who sees the tile (timeline and camera selection follow the order). “↺ Default” sorts by
+name again.
+
 **PTZ (from 0.26):** For cameras that Frigate reports as PTZ, you aim directly in the picture of the large live
-view (camera tile and overview tile): switch on “🎮 Aim”, then **click into the picture** – the camera turns to that
+view (camera tile and overview tile): **drag** with the mouse button held (or one finger) to turn the camera in that
+direction – the further, the faster –, zoom with the **mouse wheel** or **two fingers**, without switching anything on
+(from 0.27). With “🎮 Aim” additionally **click into the picture** – the camera turns to that
 point –, **draw a frame** from top left to bottom right to zoom into it (the other way round zooms out), zoom with the
 **mouse wheel** or **two fingers**. Next to it zoom −/+ and the positions saved in the camera. Cameras without
 movement in the field of view (ONVIF “pt-r-fov”) get arrow buttons to hold. This needs a working ONVIF connection in

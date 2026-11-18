@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.27.0' => '💬 How have you arranged your cameras in the overview tile? Please tell me in the forum which layout you are missing — and how dragging the PTZ camera feels.',
         '0.26.0' => '💬 Have you tried aiming your PTZ camera in the picture? Please tell me in the forum whether click and frame land where you expected — and which camera you use.',
         '0.25.0' => '💬 Have you tried “Follow person”? Please tell me in the forum whether it switched to the right camera — and how your cameras are arranged.',
         '0.24.0' => '💬 How do you like the new overview tile with timeline? Please tell me in the forum what works and what you are missing — layouts to choose from and “follow a person” are next.',
@@ -30,6 +31,10 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.27.0' => [
+            '• ⚙ New in the overview tile: arrange the cameras yourself — “⚙ Arrange” lets you change the order (drag, or ◀ ▶) and make a camera 2× or 3× as large; the others fill up next to it. The arrangement is saved for everyone who sees the tile.',
+            '• 🎮 PTZ cameras now also move without switching anything on: drag in the live picture with the mouse button held (or one finger) to turn the camera in that direction, mouse wheel or two fingers zoom. “🎮 Aim” with click and frame stays as before.',
+        ],
         '0.26.0' => [
             '• 🎮 New: aim PTZ cameras directly in the picture (camera tile and overview tile) — switch on “🎮 Aim”, then click where the camera should look, draw a frame to zoom into it, zoom with the mouse wheel or two fingers. Zoom −/+ and the saved positions sit above the picture instead of on the video\'s progress bar. Cameras without this ONVIF ability get arrow buttons.',
         ],

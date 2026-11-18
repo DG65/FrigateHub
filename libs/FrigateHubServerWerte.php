@@ -206,6 +206,33 @@ class FrigateHubServerWerte
         return $out;
     }
 
+    /**
+     * Anordnung der Übersichtskachel aus JSON: {reihenfolge: [Kamera-ID|_birdseye], groesse: {Kamera-ID: 1–3}}.
+     * Mit $erlaubt bleiben nur diese Schlüssel (beim Speichern aus der Kachel); doppelte und fremde fallen weg.
+     */
+    public static function layout(string $json, ?array $erlaubt = null): array
+    {
+        $d = json_decode($json, true);
+        $out = ['reihenfolge' => [], 'groesse' => []];
+        if (!is_array($d)) {
+            return $out;
+        }
+        $ok = function ($k) use ($erlaubt): bool {
+            return is_string($k) && $k !== '' && strlen($k) <= 64 && ($erlaubt === null || in_array($k, $erlaubt, true));
+        };
+        foreach ((array)($d['reihenfolge'] ?? []) as $k) {
+            if ($ok($k) && !in_array($k, $out['reihenfolge'], true) && count($out['reihenfolge']) < 64) {
+                $out['reihenfolge'][] = $k;
+            }
+        }
+        foreach ((array)($d['groesse'] ?? []) as $k => $g) {
+            if ($ok((string)$k) && is_numeric($g) && (int)$g >= 2 && (int)$g <= 3) {
+                $out['groesse'][(string)$k] = (int)$g;
+            }
+        }
+        return $out;
+    }
+
     public static function qualitaet(string $stufe): string
     {
         return isset(self::QUALITAET[$stufe]) ? FrigateHubText::t(self::QUALITAET[$stufe]) : $stufe;

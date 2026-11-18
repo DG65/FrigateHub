@@ -132,8 +132,14 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   erkanntes Gesicht, dann das Aussehen (nur mit eingeschalteter **semantischer Suche** in Frigate), sonst die
   Zeit – dann steht ein „?“ am Abschnitt. Frigate erkennt nicht von selbst, dass es dieselbe Person ist; ohne
   Gesicht ist die Zuordnung eine gute Vermutung, keine Gewissheit.
+- **Anordnen (ab 0.27):** „⚙ Anordnen“ im Kopf der Kachel: Reihenfolge per Ziehen (Maus) oder ◀ ▶ (Touch), Größe je
+  Kamera 1×, 2× oder 3× – die übrigen füllen daneben auf, die Spaltenzahl passt sich an. „✓ Fertig“ speichert die
+  Anordnung in der Server-Instanz, sie gilt für alle, die die Kachel sehen (Zeitleiste und Kamerawahl folgen der
+  Reihenfolge). „↺ Standard“ sortiert wieder nach Name.
 - **PTZ (ab 0.26):** Bei Kameras, für die Frigate PTZ meldet, steuerst du in der großen Liveansicht (Kamera- und
-  Übersichtskachel) direkt im Bild: „🎮 Steuern“ einschalten, dann **ins Bild klicken** – die Kamera schwenkt auf den
+  Übersichtskachel) direkt im Bild: **Ziehen** mit gedrückter Maustaste (oder einem Finger) dreht die Kamera in diese
+  Richtung – je weiter, desto schneller –, **Mausrad** oder **zwei Finger** zoomen, ohne etwas umzuschalten (ab 0.27).
+  Mit „🎮 Steuern“ zusätzlich **ins Bild klicken** – die Kamera schwenkt auf den
   Punkt –, einen **Rahmen aufziehen** von links oben nach rechts unten zoomt auf den Ausschnitt (umgekehrt hinaus),
   **Mausrad** oder **zwei Finger** zoomen. Daneben Zoom −/+ und die in der Kamera gespeicherten Positionen. Kameras
   ohne Bewegung im Bildfeld (ONVIF „pt-r-fov“) bekommen Pfeiltasten zum Gedrückthalten. Voraussetzung ist eine
