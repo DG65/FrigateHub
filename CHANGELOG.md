@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.33.0 (Build 60) — 19.11.2026
+
+- **Kamera-Kachel, Livebild ohne Seitenstreifen (Rückmeldung Dietmar 19.11.2026):** In breiten Kacheln setzt `seitenAnpassen()` die Breite des Livebilds aus dem Seitenverhältnis des Streams (Video `videoWidth/Height`, sonst Standbild `naturalWidth/Height`) bei voller Höhe; die Ereignisspalte bekommt den Rest (mindestens 244 px). Die Karten wachsen mit (`minmax(118px, 1fr)`, Vorschau 16:9). Neu berechnet bei Bild/Video-Wechsel und Größenänderung.
+- Im Browser geprüft (2000 × 1080: Livebild 16:9 ohne Streifen, Karten 140 px statt 118 px).
+
 ## 0.32.0 (Build 59) — 19.11.2026
 
 - **Kamera-Kachel, Ereignisse rechts (Rückmeldung Dietmar 19.11.2026):** Bei breiten Kacheln (≥ 900 px und ≥ 4:3, Media Query) stehen die Ereigniskarten in einer Spalte rechts neben Livebild und Schaltern (zwei Karten nebeneinander, senkrecht scrollbar); das Livebild wird höher. Schmale Kacheln unverändert.
