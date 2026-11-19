@@ -32,6 +32,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.31.0' => [
+            '• ▤ Camera tile: on wide tiles the course of an event (detected, entered zone, left …) now stands to the right of the video instead of below it, so the video uses the full height.',
+        ],
         '0.30.0' => [
             '• ⏱ New: the timeline of the overview tile can stand vertically on the right of the picture (newest time at the top) — automatically on wide tiles, or fixed per view under “⚙ Arrange”.',
         ],

@@ -63,5 +63,6 @@
   "Timeline: automatic": "Zeitleiste: automatisch",
   "Timeline: bottom": "Zeitleiste: unten",
   "Timeline: right": "Zeitleiste: rechts",
-  "• ⏱ New: the timeline of the overview tile can stand vertically on the right of the picture (newest time at the top) — automatically on wide tiles, or fixed per view under “⚙ Arrange”.": "• ⏱ Neu: Die Zeitleiste der Übersichtskachel kann senkrecht rechts neben dem Bild stehen (neueste Zeit oben) – automatisch bei breiten Kacheln oder je Ansicht fest unter „⚙ Anordnen“."
+  "• ⏱ New: the timeline of the overview tile can stand vertically on the right of the picture (newest time at the top) — automatically on wide tiles, or fixed per view under “⚙ Arrange”.": "• ⏱ Neu: Die Zeitleiste der Übersichtskachel kann senkrecht rechts neben dem Bild stehen (neueste Zeit oben) – automatisch bei breiten Kacheln oder je Ansicht fest unter „⚙ Anordnen“.",
+  "• ▤ Camera tile: on wide tiles the course of an event (detected, entered zone, left …) now stands to the right of the video instead of below it, so the video uses the full height.": "• ▤ Kamera-Kachel: Bei breiten Kacheln steht der Ablauf eines Ereignisses (erkannt, betrat Zone, entfernt …) jetzt rechts neben dem Video statt darunter – das Video nutzt die volle Höhe."
 }

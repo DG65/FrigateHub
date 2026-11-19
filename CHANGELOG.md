@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.31.0 (Build 58) — 19.11.2026
+
+- **Kamera-Kachel, Ablauf rechts (Rückmeldung Dietmar 19.11.2026):** Bei breiten Kacheln (≥ 900 px und Seitenverhältnis ≥ 4:3, per Media Query) steht der Ablauf je Objekt in einer Spalte (260 px) rechts neben Video bzw. Bild statt darunter; das Video nutzt die volle Höhe. Schmale Kacheln bleiben wie bisher. `.ablauf[hidden]` blendet die leere Leiste sicher aus.
+- Im Browser geprüft (1400 × 820 rechts, schmal darunter).
+
 ## 0.30.0 (Build 57) — 19.11.2026
 
 - **Zeitleiste rechts (Rückmeldung Dietmar 19.11.2026):** Die Zeitleiste der Übersichtskachel steht wahlweise senkrecht rechts neben Raster bzw. Großansicht – neueste Zeit oben, je Kamera eine Spalte, Achse links daneben, Breite 42 + 64 px je Kamera (170–420 px). Je Ansicht unter „⚙ Anordnen“: automatisch (rechts, wenn die Kachel ≥ 900 px breit und Breite/Höhe ≥ 1,45), unten oder rechts (`zeitleiste` in der Ansicht, `FrigateHubServerWerte::layout()` nimmt nur `unten`/`rechts`). Bedienung senkrecht: Ziehen nach unten = Richtung jetzt, Mausrad/zwei Finger zoomen um die Zeigerstelle, Tipp spielt ab, Hinweis seitlich. Gemeinsame Helfer `balken()`, `anteilBei()`.
