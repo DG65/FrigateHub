@@ -32,6 +32,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.32.0' => [
+            '• ▤ Camera tile: on wide tiles the latest events with preview images now stand in a column to the right of the live image, which becomes larger.',
+        ],
         '0.31.0' => [
             '• ▤ Camera tile: on wide tiles the course of an event (detected, entered zone, left …) now stands to the right of the video instead of below it, so the video uses the full height.',
         ],

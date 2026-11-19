@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.32.0 (Build 59) — 19.11.2026
+
+- **Kamera-Kachel, Ereignisse rechts (Rückmeldung Dietmar 19.11.2026):** Bei breiten Kacheln (≥ 900 px und ≥ 4:3, Media Query) stehen die Ereigniskarten in einer Spalte rechts neben Livebild und Schaltern (zwei Karten nebeneinander, senkrecht scrollbar); das Livebild wird höher. Schmale Kacheln unverändert.
+- Im Browser geprüft (1400 × 800).
+
 ## 0.31.0 (Build 58) — 19.11.2026
 
 - **Kamera-Kachel, Ablauf rechts (Rückmeldung Dietmar 19.11.2026):** Bei breiten Kacheln (≥ 900 px und Seitenverhältnis ≥ 4:3, per Media Query) steht der Ablauf je Objekt in einer Spalte (260 px) rechts neben Video bzw. Bild statt darunter; das Video nutzt die volle Höhe. Schmale Kacheln bleiben wie bisher. `.ablauf[hidden]` blendet die leere Leiste sicher aus.
