@@ -245,6 +245,10 @@
         var videoVersuche = 0;
         var tonZustand = '';       // '' = unbekannt, 'ok', 'keineSpur', 'stille' (je Verbindung neu)
         var tonTimer = null;
+        // Ton erst auf Wunsch (0.36.0): Ohne Tonspur behandeln Geräte wie der Echo Show das Video nicht als
+        // Audiowiedergabe und halten laufende Musik nicht an. Ein Tipp auf 🔇 baut die Verbindung mit Ton neu auf.
+        var mitTon = false;
+        var tonWunsch = false;
         var meldungTimer = null;
         var videoTimer = null;
         var letzteMeldung = null;  // Zeitstempel der zuletzt gezeigten Rückmeldung aus PHP
@@ -379,7 +383,7 @@
             var verbindung = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
             pc = verbindung;
             verbindung.addTransceiver('video', { direction: 'recvonly' });
-            verbindung.addTransceiver('audio', { direction: 'recvonly' });
+            if (mitTon) { verbindung.addTransceiver('audio', { direction: 'recvonly' }); }
             verbindung.ontrack = function (ev) {
                 var v = el('video');
                 if (v.srcObject !== ev.streams[0]) { v.srcObject = ev.streams[0]; }
@@ -470,9 +474,19 @@
             hinweis('');
             el('bild').classList.add('video');
             el('rahmen').hidden = true;   // Rahmen gibt es nur im Standbild
-            // Kommen nach 5 s keine Tonpakete, hat der Stream keine abspielbare Tonspur
             clearTimeout(tonTimer);
             var verbindung = pc;
+            if (!mitTon) { return; }
+            if (tonWunsch) {
+                // Verbindung mit Ton steht: einschalten wie gewünscht
+                tonWunsch = false;
+                var vt = el('video');
+                vt.muted = false;
+                el('ton').textContent = '🔊';
+                vt.play().catch(function () { vt.muted = true; el('ton').textContent = '🔇'; });
+                tonStillePruefen(verbindung);
+            }
+            // Kommen nach 5 s keine Tonpakete, hat der Stream keine abspielbare Tonspur
             tonTimer = setTimeout(function () {
                 tonPakete(verbindung).then(function (pakete) {
                     if (pc === verbindung && pakete === 0 && tonZustand === '') { tonOhne('keineSpur'); }
@@ -484,6 +498,18 @@
             ev.stopPropagation();
             if (tonZustand === 'keineSpur' || tonZustand === 'stille') { meldung(tonText(tonZustand)); return; }
             var v = el('video');
+            if (!mitTon) {
+                // Erste Bitte um Ton: das Video im Tipp freigeben (Safari), dann neu verbinden – diesmal mit Tonspur
+                mitTon = true;
+                tonWunsch = true;
+                v.muted = false;
+                v.play().catch(function () { });
+                videoStoppen();
+                videoVersuche = 0;
+                videoStarten();
+                el('ton').textContent = '…';
+                return;
+            }
             v.muted = !v.muted;
             el('ton').textContent = v.muted ? '🔇' : '🔊';
             if (!v.muted && tonZustand === '') { tonStillePruefen(pc); }

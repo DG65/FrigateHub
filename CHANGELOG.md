@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.36.0 (Build 63) — 20.11.2026
+
+- **Livevideo zunächst ohne Tonspur (Forum, 20.11.2026):** Auf Echo-Show-Geräten (Kachel-Visualisierung in der WebView) hielt jedes laufende Livevideo die gleichzeitig laufende Musik an, auch stumm, weil die Kachel immer eine Tonspur anforderte. Kamera-Kachel: WebRTC-Angebot nur mit Video (`mitTon`), der erste Tipp auf 🔇 gibt das Video im Tipp frei (Safari), baut die Verbindung mit Tonspur neu auf und schaltet den Ton nach `playing` ein (`tonWunsch`); Tonprüfungen (keine Spur, Stille) erst mit Ton. Übersichtskachel: Livevideo immer ohne Tonspur (sie hat keinen Ton-Knopf). Wirkung auf dem Echo Show ungetestet.
+- Im Browser geprüft (SDP ohne/mit `m=audio`, Neuverbindung beim Tipp).
+
 ## 0.35.0 (Build 62) — 20.11.2026
 
 - **Zeitleiste ausblendbar (Wunsch aus dem Forum, 20.11.2026):** Übersichtskachel, je Ansicht unter „⚙ Anordnen“ neu „Zeitleiste: aus“ (`zeitleiste: "aus"`, `FrigateHubServerWerte::layout()` nimmt es an). Ausgeblendet im Raster und in der Ereignisliste; in der Großansicht einer Kamera bleibt sie zum Spulen. Die Daten lädt die Kachel weiter (Ereignisliste, ◀ ▶). Nebenbei: `.zl[hidden]` blendet die Zeitleiste jetzt auch unten sicher aus (vorher überschrieb `display: flex` das `hidden`).

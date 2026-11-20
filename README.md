@@ -201,7 +201,8 @@ kaum ein Browser). Nach dem Neustart von Frigate in der Instanz „Zustand jetzt
 Panel „🖥️ Kachel" zeigt dann „Livevideo über go2rtc-Stream …". Unterwegs (außerhalb des
 Heimnetzes) zeigt die Kachel weiter das Standbild.
 
-**Ton:** Das Video startet stumm (Vorgabe der Browser), 🔇 schaltet den Ton ein. Der Browser
+**Ton:** Das Video startet stumm und zunächst ganz ohne Tonspur (ab 0.36), damit Geräte wie der Echo Show
+laufende Musik nicht anhalten. 🔇 verbindet neu mit Ton und schaltet ihn ein; die Übersichtskachel zeigt Livevideo immer ohne Ton. Der Browser
 spielt G.711 (PCMU/PCMA) und Opus; Ton im AAC-Format bringt go2rtc nur mit einer zweiten Quelle
 `- ffmpeg:haustuer#audio=opus` beim Stream mit. Die Kachel erkennt zwei Fälle selbst und zeigt
 dann „🔇 kein Ton" mit Erklärung: Der Stream hat keine abspielbare Tonspur, oder die Kamera schickt

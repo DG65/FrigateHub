@@ -159,7 +159,8 @@ go2rtc:
 ```
 
 Expose port 8555 (TCP and UDP) in Docker. The camera must deliver H.264. Away from home the tile
-shows the still image. The video starts muted (browser rule); 🔇 turns the sound on.
+shows the still image. The video starts muted and at first without any audio track (from 0.36), so devices such as the Echo Show do not pause
+playing music; 🔇 reconnects with sound and turns it on. The overview tile always shows live video without sound.
 
 **Push on alert:** In the “🔔 Push and notifications” panel enter one or more targets (tile
 visualization, WebFront, or SMTP for e-mail with image). Every new alert then arrives once as a

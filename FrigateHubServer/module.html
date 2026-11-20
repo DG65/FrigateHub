@@ -1217,8 +1217,9 @@
         function videoStarten(k) {
             var verbindung = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
             pc = verbindung;
+            // Nur Bild (0.36.0): das Livevideo ist hier immer stumm; ohne Tonspur hält z. B. der Echo Show
+            // keine laufende Musik mehr an (Rückmeldung aus dem Forum)
             verbindung.addTransceiver('video', { direction: 'recvonly' });
-            verbindung.addTransceiver('audio', { direction: 'recvonly' });
             verbindung.ontrack = function (ev) {
                 if (pc !== verbindung || el('liveVideo')) { return; }
                 var v = document.createElement('video');

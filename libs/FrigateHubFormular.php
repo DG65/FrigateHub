@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.36.0' => '💬 Do you show the tiles on an Echo Show or another wall display? Please tell me in the forum whether music now keeps playing alongside the live video.',
         '0.35.0' => '💬 Do you use a view without timeline? Please tell me in the forum how you have split your views — and what you are still missing.',
         '0.34.0' => '💬 Both ideas came from the forum – thank you! Do the event list and ◀ ▶ fit your daily use? Please tell me in the forum what you would still like to see there.',
         '0.29.0' => '💬 Do you use the hotspot field or several views? Please tell me in the forum which arrangement works best for you — and what you are still missing.',
@@ -34,6 +35,9 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.36.0' => [
+            '• 🔇 Live video now starts without an audio track; 🔊 is only fetched when you tap 🔇. Devices such as the Echo Show no longer pause music that is playing at the same time.',
+        ],
         '0.35.0' => [
             '• ⏱ New: “Timeline: off” under “⚙ Arrange” hides the timeline of the overview tile in this view, so the cameras get the full tile. In the large view of a camera it stays for scrubbing.',
         ],
