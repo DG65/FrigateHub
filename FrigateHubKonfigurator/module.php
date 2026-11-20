@@ -78,7 +78,7 @@ class FrigateHubKonfigurator extends IPSModule
                             ['caption' => 'Name', 'name' => 'name', 'width' => 'auto'],
                             ['caption' => 'Camera ID', 'name' => 'kamera', 'width' => '180px'],
                             ['caption' => 'Detection', 'name' => 'erkennung', 'width' => '110px'],
-                            ['caption' => 'Resolution', 'name' => 'aufloesung', 'width' => '170px'],
+                            ['caption' => 'Detection (detect)', 'name' => 'aufloesung', 'width' => '170px'],
                             ['caption' => 'Zones', 'name' => 'zonen', 'width' => '80px'],
                             ['caption' => 'State', 'name' => 'zustand', 'width' => '200px'],
                         ],

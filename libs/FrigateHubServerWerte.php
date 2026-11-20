@@ -212,7 +212,7 @@ class FrigateHubServerWerte
     /**
      * Anordnung der Übersichtskachel (0.29.0) aus JSON:
      * {ansichten: [{id, name, reihenfolge: [Schlüssel], groesse: {Schlüssel: "BxH"}, raster: "SxZ"|"", aus: [Schlüssel],
-     * zeitleiste: ""|"unten"|"rechts" (0.30.0, leer = automatisch)}], aktiv: id}.
+     * zeitleiste: ""|"unten"|"rechts"|"aus" (0.30.0, leer = automatisch; "aus" seit 0.35.0)}], aktiv: id}.
      * Schlüssel = Kamera-ID, `_birdseye` oder `_hotspot` (Hotspot-Feld). Ältere Form (0.27/0.28: reihenfolge,
      * groesse 2–3, raster auf oberster Ebene) wird zu einer Ansicht. Mit $erlaubt bleiben nur diese Kameras.
      */
@@ -242,7 +242,7 @@ class FrigateHubServerWerte
             }
             $ids[] = $id;
             $a = ['id' => $id, 'name' => mb_substr(trim((string)(is_scalar($v['name'] ?? null) ? $v['name'] : '')), 0, 40), 'reihenfolge' => [], 'groesse' => [],
-                'raster' => '', 'aus' => [], 'zeitleiste' => in_array($v['zeitleiste'] ?? '', ['unten', 'rechts'], true) ? $v['zeitleiste'] : ''];
+                'raster' => '', 'aus' => [], 'zeitleiste' => in_array($v['zeitleiste'] ?? '', ['unten', 'rechts', 'aus'], true) ? $v['zeitleiste'] : ''];
             foreach ((array)($v['reihenfolge'] ?? []) as $k) {
                 if ($ok($k) && !in_array($k, $a['reihenfolge'], true) && count($a['reihenfolge']) < 64) {
                     $a['reihenfolge'][] = $k;

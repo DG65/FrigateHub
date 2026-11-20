@@ -255,6 +255,7 @@ check('Layout: Raster nur 1–6 × 1–6', array_map(fn ($r) => $L(json_encode([
 $neu = $L('{"aktiv":"aussen","ansichten":[{"id":"alle","name":"Alle","zeitleiste":"oben"},{"id":"aussen","name":"  Außen  ","zeitleiste":"rechts","reihenfolge":["_hotspot","a","x"],"groesse":{"_hotspot":"2x2","a":"2x1","b":"4x4"},"aus":["b","_hotspot","x"]},{"id":"alle","name":"Doppelt"},{"id":"../x"}]}', ['a', 'b']);
 check('Ansichten: Name gekürzt, Hotspot erlaubt, fremde Kamera und ungültiges Format weg', $neu['ansichten'][1], ['id' => 'aussen', 'name' => 'Außen', 'reihenfolge' => ['_hotspot', 'a'], 'groesse' => ['_hotspot' => '2x2', 'a' => '2x1'], 'raster' => '', 'aus' => ['b'], 'zeitleiste' => 'rechts']);
 check('Ansichten: unbekannte Zeitleisten-Lage → automatisch', $neu['ansichten'][0]['zeitleiste'], '');
+check('Ansichten: Zeitleiste aus (0.35.0)', $L('{"ansichten":[{"id":"v1","zeitleiste":"aus"}]}')['ansichten'][0]['zeitleiste'], 'aus');
 check('Ansichten: doppelte/ungültige IDs ersetzt, aktiv bleibt', [array_column($neu['ansichten'], 'id'), $neu['aktiv']], [['alle', 'aussen', 'v3', 'v4'], 'aussen']);
 check('Ansichten: höchstens 12, unbekannte aktive → erste', [count($L(json_encode(['ansichten' => array_fill(0, 20, []), 'aktiv' => 'zz']))['ansichten']), $L('{"ansichten":[{"id":"q"}],"aktiv":"zz"}')['aktiv']], [12, 'q']);
 check('Layout leer erkannt', [FrigateHubServerWerte::layoutLeer($L('{"ansichten":[{"id":"v1"}]}')), FrigateHubServerWerte::layoutLeer($neu)], [true, false]);

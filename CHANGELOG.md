@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.35.0 (Build 62) — 20.11.2026
+
+- **Zeitleiste ausblendbar (Wunsch aus dem Forum, 20.11.2026):** Übersichtskachel, je Ansicht unter „⚙ Anordnen“ neu „Zeitleiste: aus“ (`zeitleiste: "aus"`, `FrigateHubServerWerte::layout()` nimmt es an). Ausgeblendet im Raster und in der Ereignisliste; in der Großansicht einer Kamera bleibt sie zum Spulen. Die Daten lädt die Kachel weiter (Ereignisliste, ◀ ▶). Nebenbei: `.zl[hidden]` blendet die Zeitleiste jetzt auch unten sicher aus (vorher überschrieb `display: flex` das `hidden`).
+- **Konfigurator, Spalte „Analyse (detect)“ statt „Auflösung“ (Forum, 20.11.2026):** Die Spalte zeigt Frigates `detect`-Auflösung und -Bildrate (meist 5 fps). Als „Auflösung“ las sie sich wie die Bildrate des Livevideos.
+- Prüfstand: `.tools/test-server.php` (+1).
+
 ## 0.34.0 (Build 61) — 20.11.2026
 
 - **Ereignisliste aller Kameras (Wunsch aus dem Forum, 20.11.2026):** Übersichtskachel, Knopf „🗂 Ereignisse“ (neuer Modus `ereignisse`): alle Ereignisse der Kameras der aktuellen Ansicht im Fenster der Zeitleiste (Daten aus `zlDaten`, wächst mit dem Nachladen), neueste zuerst, Vorschau über den Kamera-Hook (`bild=review`), Filter alle/nur Alarme/noch nicht gesehen. Tipp spielt ab und meldet „gesehen“, „🗂 Zurück zu den Ereignissen“ kehrt zur Liste zurück.

@@ -113,7 +113,7 @@
         .wrap.zlrechts .kopf { grid-column: 1 / 3; }
         .wrap.zlrechts .haupt { grid-column: 1; grid-row: 2; min-height: 0; }
         .wrap.zlrechts .zl { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 4px; min-height: 0; }
-        .wrap.zlrechts .zl[hidden] { display: none; }
+        .zl[hidden], .wrap.zlrechts .zl[hidden] { display: none; }
         .wrap.zlrechts .zlkopf { grid-column: 1 / 3; flex-wrap: wrap; justify-content: flex-end; }
         .wrap.zlrechts .zlkopf .luecke { flex-basis: 100%; height: 0; }
         .wrap.zlrechts .achse { grid-column: 1; grid-row: 2; height: auto; margin: 22px 0 0; }
@@ -644,7 +644,7 @@
             kopf.appendChild(wahl);
             var lage = document.createElement('select');
             lage.title = T('Position of the timeline');
-            [['', T('Timeline: automatic')], ['unten', T('Timeline: bottom')], ['rechts', T('Timeline: right')]].forEach(function (x) {
+            [['', T('Timeline: automatic')], ['unten', T('Timeline: bottom')], ['rechts', T('Timeline: right')], ['aus', T('Timeline: off')]].forEach(function (x) {
                 var op = document.createElement('option'); op.value = x[0]; op.textContent = x[1]; lage.appendChild(op);
             });
             lage.value = a.zeitleiste || '';
@@ -1360,7 +1360,7 @@
         var senk = false;
         function zlRechtsBerechnen() {
             var z = daten ? ansichtAktuell().zeitleiste || '' : '';
-            if (z === 'rechts' || z === 'unten') { return z === 'rechts'; }
+            if (z === 'rechts' || z === 'unten' || z === 'aus') { return z === 'rechts'; }
             var w = document.documentElement.clientWidth || window.innerWidth, h = document.documentElement.clientHeight || window.innerHeight;
             return w >= 900 && w / Math.max(1, h) >= 1.45;
         }
@@ -1393,7 +1393,9 @@
             var spuren = el('spuren');
             spuren.textContent = '';
             var kameras = sichtKameras().filter(function (k) { return k.zugang && k.zugang.api; });
-            el('zl').hidden = kameras.length === 0;
+            // „Zeitleiste: aus“ (0.35.0) blendet sie in Raster und Ereignisliste aus; in der Großansicht bleibt sie zum Spulen
+            var zlAus = !!daten && ansichtAktuell().zeitleiste === 'aus' && modus !== 'kamera';
+            el('zl').hidden = kameras.length === 0 || zlAus;
             kameras.forEach(function (k) {
                 var zeile = document.createElement('div');
                 zeile.className = 'spurzeile';

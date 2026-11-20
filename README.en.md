@@ -119,7 +119,8 @@ large view of the camera tile (event bar or archive).
   tile height; more cameras can be scrolled),
 - **hidden cameras** (👁), e.g. for an “Outdoor” view,
 - the **timeline** at the bottom or vertically on the right of the picture (newest time at the top, one column per
-  camera; from 0.30). “Automatic” puts it on the right on wide tiles (from 900 px, clearly wider than high),
+  camera; from 0.30). “Automatic” puts it on the right on wide tiles (from 900 px, clearly wider than high).
+  “Off” (from 0.35) hides it in the grid and the event list; the large view keeps it for scrubbing,
 - the **★ hotspot field:** a large field that shows the camera you tap and switches by itself to the camera with the
   latest alert while the others stay visible (double-tap a small camera or tap the hotspot to open the large view).
   Without a hotspot the tile jumps into the large view for 60 seconds on an alert, as before.
