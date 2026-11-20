@@ -127,6 +127,15 @@
         .wrap.zlrechts .wegspur { top: auto; bottom: auto; left: 0; right: 0; min-width: 0; min-height: 4px; }
         .wrap.zlrechts .kopfpunkt { left: 0; right: 0; width: auto; height: 2px; top: 0; bottom: auto; }
         .tipp.seitlich { transform: translate(-100%, -50%); }
+        /* Ereignisliste aller Kameras (0.34.0) */
+        .eliste { flex: 1 1 auto; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; align-content: start; }
+        .ekarte { position: relative; background: var(--box); border-radius: 10px; overflow: hidden; cursor: pointer; border-top: 3px solid var(--erkennung); }
+        .ekarte.alarm { border-top-color: var(--alarm); }
+        .ekarte.neu::after { content: ''; position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--akzent); box-shadow: 0 0 0 2px rgba(0, 0, 0, .4); }
+        .ekarte img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #111; }
+        .ekarte .t { padding: 4px 8px 6px; font-size: 11px; line-height: 1.35; }
+        .ekarte .t b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ekarte .t span { display: block; color: var(--textmuted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         /* PTZ (0.26.0): Knöpfe oben rechts über dem Livebild, Steuerfläche über dem Bild */
         .buehne .ptzleiste { position: absolute; right: 8px; top: 8px; z-index: 3; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; }
         .buehne .ptzleiste button { background: rgba(0, 0, 0, .6); color: #fff; touch-action: none; }
@@ -200,6 +209,7 @@
         var pc = null;                 // WebRTC-Verbindung der Großansicht
         var ansicht = { bis: Date.now() / 1000, spanne: 86400, folgen: true };
         var zlDaten = {};              // je Kamera {von, bis, aufnahme, ereignisse, laedt}
+        var listeFilter = 'alle';      // Ereignisliste: 'alle' | 'alarm' | 'neu'
         var ordnen = null;             // Anordnen-Modus: {reihenfolge: [...], groesse: {...}} (Entwurf bis „Fertig“)
 
         function el(id) { return document.getElementById(id); }
@@ -227,7 +237,7 @@
             var kopf = el('kopf');
             // Nur bei Änderung neu bauen: sonst trifft ein Tipp womöglich einen gerade ersetzten Knopf
             var schluessel = JSON.stringify([daten.name, daten.eigen, daten.verfuegbar, daten.kameras.length,
-                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, !!folge, modus, ordnen, sichtId, daten.layout]);
+                daten.kameras.filter(function (k) { return k.alarm; }).length, ungesehen(), ungesehenAlle(), !!wg, !!folge, modus, ordnen, sichtId, daten.layout, listeFilter, wg && [wg.kamera, wg.ereignis, wg.ausListe]]);
             if (kopf.dataset.schluessel === schluessel) { return; }
             kopf.dataset.schluessel = schluessel;
             kopf.textContent = '';
@@ -255,6 +265,39 @@
                 sw.value = ansichtAktuell().id;
                 sw.onchange = function () { benutzt(); sichtWaehlen(sw.value); };
                 kopf.appendChild(sw);
+            }
+            if ((modus === 'uebersicht' || modus === 'ereignisse') && !wg && daten.api) {
+                var ev = document.createElement('button');
+                ev.textContent = T('🗂 Events');
+                ev.title = T('All events of the cameras in this view as preview images');
+                if (modus === 'ereignisse') { ev.className = 'an'; }
+                ev.onclick = function () { benutzt(); if (modus === 'ereignisse') { uebersicht(); } else { ereignisseZeigen(); } };
+                kopf.appendChild(ev);
+            }
+            if (modus === 'ereignisse') {
+                var lf = document.createElement('select');
+                [['alle', T('All')], ['alarm', T('Alerts only')], ['neu', T('Not seen yet')]].forEach(function (x) {
+                    var op = document.createElement('option'); op.value = x[0]; op.textContent = x[1]; lf.appendChild(op);
+                });
+                lf.value = listeFilter;
+                lf.onchange = function () { benutzt(); listeFilter = lf.value; ereignislisteFuellen(); };
+                kopf.appendChild(lf);
+            }
+            if (wg && wg.ereignis) {
+                [[T('◀'), T('Earlier event'), -1], [T('▶'), T('Later event'), 1]].forEach(function (x) {
+                    var b = document.createElement('button');
+                    b.textContent = x[0];
+                    b.title = x[1];
+                    b.disabled = !nachbarEreignis(x[2]);
+                    b.onclick = function () { benutzt(); nachbarAbspielen(x[2]); };
+                    kopf.appendChild(b);
+                });
+            }
+            if (wg && wg.ausListe) {
+                var zur = document.createElement('button');
+                zur.textContent = T('🗂 Back to events');
+                zur.onclick = function () { benutzt(); wiedergabeStoppen(); folge = null; ereignisseZeigen(); };
+                kopf.appendChild(zur);
             }
             if (modus === 'uebersicht' && !wg && daten.api && typeof requestAction === 'function') {
                 var o = document.createElement('button');
@@ -404,7 +447,7 @@
             zlLageSetzen();
             var haupt = el('haupt');
             haupt.textContent = '';
-            haupt.className = 'haupt' + (modus === 'kamera' || festesRaster() ? ' voll' : '');
+            haupt.className = 'haupt' + (modus === 'kamera' || modus === 'ereignisse' || festesRaster() ? ' voll' : '');
             if (!daten.api) {
                 var d = document.createElement('div');
                 d.className = 'leer';
@@ -414,6 +457,8 @@
             }
             if (modus === 'kamera') {
                 grossZeichnen(haupt);
+            } else if (modus === 'ereignisse') {
+                ereignislisteZeichnen(haupt);
             } else {
                 rasterZeichnen(haupt);
             }
@@ -761,6 +806,99 @@
                 vor.onerror = function () { naechste(i + 1); };
                 vor.src = serverBild(z.dataset.kamera, hoehe(z));
             })(0);
+        }
+
+        /* ================================================================ Ereignisliste aller Kameras (0.34.0) */
+        // Alle Ereignisse der Kameras der aktuellen Ansicht im Fenster der Zeitleiste (Daten aus zlDaten), neueste zuerst.
+        // Ein Tipp spielt das Ereignis ab; ◀ ▶ springen in derselben Liste zum früheren/späteren Ereignis.
+        function ereignisseAlle(filter) {
+            var von = zlVon(), bis = ansicht.bis, aus = [];
+            sichtKameras().forEach(function (k) {
+                var d = zlDaten[k.kamera];
+                (d ? d.ereignisse : []).forEach(function (e) {
+                    var ende = e.e || jetzt();
+                    if (ende < von || e.s > bis) { return; }
+                    if (filter === 'alarm' && !e.a) { return; }
+                    if (filter === 'neu' && e.g) { return; }
+                    aus.push({ k: k, e: e });
+                });
+            });
+            return aus.sort(function (x, y) { return y.e.s - x.e.s; });
+        }
+        function ereignisseZeigen() {
+            folge = null;
+            wiedergabeStoppen();
+            liveStoppen();
+            modus = 'ereignisse';
+            aktiv = null;
+            hauptZeichnen();
+        }
+        function ereignislisteZeichnen(haupt) {
+            var l = document.createElement('div');
+            l.className = 'eliste';
+            l.id = 'eliste';
+            haupt.appendChild(l);
+            ereignislisteFuellen();
+        }
+        function ereignislisteFuellen() {
+            var l = el('eliste');
+            if (!l) { return; }
+            var liste = ereignisseAlle(listeFilter);
+            var schluessel = JSON.stringify(liste.map(function (x) { return x.k.kamera + x.e.id + (x.e.g ? 1 : 0) + (x.e.e || ''); }));
+            if (l.dataset.schluessel === schluessel) { return; }
+            l.dataset.schluessel = schluessel;
+            l.textContent = '';
+            if (!liste.length) {
+                var leer = document.createElement('div');
+                leer.className = 'leer';
+                leer.textContent = T('No events for this selection.');
+                l.appendChild(leer);
+                return;
+            }
+            liste.forEach(function (x) {
+                var k = x.k, e = x.e;
+                var c = document.createElement('div');
+                c.className = 'ekarte' + (e.a ? ' alarm' : '') + (e.g ? '' : ' neu');
+                var img = document.createElement('img');
+                img.alt = '';
+                img.loading = 'lazy';
+                var u = zugangUrl(k, { bild: 'review', id: e.id });
+                if (u) { img.src = u; }
+                c.appendChild(img);
+                var t = document.createElement('div');
+                t.className = 't';
+                var b = document.createElement('b');
+                b.textContent = e.t;
+                var s1 = document.createElement('span');
+                s1.textContent = k.name + ' · ' + uhrzeit(e.s, ansicht.spanne > 86400 || new Date(e.s * 1000).toDateString() !== new Date().toDateString());
+                t.appendChild(b);
+                t.appendChild(s1);
+                if (e.z && e.z.length) { var s2 = document.createElement('span'); s2.textContent = e.z.join(', '); t.appendChild(s2); }
+                c.appendChild(t);
+                c.onclick = function () { benutzt(); ereignisAbspielen(k.kamera, e, true); };
+                l.appendChild(c);
+            });
+        }
+        function ereignisAbspielen(kamera, e, ausListe) {
+            wiedergabeStarten(kamera, e.s - 3, (e.e || jetzt()) + 2, e.id);
+            if (wg) { wg.ausListe = !!ausListe; kopfZeichnen(); }
+            ereignisGesehen(kamera, e.id);
+        }
+        /** Früheres (-1) bzw. späteres (+1) Ereignis zur laufenden Wiedergabe; aus der Liste mit deren Filter. */
+        function nachbarEreignis(richtung) {
+            if (!wg || !wg.ereignis) { return null; }
+            var liste = ereignisseAlle(wg.ausListe ? listeFilter : 'alle').reverse();   // alt → neu
+            var i = -1;
+            liste.forEach(function (x, j) { if (x.k.kamera === wg.kamera && x.e.id === wg.ereignis) { i = j; } });
+            if (i < 0) { return null; }
+            return liste[i + richtung] || null;
+        }
+        function nachbarAbspielen(richtung) {
+            var n = nachbarEreignis(richtung);
+            if (!n) { return; }
+            var ausListe = wg && wg.ausListe;
+            folge = null;
+            ereignisAbspielen(n.k.kamera, n.e, ausListe);
         }
 
         /* ================================================================ Großansicht */
@@ -1333,6 +1471,7 @@
             document.querySelectorAll('[data-spanne]').forEach(function (b) { b.classList.toggle('an', Math.abs(b.dataset.spanne - spanne) < 1); });
             el('zlJetzt').hidden = ansicht.folgen;
             kopfpunktSetzen(wg ? wgPosition() : null);
+            if (modus === 'ereignisse') { ereignislisteFuellen(); }
         }
 
         function kopfpunktSetzen(t) {

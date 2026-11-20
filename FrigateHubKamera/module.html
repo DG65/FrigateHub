@@ -187,6 +187,8 @@
         <div class="leiste-oben">
             <button id="grossZurueck" hidden>◀ Archive</button>
             <span class="titel" id="grossTitel"></span>
+            <button id="grossFrueher" hidden>◀</button>
+            <button id="grossSpaeter" hidden>▶</button>
             <button id="grossBild" hidden>Image</button>
             <button id="grossClip" hidden>▶ Clip</button>
             <button id="grossFav" hidden title="Keep permanently (Frigate will then not delete it)">☆</button>
@@ -670,7 +672,7 @@
             el('grossInhalt').textContent = '';
             el('grossInhalt')._ptz = null;
             el('grossInhalt').classList.remove('ptzbereit');
-            ['grossBild', 'grossClip', 'grossFav', 'grossExport', 'grossZurueck', 'grossInfo', 'grossWerkzeug', 'grossAblauf'].forEach(function (id) { el(id).hidden = true; });
+            ['grossBild', 'grossClip', 'grossFav', 'grossExport', 'grossZurueck', 'grossInfo', 'grossWerkzeug', 'grossAblauf', 'grossFrueher', 'grossSpaeter'].forEach(function (id) { el(id).hidden = true; });
             el('grossAblauf').textContent = '';
             el('grossInfo').textContent = '';
             el('grossWerkzeug').textContent = '';
@@ -749,7 +751,7 @@
             el('grossClip').classList.remove('aktiv');
         }
 
-        function ereignisOeffnen(e, ausArchiv) {
+        function ereignisOeffnen(e, ausArchiv, mitClip) {
             grossLive = false;
             grossOeffnen((e.ki && e.ki.titel ? e.ki.titel : e.text) + ' · ' + e.zeit + (e.zonen && e.zonen.length ? ' · ' + e.zonen.join(', ') : ''));
             if (ausArchiv) {
@@ -812,9 +814,32 @@
                 el('grossClip').onclick = function () { videoAn(); };
             }
             ablaufZeigen(e, e.ende ? clipStart : Math.max(0, e.start - 5), clipEnde, videoAn);
+            // ◀ ▶: früheres/späteres Ereignis derselben Liste (Leiste bzw. gefiltertes Archiv, beide neueste zuerst)
+            var liste = ausArchiv ? archivListe(archivStand && archivStand.filter) : (daten.ereignisse || []);
+            var i = -1;
+            liste.forEach(function (x, j) { if (x.id === e.id) { i = j; } });
+            [['grossFrueher', i + 1, T('Earlier event')], ['grossSpaeter', i - 1, T('Later event')]].forEach(function (n) {
+                var b = el(n[0]), ziel = i >= 0 ? liste[n[1]] : null;
+                b.hidden = !ziel;
+                b.title = n[2];
+                b.onclick = function () { ereignisOeffnen(ziel, ausArchiv, el('grossClip').classList.contains('aktiv')); };
+            });
+            if (mitClip && (e.ende || e.ereignis)) { videoAn(); }
         }
 
         /* ---------------------------------------------------------------- Archiv */
+
+        /** Einträge des Archivs mit Filter (für Raster und ◀ ▶ in der Großansicht). */
+        function archivListe(f) {
+            f = f || '';
+            return ((archivStand && archivStand.eintraege) || []).filter(function (e) {
+                if (f === 'alarm' || f === 'erkennung') { return e.stufe === f; }
+                if (f === 'neu') { return e.gesehen === false; }
+                if (f === 'ki') { return e.ki && e.ki.stufe >= 1; }
+                if (f.indexOf('l:') === 0) { return (e.labels || []).indexOf(f.substring(2)) >= 0; }
+                return true;
+            });
+        }
 
         function archivOeffnen(tag) {
             grossLive = false;
@@ -840,13 +865,7 @@
             function zeigen() {
                 raster.textContent = '';
                 var f = filter.value;
-                var liste = (archivStand.eintraege || []).filter(function (e) {
-                    if (f === 'alarm' || f === 'erkennung') { return e.stufe === f; }
-                    if (f === 'neu') { return e.gesehen === false; }
-                    if (f === 'ki') { return e.ki && e.ki.stufe >= 1; }
-                    if (f.indexOf('l:') === 0) { return (e.labels || []).indexOf(f.substring(2)) >= 0; }
-                    return true;
-                });
+                var liste = archivListe(f);
                 if (!liste.length) {
                     var d = document.createElement('div');
                     d.className = 'leer';

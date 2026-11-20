@@ -18,6 +18,7 @@ trait FrigateHubFormular
     // nach jedem Update wieder — anders als der Rückmeldungs-Hinweis, der nach „Verstanden" für immer weg ist.
     // Gezeigt wird die Bitte der neuesten ungesehenen Version, sonst die allgemeine.
     private static $FRIGATEHUB_NEWS_BITTE = [
+        '0.34.0' => '💬 Both ideas came from the forum – thank you! Do the event list and ◀ ▶ fit your daily use? Please tell me in the forum what you would still like to see there.',
         '0.29.0' => '💬 Do you use the hotspot field or several views? Please tell me in the forum which arrangement works best for you — and what you are still missing.',
         '0.27.0' => '💬 How have you arranged your cameras in the overview tile? Please tell me in the forum which layout you are missing — and how dragging the PTZ camera feels.',
         '0.26.0' => '💬 Have you tried aiming your PTZ camera in the picture? Please tell me in the forum whether click and frame land where you expected — and which camera you use.',
@@ -32,6 +33,10 @@ trait FrigateHubFormular
 
     // „Was ist neu": Schlüssel = Version ohne Beta-/Build-Suffix.
     private static $FRIGATEHUB_NEWS_VERSIONS = [
+        '0.34.0' => [
+            '• 🗂 New in the overview tile: “🗂 Events” shows all events of the cameras in the current view as preview images, newest first, filterable (all, alerts only, not seen yet). A tap plays the event.',
+            '• ◀ ▶ New: while an event is playing (overview tile) or shown large (camera tile), ◀ and ▶ jump to the earlier or later event of the same list – a running clip keeps playing.',
+        ],
         '0.33.0' => [
             '• ▤ Camera tile: on wide tiles the live image now takes exactly the width its stream needs (no black side bars); the space gained goes to larger preview images on the right.',
         ],

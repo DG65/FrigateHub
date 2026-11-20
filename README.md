@@ -132,6 +132,10 @@ Kachel für alle Kameras dieser Frigate-Instanz:
   erkanntes Gesicht, dann das Aussehen (nur mit eingeschalteter **semantischer Suche** in Frigate), sonst die
   Zeit – dann steht ein „?“ am Abschnitt. Frigate erkennt nicht von selbst, dass es dieselbe Person ist; ohne
   Gesicht ist die Zuordnung eine gute Vermutung, keine Gewissheit.
+- **Ereignisse (ab 0.34):** „🗂 Ereignisse“ im Kopf zeigt alle Ereignisse der Kameras der aktuellen Ansicht im Fenster
+  der Zeitleiste als Vorschaubilder, neueste zuerst, wahlweise alle, nur Alarme oder noch nicht gesehene. Ein Tipp
+  spielt das Ereignis ab; während der Wiedergabe springen ◀ ▶ zum früheren bzw. späteren Ereignis, „🗂 Zurück zu den
+  Ereignissen“ führt zur Liste. ◀ ▶ gibt es auch in der Großansicht der Kamera-Kachel (Leiste oder Archiv).
 - **Anordnen (ab 0.27, Ansichten ab 0.29):** „⚙ Anordnen“ im Kopf der Kachel. Je **Ansicht** legst du fest:
   - **Reihenfolge** per Ziehen (Maus) oder ◀ ▶ (Touch),
   - **Feldgröße** je Kamera: 1 × 1, breit 2 × 1 und 3 × 2, hoch 1 × 2 und 2 × 3, groß 2 × 2 und 3 × 3,

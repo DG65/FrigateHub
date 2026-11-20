@@ -107,6 +107,11 @@ automatically; the path is shown above the video and outlined in the timeline. D
 decides first, then appearance (only with Frigate's **semantic search** enabled), otherwise time — the section
 is then marked “?”. Without a face the assignment is a good guess, not a certainty.
 
+**Events (from 0.34):** “🗂 Events” in the header shows all events of the cameras in the current view within the
+timeline window as preview images, newest first, optionally all, alerts only or not seen yet. A tap plays the event;
+during playback ◀ ▶ jump to the earlier or later event, “🗂 Back to events” returns to the list. ◀ ▶ also exist in the
+large view of the camera tile (event bar or archive).
+
 **Arrange (from 0.27, views from 0.29):** “⚙ Arrange” in the tile header. Per **view** you set:
 - the **order** by dragging (mouse) or ◀ ▶ (touch),
 - the **field size** per camera: 1 × 1, wide 2 × 1 and 3 × 2, tall 1 × 2 and 2 × 3, large 2 × 2 and 3 × 3,

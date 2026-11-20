@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.34.0 (Build 61) — 20.11.2026
+
+- **Ereignisliste aller Kameras (Wunsch aus dem Forum, 20.11.2026):** Übersichtskachel, Knopf „🗂 Ereignisse“ (neuer Modus `ereignisse`): alle Ereignisse der Kameras der aktuellen Ansicht im Fenster der Zeitleiste (Daten aus `zlDaten`, wächst mit dem Nachladen), neueste zuerst, Vorschau über den Kamera-Hook (`bild=review`), Filter alle/nur Alarme/noch nicht gesehen. Tipp spielt ab und meldet „gesehen“, „🗂 Zurück zu den Ereignissen“ kehrt zur Liste zurück.
+- **◀ ▶ zum früheren/späteren Ereignis (Wunsch aus dem Forum):** Übersichtskachel während einer Ereigniswiedergabe (über alle Kameras der Ansicht, aus der Liste mit deren Filter); Kamera-Kachel in der Großansicht eines Ereignisses (Leiste bzw. gefiltertes Archiv, neue Funktion `archivListe()`), ein laufender Clip startet beim Nachbarn gleich mit.
+- Prüfstand: 2 angepasste Prüfungen in `.tools/test-frigatehub.php`; im Browser mit Testdaten geprüft (Liste, Filter, Abspielen, ◀ ▶ über Kameras, Zurück; Kamera-Kachel ◀ ▶ mit Clip, Ränder).
+
 ## 0.33.0 (Build 60) — 19.11.2026
 
 - **Kamera-Kachel, Livebild ohne Seitenstreifen (Rückmeldung Dietmar 19.11.2026):** In breiten Kacheln setzt `seitenAnpassen()` die Breite des Livebilds aus dem Seitenverhältnis des Streams (Video `videoWidth/Height`, sonst Standbild `naturalWidth/Height`) bei voller Höhe; die Ereignisspalte bekommt den Rest (mindestens 244 px). Die Karten wachsen mit (`minmax(118px, 1fr)`, Vorschau 16:9). Neu berechnet bei Bild/Video-Wechsel und Größenänderung.
